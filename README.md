@@ -150,7 +150,7 @@ Aplikasi "Turnamenku" dirancang untuk melayani dua jenis pengguna utama dengan h
 
 ### Implementasi Teknis
 
-Pembagian peran ini diimplementasikan langsung pada model `User` kustom di aplikasi `users`.
+Pembagian peran ini diimplementasikan langsung pada model `User` kustom di aplikasi `main`.
 
 * Sebuah *field* bernama `role` ditambahkan ke model `User` dengan pilihan (choices) yang telah ditentukan, yaitu `'PENYELENGGARA'` dan `'PEMAIN'`.
 * Di dalam *views* dan *templates*, nilai dari *field* `role` ini akan digunakan untuk mengatur logika bisnis. Contohnya:
@@ -158,7 +158,7 @@ Pembagian peran ini diimplementasikan langsung pada model `User` kustom di aplik
    * *View* yang memproses form pembuatan turnamen akan memiliki pengecekan untuk memastikan hanya penyelenggara yang dapat mengaksesnya, mencegah akses tidak sah melalui URL langsung.
 
 
-
+---
 
 
 ## Link PWS Deployment-Web Design
