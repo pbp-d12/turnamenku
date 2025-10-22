@@ -1,0 +1,107 @@
+{% extends 'base.html' %}
+
+{% block title %}Login{% endblock title %} {% block content %}
+<div class="container mx-auto mt-12 mb-12 p-4">
+    <div class="max-w-md mx-auto bg-white p-8 rounded-xl shadow-md border border-gray-200">
+        <h2 class="text-3xl font-bold text-custom-blue-400 mb-8 text-center">Login</h2>
+
+        <div id="error-toast-container" class="mb-6"></div>
+
+        <form id="login-form" method="POST" class="space-y-6">
+            {% csrf_token %}
+
+            {% for field in form %}
+            <div>
+                <label for="{{ field.id_for_label }}" class="block text-sm font-semibold text-gray-700 mb-1">
+                    {{ field.label }} </label>
+                {{ field }}
+                <div id="error-{{ field.id_for_label }}" class="text-red-500 text-sm mt-1"></div>
+            </div>
+            {% endfor %}
+
+            <button type="submit" class="w-full bg-custom-blue-400 text-white font-bold py-2.5 px-4 rounded-lg
+                               hover:bg-custom-blue-300 focus:outline-none focus:ring-2
+                               focus:ring-offset-2 focus:ring-custom-blue-300 transition duration-150 ease-in-out">
+                Login </button>
+        </form>
+        <p class="text-center text-sm text-gray-600 mt-6">
+            Belum punya akun? <a href="{% url 'main:register' %}"
+                class="font-medium text-custom-blue-400 hover:text-custom-blue-300 hover:underline">Daftar di sini</a>
+        </p>
+    </div>
+</div>
+
+<script>
+    document.querySelectorAll('#login-form input').forEach(el => {
+        if (el.type !== 'hidden') {
+            el.classList.remove('border-gray-300', 'shadow-sm', 'focus:ring-custom-blue-200');
+            el.classList.add(
+                'block', 'w-full', 'px-4', 'py-2',
+                'border', 'border-gray-300',
+                'rounded-md', 'shadow-sm',
+                'placeholder-gray-400',
+                'text-gray-900',
+                'focus:outline-none',
+                'focus:ring-2', 'focus:ring-custom-blue-300',
+                'focus:border-custom-blue-300',
+                'transition', 'duration-150', 'ease-in-out'
+            );
+            if (el.dataset.hasError === 'true') {
+                el.classList.remove('border-gray-300', 'focus:border-custom-blue-300');
+                el.classList.add('border-red-500', 'focus:border-red-500', 'focus:ring-red-500');
+            }
+        }
+    });
+</script>
+
+<script>
+    document.getElementById('login-form').addEventListener('submit', async function (e) {
+        e.preventDefault();
+        const form = e.target;
+        const formData = new FormData(form);
+        const inputs = form.querySelectorAll('input');
+
+        // Reset error styling
+        inputs.forEach(el => {
+            el.classList.remove('border-red-500', 'focus:border-red-500', 'focus:ring-red-500');
+            if (!el.classList.contains('border-gray-300')) {
+                el.classList.add('border-gray-300', 'focus:border-custom-blue-300', 'focus:ring-custom-blue-300');
+            }
+            el.dataset.hasError = 'false';
+            const errorDiv = document.getElementById(`error-${el.id}`);
+            if (errorDiv) errorDiv.textContent = '';
+        });
+        const errorToastContainer = document.getElementById('error-toast-container');
+        if (errorToastContainer) errorToastContainer.innerHTML = '';
+
+
+        try {
+            const response = await fetch(form.action, {
+                method: 'POST',
+                body: formData,
+                headers: { 'X-CSRFToken': formData.get('csrfmiddlewaretoken') },
+            });
+            const data = await response.json();
+
+            if (data.status === "success") {
+                if (typeof showToast === 'function') showToast(data.message, 'success');
+                setTimeout(() => { window.location.href = data.redirect_url; }, 1000);
+
+            } else if (data.status === "error") {
+                if (typeof showToast === 'function') showToast(data.message, 'error');
+                inputs.forEach(el => {
+                    if (el.type !== 'hidden' && el.type !== 'checkbox' && el.type !== 'radio') {
+                        el.classList.remove('border-gray-300', 'focus:border-custom-blue-300', 'focus:ring-custom-blue-300');
+                        el.classList.add('border-red-500', 'focus:border-red-500', 'focus:ring-red-500');
+                        el.dataset.hasError = 'true';
+                    }
+                });
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            // Ubah pesan error
+            if (typeof showToast === 'function') showToast('Terjadi kesalahan. Coba lagi nanti.', 'error');
+        }
+    });
+</script>
+{% endblock content %}
