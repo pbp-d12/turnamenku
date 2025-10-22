@@ -1,0 +1,32 @@
+{% extends 'layout_navbar.html' %}
+{% load static %}
+
+{% block page_title %}Profil {{ profile_user.username }}{% endblock page_title %} {% block main_content %}
+<div class="max-w-2xl mx-auto bg-white p-8 rounded-xl shadow-lg">
+    <div class="flex flex-col items-center">
+        <img class="w-64 h-64 rounded-full border-4 border-custom-blue-100 object-cover"
+            src="{% if profile.profile_picture %}{{ profile.profile_picture.url }}{% else %}{% static 'images/default_avatar.png' %}{% endif %}"
+            alt="Foto profil {{ profile_user.username }}">
+        <h1 class="text-3xl font-bold text-custom-blue-400 mt-4">{{ profile_user.username }}</h1>
+        <span class="mt-1 text-sm font-medium bg-custom-blue-100 text-custom-blue-400 px-3 py-1 rounded-full">
+            {{ profile.get_role_display }} </span>
+
+        <p class="text-gray-600 text-center mt-4">
+            {{ profile.bio|default:"User ini belum menulis bio." }}
+        </p>
+
+        {% if user.is_authenticated and user == profile_user %}
+        <a href="{% url 'main:edit_profile' %}"
+            class="mt-6 w-full text-center bg-custom-blue-400 text-white font-bold py-2 px-4 rounded-lg hover:bg-custom-blue-300 focus:outline-none focus:ring-2 focus:ring-custom-blue-200">
+            Edit Profil
+        </a>
+        {% endif %}
+    </div>
+
+    <hr class="my-6 border-gray-200">
+    <div>
+        <h2 class="text-xl font-bold text-gray-800">Histori Turnamen</h2>
+        <p class="text-gray-500 mt-2">(Data tim dan histori prediksi akan muncul di sini nanti...)</p>
+    </div>
+</div>
+{% endblock main_content %}

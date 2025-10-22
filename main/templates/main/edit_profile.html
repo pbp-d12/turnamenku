@@ -1,0 +1,209 @@
+{% extends 'layout_navbar.html' %}
+{% load static %}
+
+{% block page_title %}Edit Profil{% endblock page_title %}
+
+{% block main_content %}
+<div class="max-w-lg mx-auto bg-white p-8 rounded-xl shadow-md border border-gray-200">
+    <h2 class="text-3xl font-bold text-custom-blue-400 mb-8 text-center">Edit Profil</h2>
+
+    <img id="profile-pic-preview"
+        src="{% if user.profile.profile_picture %}{{ user.profile.profile_picture.url }}{% else %}{% static 'images/default_avatar.png' %}{% endif %}"
+        alt="Preview Foto Profil"
+        class="w-64 h-64 rounded-full mx-auto mb-8 object-cover border-4 border-custom-blue-100">
+    <form id="edit-profile-form" method="POST" enctype="multipart/form-data" class="space-y-6">
+        {% csrf_token %}
+
+        {% for field in u_form %}
+        <div>
+            <label for="{{ field.id_for_label }}" class="block text-sm font-semibold text-gray-700 mb-1">
+                {{ field.label }}
+            </label>
+            {{ field }}
+            <div id="error-{{ field.id_for_label }}" class="text-red-500 text-sm mt-1"></div>
+        </div>
+        {% endfor %}
+
+        {% for field in p_form %}
+        <div>
+            <label for="{{ field.id_for_label }}" class="block text-sm font-semibold text-gray-700 mb-1">
+                {{ field.label }}
+            </label>
+            {% if field.name == 'profile_picture' %}
+            <p class="text-xs text-gray-500 mb-1">Upload foto baru (opsional):</p>
+            {% endif %}
+            {{ field }}
+            <div id="error-{{ field.id_for_label }}" class="text-red-500 text-sm mt-1"></div>
+        </div>
+        {% endfor %}
+
+        <button type="submit" class="w-full bg-custom-blue-400 text-white font-bold py-2.5 px-4 rounded-lg
+                       hover:bg-custom-blue-300 focus:outline-none focus:ring-2
+                       focus:ring-offset-2 focus:ring-custom-blue-300 transition duration-150 ease-in-out mt-4">
+            Simpan Perubahan
+        </button>
+    </form>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () { // Pastikan DOM siap
+        const form = document.getElementById('edit-profile-form');
+        if (!form) return;
+
+        // --- Styling untuk Input Teks, Email, Textarea ---
+        form.querySelectorAll('input[type="text"], input[type="email"], textarea').forEach(el => {
+            el.classList.add(
+                'block', 'w-full', 'px-4', 'py-2', 'mt-1', // Padding & margin
+                'border', 'border-gray-300',
+                'rounded-md', 'shadow-sm',
+                'placeholder-gray-400',
+                'text-gray-900',
+                'focus:outline-none',
+                'focus:ring-2', 'focus:ring-custom-blue-300',
+                'focus:border-custom-blue-300',
+                'transition', 'duration-150', 'ease-in-out'
+            );
+            // Styling error (jika ada dari submit sebelumnya - jarang terjadi krn AJAX)
+            if (el.dataset.hasError === 'true') {
+                el.classList.remove('border-gray-300', 'focus:border-custom-blue-300');
+                el.classList.add('border-red-500', 'focus:border-red-500', 'focus:ring-red-500');
+            }
+        });
+
+        // --- Styling untuk Select (Dropdown Role) ---
+        form.querySelectorAll('select').forEach(el => {
+            el.classList.add(
+                'block', 'w-full', 'px-4', 'py-2', 'mt-1',
+                'border', 'border-gray-300',
+                'rounded-md', 'shadow-sm',
+                'text-gray-900',
+                'focus:outline-none',
+                'focus:ring-2', 'focus:ring-custom-blue-300',
+                'focus:border-custom-blue-300',
+                'transition', 'duration-150', 'ease-in-out',
+                'appearance-none' // Hilangkan tampilan default browser
+            );
+            // Tambahkan panah dropdown custom (opsional tapi bagus)
+            el.style.backgroundImage = `url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e")`;
+            el.style.backgroundPosition = 'right 0.5rem center';
+            el.style.backgroundRepeat = 'no-repeat';
+            el.style.backgroundSize = '1.5em 1.5em';
+            el.style.paddingRight = '2.5rem'; // Beri ruang untuk panah
+
+            // Styling error
+            if (el.dataset.hasError === 'true') {
+                el.classList.remove('border-gray-300', 'focus:border-custom-blue-300');
+                el.classList.add('border-red-500', 'focus:border-red-500', 'focus:ring-red-500');
+            }
+        });
+
+        // --- Styling untuk File Input (Tombol Choose File) ---
+        form.querySelectorAll('input[type="file"]').forEach(el => {
+            el.classList.add(
+                'block', 'w-full', 'text-sm', 'text-gray-500', 'mt-1',
+                'file:mr-4', 'file:py-2', 'file:px-4', // Style tombol 'file:'
+                'file:rounded-lg', 'file:border-0', // Bentuk tombol
+                'file:text-sm', 'file:font-semibold',
+                'file:bg-custom-blue-50', 'file:text-custom-blue-400', // Warna tombol
+                'hover:file:bg-custom-blue-100', // Warna hover
+                'cursor-pointer' // Tunjukkan bisa diklik
+            );
+            // Styling error
+            if (el.dataset.hasError === 'true') {
+                // Mungkin cukup beri border merah pada container div-nya jika ada?
+                // Atau tampilkan error di div bawahnya. Styling file input error agak tricky.
+            }
+        });
+    });
+</script>
+
+
+<script>
+    const profilePicInput = document.getElementById('id_profile_picture');
+    const profilePicPreview = document.getElementById('profile-pic-preview');
+
+    if (profilePicInput) {
+        profilePicInput.addEventListener('change', function (event) {
+            const file = event.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function (e) {
+                    profilePicPreview.src = e.target.result;
+                }
+                reader.readAsDataURL(file);
+            }
+        });
+    }
+</script>
+
+<script>
+    document.getElementById('edit-profile-form').addEventListener('submit', async function (e) {
+        e.preventDefault();
+        const form = e.target;
+        const formData = new FormData(form);
+        const inputs = form.querySelectorAll('input, select, textarea');
+
+        // Reset error styling
+        inputs.forEach(el => {
+            el.classList.remove('border-red-500', 'focus:border-red-500', 'focus:ring-red-500');
+            if (el.type !== 'file' && !el.classList.contains('border-gray-300')) {
+                el.classList.add('border-gray-300', 'focus:border-custom-blue-300', 'focus:ring-custom-blue-300');
+            }
+            el.dataset.hasError = 'false';
+            const errorDiv = document.getElementById(`error-${el.id}`);
+            if (errorDiv) errorDiv.textContent = '';
+        });
+
+        try {
+            const response = await fetch(form.action, {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-CSRFToken': formData.get('csrfmiddlewaretoken'),
+                },
+            });
+
+            const data = await response.json();
+
+            if (data.status === "success") {
+                if (typeof showToast === 'function') showToast(data.message, 'success');
+                setTimeout(() => { window.location.href = data.redirect_url; }, 1000);
+
+            } else if (data.status === "error") {
+                let errorMessages = [];
+                if (data.errors && typeof data.errors === 'object') {
+                    Object.keys(data.errors).forEach(fieldName => {
+                        data.errors[fieldName].forEach(errorDetail => {
+                            errorMessages.push(errorDetail.message); // Kumpulkan pesan saja
+                        });
+
+                        if (fieldName === '__all__') return;
+                        const inputElement = form.querySelector(`[name="${fieldName}"]`);
+                        if (inputElement) {
+                            inputElement.classList.remove('border-gray-300', 'focus:border-custom-blue-300', 'focus:ring-custom-blue-300');
+                            if (inputElement.type !== 'file') {
+                                inputElement.classList.add('border-red-500', 'focus:border-red-500', 'focus:ring-red-500');
+                            }
+                            inputElement.dataset.hasError = 'true';
+                            const errorDiv = document.getElementById(`error-${inputElement.id}`);
+                            if (errorDiv && data.errors[fieldName].length > 0) {
+                                errorDiv.textContent = data.errors[fieldName][0].message; // Tampilkan error pertama di bawah field
+                            }
+                        }
+                    });
+                }
+                if (errorMessages.length === 0) {
+                    errorMessages.push(data.message || 'Update gagal.');
+                }
+                // Tampilkan semua error di toast
+                if (typeof showToast === 'function') {
+                    showToast(errorMessages.join('<br>'), 'error');
+                }
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            if (typeof showToast === 'function') showToast('Terjadi kesalahan. Coba lagi nanti.', 'error');
+        }
+    });
+</script>
+{% endblock main_content %}
