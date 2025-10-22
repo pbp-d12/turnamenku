@@ -1,3 +1,11 @@
 from django.db import models
+from django.contrib.auth.models import User
 
-# Create your models here.
+class Team(models.Model):
+    name = models.CharField(max_length=255, unique=True)
+    logo = models.ImageField(upload_to='team_logos/', blank=True, null=True)
+    captain = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='captained_teams')
+    members = models.ManyToManyField(User, related_name='teams', blank=True)
+
+    def __str__(self):
+        return self.name
