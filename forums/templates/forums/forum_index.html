@@ -1,0 +1,44 @@
+{% extends 'layout_navbar.html' %}
+{% load static %}
+{% block page_title %}Pilih Forum{% endblock page_title %}
+
+{% block main_content %}
+<div class="max-w-4xl mx-auto">
+    
+    <h1 class="text-3xl font-bold text-custom-blue-400 mb-6">
+        Pilih Forum Turnamen
+    </h1>
+
+    <div class="bg-white rounded-lg shadow-xl overflow-hidden">
+        <div class="divide-y divide-custom-blue-50">
+            
+            {% if tournaments %}
+                {% for tournament in tournaments %}
+
+                <a href="{% url 'forums:forum_threads' tournament.pk %}" class="flex p-4 items-center hover:bg-custom-blue-50 transition-colors duration-150">
+                    
+                    <div class="flex-grow">
+                        <span class="font-semibold text-lg text-custom-blue-400 hover:underline">{{ tournament.name }}</span>
+                        {% comment %} 
+                            Model 'Tournament' kamu mungkin belum punya 'description'.
+                            Baris ini aman, akan menampilkan string kosong jika tidak ada.
+                        {% endcomment %}
+                        <p class="text-sm text-custom-blue-300">{{ tournament.description|default_if_none:''|truncatewords:20 }}</p>
+                    </div>
+
+                    <div class="flex-shrink-0 text-right text-custom-blue-400">
+                        Lihat Forum &rarr;
+                    </div>
+                </a>
+                {% endfor %}
+            {% else %}
+                <div class="p-6 text-center text-custom-blue-300">
+                    <p class="text-lg">Belum ada turnamen yang dibuat.</p>
+                </div>
+            {% endif %}
+
+        </div>
+    </div>
+    
+</div>
+{% endblock main_content %}
