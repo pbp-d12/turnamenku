@@ -1,0 +1,199 @@
+{% extends 'base.html' %}
+{% load tz %}
+{% load static %}
+
+{% block title %}{{ thread.title }}{% endblock title %}
+
+{% block content %}
+{% timezone "Asia/Jakarta" %} 
+<div class="container mx-auto p-4 md:p-8 max-w-3xl">
+
+    <div class="mb-6">
+        <a href="{% url 'forums:forum_threads' thread.tournament.pk %}" class="text-custom-blue-300 hover:underline">&larr; Kembali ke Daftar Forum</a>
+        <h1 class="text-4xl font-bold text-custom-blue-400 mt-2">{{ thread.title }}</h1>
+        <p class="text-lg text-custom-blue-300">
+            Dimulai oleh <span class="font-semibold">{{ thread.author.username }}</span> pada {{ thread.created_at|date:"d M Y" }}
+        </p>
+    </div>
+
+    <div id="posts-list" class="space-y-4 mb-8">
+        {% for post in posts %}
+        <div class="bg-white p-5 rounded-lg shadow-lg flex space-x-4">
+
+            <div class="flex-shrink-0 w-24 text-center">
+                <img src="https://placehold.co/80x80/D1DBE4/194A7A?text={{ post.author.username|slice:':1'|upper }}" alt="Avatar" class="rounded-full mx-auto mb-2">
+                <span class="font-bold text-custom-blue-400">{{ post.author.username }}</span>
+            </div>
+
+            <div class="flex-1">
+                <p class="text-xs text-custom-blue-200 mb-2">{{ post.created_at|date:"d M Y, H:i" }}</p>
+                <p class="text-custom-blue-400 whitespace-pre-wrap">{{ post.body }}</p>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    <!-- Form Balas Thread -->
+    {% if user.is_authenticated %}
+    <div class="bg-white p-5 rounded-lg shadow-xl">
+        <h3 class="text-2xl font-bold text-custom-blue-400 mb-4">Tinggalkan Balasan</h3>
+        <form id="new-post-form" method="POST">
+            {% csrf_token %}
+            <div class="mb-4">
+                <label for="post-content" class="sr-only">Komentar kamu</label>
+                <textarea id="post-content" name="body" rows="5" 
+                          class="w-full p-3 border border-custom-blue-100 rounded-lg text-custom-blue-400 focus:outline-none focus:ring-2 focus:ring-custom-blue-300 transition-all duration-300"
+                          placeholder="Tulis balasan kamu di sini..."
+                          required></textarea>
+                <div id="post-error" class="text-red-500 text-sm mt-2 hidden">
+                    Balasan tidak boleh kosong!
+                </div>
+            </div>
+            <div>
+                <button type="submit" 
+                        id="submit-button"
+                        class="bg-custom-blue-400 text-white font-bold py-2 px-5 rounded-lg shadow-md hover:bg-custom-blue-300 transition-colors duration-300 disabled:bg-custom-blue-200 disabled:cursor-not-allowed">
+                    Kirim Balasan
+                </button>
+            </div>
+        </form>
+    </div>
+    {% else %}
+    <div class="text-center p-6 bg-white rounded-lg shadow-lg">
+        <p class="text-custom-blue-300">Silakan <a href="{% url 'login' %}" class="font-bold text-custom-blue-400 hover:underline">login</a> untuk membalas thread ini.</p>
+    </div>
+    {% endif %}
+
+</div>
+{% endtimezone %}
+{% endblock content %}
+{% block javascript %}
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const postForm = document.getElementById('new-post-form');
+        const contentInput = document.getElementById('post-content');
+        const submitButton = document.getElementById('submit-button');
+        const errorDiv = document.getElementById('post-error');
+        
+        if (postForm) {
+            // Real-time validation
+            contentInput.addEventListener('input', function() {
+                const content = contentInput.value.trim();
+                const isEmpty = content.length === 0;
+                
+                // Disable button if empty
+                submitButton.disabled = isEmpty;
+                
+                // Show/hide error message
+                if (isEmpty) {
+                    errorDiv.classList.remove('hidden');
+                    contentInput.classList.add('border-red-300');
+                    contentInput.classList.remove('border-custom-blue-100');
+                } else {
+                    errorDiv.classList.add('hidden');
+                    contentInput.classList.remove('border-red-300');
+                    contentInput.classList.add('border-custom-blue-100');
+                }
+            });
+    
+            postForm.addEventListener('submit', async function (e) {
+                e.preventDefault();
+                console.log('AJAX submission started'); // Debug line
+    
+                const content = contentInput.value.trim();
+                const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+    
+                // Double-check validation
+                if (!content) {
+                    errorDiv.classList.remove('hidden');
+                    contentInput.classList.add('border-red-300');
+                    contentInput.focus();
+                    
+                    if (typeof showToast === 'function') {
+                        showToast('Balasan tidak boleh kosong!', 'error');
+                    } else {
+                        alert('Balasan tidak boleh kosong!');
+                    }
+                    return false; // Prevent form submission
+                }
+    
+                // Disable button during submission
+                submitButton.disabled = true;
+                submitButton.textContent = 'Mengirim...';
+    
+                try {
+                    // Use FormData
+                    const formData = new FormData();
+                    formData.append('body', content);
+    
+                    const response = await fetch(window.location.pathname, {
+                        method: 'POST',
+                        headers: {
+                            'X-CSRFToken': csrfToken
+                        },
+                        body: formData
+                    });
+    
+                    if (response.ok) {
+                        const data = await response.json();
+                        
+                        appendNewPost(data);
+                        
+                        // Clear form
+                        contentInput.value = '';
+                        errorDiv.classList.add('hidden');
+                        contentInput.classList.remove('border-red-300');
+                        contentInput.classList.add('border-custom-blue-100');
+    
+                        if (typeof showToast === 'function') {
+                            showToast('Balasan berhasil dikirim!', 'success');
+                        } else {
+                            alert('Balasan berhasil dikirim!');
+                        }
+    
+                    } else {
+                        const errorData = await response.json();
+                        throw new Error(errorData.error || 'Gagal mengirim balasan.');
+                    }
+                } catch (error) {
+                    console.error('Error:', error);
+                    if (typeof showToast === 'function') {
+                        showToast(error.message || 'Terjadi kesalahan jaringan.', 'error');
+                    } else {
+                        alert(error.message || 'Terjadi kesalahan jaringan.');
+                    }
+                } finally {
+                    // Re-enable button
+                    submitButton.disabled = false;
+                    submitButton.textContent = 'Kirim Balasan';
+                }
+    
+                return false; // Completely prevent form submission
+            });
+        }
+    
+        function appendNewPost(data) {
+            const postsList = document.getElementById('posts-list');
+            if (!postsList) return;
+    
+            const newPostHtml = `
+            <div class="bg-white p-5 rounded-lg shadow-lg flex space-x-4">
+                <div class="flex-shrink-0 w-24 text-center">
+                    <img src="https://placehold.co/80x80/D1DBE4/194A7A?text=${data.username.charAt(0).toUpperCase()}" alt="Avatar" class="rounded-full mx-auto mb-2">
+                    <span class="font-bold text-custom-blue-400">${data.username}</span>
+                </div>
+                <div class="flex-1">
+                    <p class="text-xs text-custom-blue-200 mb-2">${data.created_at}</p>
+                    <p class="text-custom-blue-400 whitespace-pre-wrap">${data.content}</p>
+                </div>
+            </div>
+            `;
+            
+            postsList.insertAdjacentHTML('beforeend', newPostHtml);
+            
+            // Scroll to the new post
+            postsList.lastElementChild.scrollIntoView({ behavior: 'smooth' });
+        }
+    });
+    </script>
+{% endblock javascript %}
