@@ -1,5 +1,7 @@
 from django.urls import path
-from . import views # (Atau import views kamu)
+from . import views  # (Atau import views kamu)
+
+app_name = 'predictions'
 
 # Ini WAJIB ADA, meskipun masih kosong
 urlpatterns = [

@@ -1,0 +1,140 @@
+{% extends 'base.html' %}
+
+{% block title %}Register{% endblock title %} {% block content %}
+<div class="container mx-auto mt-12 mb-12 p-4">
+    <div class="max-w-md mx-auto bg-white p-8 rounded-xl shadow-md border border-gray-200">
+        <h2 class="text-3xl font-bold text-custom-blue-400 mb-8 text-center">Buat Akun</h2>
+
+        <div id="message-container" class="mb-6"></div>
+
+        <form id="register-form" method="POST" class="space-y-6">
+            {% csrf_token %}
+
+            {% for field in form %}
+            <div>
+                <label for="{{ field.id_for_label }}" class="block text-sm font-semibold text-gray-700 mb-1">
+                    {{ field.label }} </label>
+                {{ field }}
+                {% if field.help_text %} <p class="text-xs text-gray-500 mt-1">{{ field.help_text|safe }}</p>
+                {% endif %}
+                <div id="error-{{ field.id_for_label }}" class="text-red-500 text-sm mt-1"></div>
+            </div>
+            {% endfor %}
+
+            <button type="submit" class="w-full bg-custom-blue-400 text-white font-bold py-2.5 px-4 rounded-lg
+                               hover:bg-custom-blue-300 focus:outline-none focus:ring-2
+                               focus:ring-offset-2 focus:ring-custom-blue-300 transition duration-150 ease-in-out">
+                Daftar </button>
+        </form>
+        <p class="text-center text-sm text-gray-600 mt-6">
+            Sudah punya akun? <a href="{% url 'main:login' %}"
+                class="font-medium text-custom-blue-400 hover:text-custom-blue-300 hover:underline">Login di sini</a>
+        </p>
+    </div>
+</div>
+
+<script>
+    document.querySelectorAll('#register-form input, #register-form select').forEach(el => {
+        if (el.type !== 'hidden') {
+            el.classList.remove('border-gray-300', 'shadow-sm', 'focus:ring-custom-blue-200');
+            el.classList.add(
+                'block', 'w-full', 'px-4', 'py-2',
+                'border', 'border-gray-300',
+                'rounded-md', 'shadow-sm',
+                'placeholder-gray-400',
+                'text-gray-900',
+                'focus:outline-none',
+                'focus:ring-2', 'focus:ring-custom-blue-300',
+                'focus:border-custom-blue-300',
+                'transition', 'duration-150', 'ease-in-out'
+            );
+            if (el.dataset.hasError === 'true') {
+                el.classList.remove('border-gray-300', 'focus:border-custom-blue-300');
+                el.classList.add('border-red-500', 'focus:border-red-500', 'focus:ring-red-500');
+            }
+        }
+    });
+</script>
+
+<script>
+    document.getElementById('register-form').addEventListener('submit', async function (e) {
+        e.preventDefault();
+        const form = e.target;
+        const formData = new FormData(form);
+        const inputs = form.querySelectorAll('input, select');
+
+        // Reset error styling
+        inputs.forEach(el => {
+            el.classList.remove('border-red-500', 'focus:border-red-500', 'focus:ring-red-500');
+            if (!el.classList.contains('border-gray-300')) {
+                el.classList.add('border-gray-300', 'focus:border-custom-blue-300', 'focus:ring-custom-blue-300');
+            }
+            el.dataset.hasError = 'false';
+            const errorDiv = document.getElementById(`error-${el.id}`);
+            if (errorDiv) errorDiv.textContent = '';
+        });
+
+        try {
+            const response = await fetch(form.action, {
+                method: 'POST',
+                body: formData,
+                headers: { 'X-CSRFToken': formData.get('csrfmiddlewaretoken') },
+            });
+            const data = await response.json();
+
+            if (data.status === "success") {
+                if (typeof showToast === 'function') showToast(data.message, 'success');
+                setTimeout(() => { window.location.href = "{% url 'main:login' %}"; }, 2000);
+
+            }
+            else if (data.status === "error") {
+                // 1. Siapkan pesan HANYA dari list errors (tanpa <ul><li>)
+                let errorMessages = []; // Tampung semua pesan error
+                if (data.errors && typeof data.errors === 'object') {
+                    // Loop melalui field errors (e.g., 'username', 'password2')
+                    Object.keys(data.errors).forEach(fieldName => {
+                        // Loop melalui list error untuk field tersebut
+                        data.errors[fieldName].forEach(errorDetail => {
+                            // Ambil hanya pesan errornya
+                            errorMessages.push(errorDetail.message);
+                        });
+
+                        // 2. (OPSIONAL TAPI BAGUS) Highlight field yang error
+                        let inputName = fieldName;
+                        // Handle penamaan field password khusus
+                        if (fieldName === '__all__') return; // Abaikan error non-field
+                        if (fieldName === 'password') inputName = 'password1';
+                        if (fieldName === 'password2') inputName = 'password2'; // Nama field password confirmation di UserCreationForm
+
+                        const inputElement = form.querySelector(`[name="${inputName}"]`);
+                        if (inputElement) {
+                            inputElement.classList.remove('border-gray-300', 'focus:border-custom-blue-300', 'focus:ring-custom-blue-300');
+                            inputElement.classList.add('border-red-500', 'focus:border-red-500', 'focus:ring-red-500');
+                            inputElement.dataset.hasError = 'true';
+                            // Optional: Tampilkan error pertama di bawah field
+                            const errorDiv = document.getElementById(`error-${inputElement.id}`);
+                            if (errorDiv && data.errors[fieldName].length > 0) {
+                                errorDiv.textContent = data.errors[fieldName][0].message;
+                            }
+                        }
+                    });
+                }
+
+                // Jika tidak ada error spesifik, gunakan pesan general
+                if (errorMessages.length === 0) {
+                    errorMessages.push(data.message || 'Registrasi gagal.');
+                }
+
+                // 3. Panggil showToast dengan pesan error yang digabung pakai <br>
+                if (typeof showToast === 'function') {
+                    showToast(errorMessages.join('<br>'), 'error');
+                }
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            // Ubah pesan error
+            if (typeof showToast === 'function') showToast('Terjadi kesalahan. Coba lagi nanti.', 'error');
+        }
+    });
+</script>
+{% endblock content %}
