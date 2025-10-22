@@ -1,10 +1,11 @@
 from django.urls import path
-from . import views  # (Atau import views kamu)
+from predictions.views import prediction_list, submit_prediction, evaluate_predictions, leaderboard_view
 
 app_name = 'predictions'
 
-# Ini WAJIB ADA, meskipun masih kosong
 urlpatterns = [
-    # Nanti kamu bisa tambahkan path kamu di sini
-    # Contoh: path('', views.index, name='index'),
+    path('<int:tournament_id>/', prediction_list, name='prediction_list'),
+    path('submit/', submit_prediction, name='submit_prediction'),
+    path('evaluate/<int:match_id>/', evaluate_predictions, name='evaluate_predictions'),
+    path('leaderboard/<int:tournament_id>/', leaderboard_view, name='leaderboard'),
 ]
