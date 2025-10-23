@@ -29,10 +29,13 @@ class UserRegisterForm(UserCreationForm):
 
     def save(self, commit=True):
         user = super().save(commit=False)
+
+        selected_role = self.cleaned_data.get('role')
+        user._registration_role = selected_role
+
         if commit:
             user.save()
-            role = self.cleaned_data.get('role')
-            Profile.objects.create(user=user, role=role)
+
         return user
 
 

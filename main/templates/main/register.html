@@ -1,12 +1,14 @@
 {% extends 'base.html' %}
 
-{% block title %}Register{% endblock title %} {% block content %}
-<div class="container mx-auto mt-12 mb-12 p-4">
-    <div class="max-w-md mx-auto bg-white p-8 rounded-xl shadow-md border border-gray-200">
+{% block title %}Registrasi{% endblock title %}
+
+{% block content %}
+<div class="container mx-auto mt-12 mb-12 px-4 py-8 sm:px-6 lg:px-8">
+
+    <div class="max-w-md mx-auto bg-white p-6 sm:p-8 rounded-xl shadow-md border border-gray-200">
         <h2 class="text-3xl font-bold text-custom-blue-400 mb-8 text-center">Buat Akun</h2>
 
         <div id="message-container" class="mb-6"></div>
-
         <form id="register-form" method="POST" class="space-y-6">
             {% csrf_token %}
 
@@ -14,7 +16,7 @@
             <div>
                 <label for="{{ field.id_for_label }}" class="block text-sm font-semibold text-gray-700 mb-1">
                     {{ field.label }} </label>
-                {{ field }}
+                {{ field }} {# Script di bawah akan styling #}
                 {% if field.help_text %} <p class="text-xs text-gray-500 mt-1">{{ field.help_text|safe }}</p>
                 {% endif %}
                 <div id="error-{{ field.id_for_label }}" class="text-red-500 text-sm mt-1"></div>
@@ -24,7 +26,8 @@
             <button type="submit" class="w-full bg-custom-blue-400 text-white font-bold py-2.5 px-4 rounded-lg
                                hover:bg-custom-blue-300 focus:outline-none focus:ring-2
                                focus:ring-offset-2 focus:ring-custom-blue-300 transition duration-150 ease-in-out">
-                Daftar </button>
+                Daftar
+            </button>
         </form>
         <p class="text-center text-sm text-gray-600 mt-6">
             Sudah punya akun? <a href="{% url 'main:login' %}"
@@ -34,25 +37,28 @@
 </div>
 
 <script>
-    document.querySelectorAll('#register-form input, #register-form select').forEach(el => {
-        if (el.type !== 'hidden') {
-            el.classList.remove('border-gray-300', 'shadow-sm', 'focus:ring-custom-blue-200');
-            el.classList.add(
-                'block', 'w-full', 'px-4', 'py-2',
-                'border', 'border-gray-300',
-                'rounded-md', 'shadow-sm',
-                'placeholder-gray-400',
-                'text-gray-900',
-                'focus:outline-none',
-                'focus:ring-2', 'focus:ring-custom-blue-300',
-                'focus:border-custom-blue-300',
-                'transition', 'duration-150', 'ease-in-out'
-            );
-            if (el.dataset.hasError === 'true') {
-                el.classList.remove('border-gray-300', 'focus:border-custom-blue-300');
-                el.classList.add('border-red-500', 'focus:border-red-500', 'focus:ring-red-500');
+    document.addEventListener('DOMContentLoaded', function () { // Pastikan DOM siap
+        document.querySelectorAll('#register-form input, #register-form select').forEach(el => {
+            if (el.type !== 'hidden') {
+                el.classList.remove('border-gray-300', 'shadow-sm', 'focus:ring-custom-blue-200'); // Hapus kelas lama dulu
+                el.classList.add(
+                    'block', 'w-full', 'px-4', 'py-2', 'mt-1',
+                    'border', 'border-gray-300',
+                    'rounded-md', 'shadow-sm',
+                    'placeholder-gray-400',
+                    'text-gray-900',
+                    'focus:outline-none',
+                    'focus:ring-2', 'focus:ring-custom-blue-300',
+                    'focus:border-custom-blue-300',
+                    'transition', 'duration-150', 'ease-in-out'
+                );
+                // Tambahkan styling khusus jika field ada error (setelah AJAX)
+                if (el.dataset.hasError === 'true') {
+                    el.classList.remove('border-gray-300', 'focus:border-custom-blue-300');
+                    el.classList.add('border-red-500', 'focus:border-red-500', 'focus:ring-red-500');
+                }
             }
-        }
+        });
     });
 </script>
 
@@ -63,13 +69,15 @@
         const formData = new FormData(form);
         const inputs = form.querySelectorAll('input, select');
 
-        // Reset error styling
+        // Reset error styling sebelumnya
         inputs.forEach(el => {
             el.classList.remove('border-red-500', 'focus:border-red-500', 'focus:ring-red-500');
+            // Pastikan style normal kembali
             if (!el.classList.contains('border-gray-300')) {
                 el.classList.add('border-gray-300', 'focus:border-custom-blue-300', 'focus:ring-custom-blue-300');
             }
             el.dataset.hasError = 'false';
+            // Kosongkan div error di bawah field
             const errorDiv = document.getElementById(`error-${el.id}`);
             if (errorDiv) errorDiv.textContent = '';
         });
@@ -80,61 +88,105 @@
                 body: formData,
                 headers: { 'X-CSRFToken': formData.get('csrfmiddlewaretoken') },
             });
+
+            // --- PENTING: Cek status HTTP dulu ---
+            if (!response.ok) {
+                // Jika status bukan 2xx (misal 400 Bad Request), coba parse error JSON
+                let errorData = { message: 'Terjadi kesalahan server.', errors: {} }; // Default error
+                try {
+                    // Coba parse JSON error dari backend
+                    errorData = await response.json();
+                } catch (jsonError) {
+                    console.error('Gagal parse JSON error:', jsonError, await response.text()); // Log error & respons teks
+                    errorData.message = `Error ${response.status}: ${response.statusText}. Coba lagi.`;
+                }
+                // Tampilkan error menggunakan fungsi handler
+                handleRegistrationError(form, errorData);
+                return; // Hentikan eksekusi jika error HTTP
+            }
+            // --- AKHIR CEK STATUS HTTP ---
+
+            // Jika response.ok (status 2xx), baru parse JSON sukses
             const data = await response.json();
 
+            // Cek status aplikasi dari JSON
             if (data.status === "success") {
                 if (typeof showToast === 'function') showToast(data.message, 'success');
                 setTimeout(() => { window.location.href = "{% url 'main:login' %}"; }, 2000);
 
+            } else if (data.status === "error") {
+                // Seharusnya tidak masuk sini jika response.ok, tapi sebagai fallback
+                console.warn("Received 'error' status with 2xx HTTP response:", data);
+                handleRegistrationError(form, data);
+            } else {
+                // Kasus aneh jika status tidak 'success' atau 'error'
+                console.error("Status respons tidak dikenal:", data);
+                if (typeof showToast === 'function') showToast('Respons tidak dikenal dari server.', 'error');
             }
-            else if (data.status === "error") {
-                // 1. Siapkan pesan HANYA dari list errors (tanpa <ul><li>)
-                let errorMessages = []; // Tampung semua pesan error
-                if (data.errors && typeof data.errors === 'object') {
-                    // Loop melalui field errors (e.g., 'username', 'password2')
-                    Object.keys(data.errors).forEach(fieldName => {
-                        // Loop melalui list error untuk field tersebut
+        } catch (error) { // Error jaringan atau script
+            console.error('Network/Script Error:', error);
+            if (typeof showToast === 'function') showToast('Terjadi kesalahan jaringan atau script. Coba lagi nanti.', 'error');
+        }
+    });
+
+    // --- Fungsi BANTUAN untuk menangani error registrasi ---
+    function handleRegistrationError(form, data) {
+        let errorMessages = []; // Untuk toast
+        let hasSpecificErrors = false; // Tandai jika ada error per field
+
+        if (data.errors && typeof data.errors === 'object') {
+            Object.keys(data.errors).forEach(fieldName => {
+                // Cek apakah fieldName adalah field form valid (bukan __all__)
+                if (fieldName !== '__all__') {
+                    // Coba cari elemen input/select yang sesuai
+                    let inputName = fieldName;
+                    // Handle nama field password internal Django
+                    if (fieldName === 'password') inputName = 'new_password1';
+                    if (fieldName === 'password2') inputName = 'new_password2';
+
+                    const inputElement = form.querySelector(`[name="${inputName}"]`);
+
+                    // Jika elemen form ditemukan, proses error field
+                    if (inputElement) {
+                        hasSpecificErrors = true;
                         data.errors[fieldName].forEach(errorDetail => {
-                            // Ambil hanya pesan errornya
-                            errorMessages.push(errorDetail.message);
-                        });
+                            const errorMessage = errorDetail.message || 'Error tidak diketahui';
+                            errorMessages.push(errorMessage); // Kumpulkan untuk toast
 
-                        // 2. (OPSIONAL TAPI BAGUS) Highlight field yang error
-                        let inputName = fieldName;
-                        // Handle penamaan field password khusus
-                        if (fieldName === '__all__') return; // Abaikan error non-field
-                        if (fieldName === 'password') inputName = 'password1';
-                        if (fieldName === 'password2') inputName = 'password2'; // Nama field password confirmation di UserCreationForm
-
-                        const inputElement = form.querySelector(`[name="${inputName}"]`);
-                        if (inputElement) {
+                            // Tampilkan error pertama di bawah field
+                            const errorDiv = document.getElementById(`error-${inputElement.id}`);
+                            if (errorDiv && !errorDiv.textContent) { // Hanya tampilkan error pertama
+                                errorDiv.textContent = errorMessage;
+                            }
+                            // Highlight field
                             inputElement.classList.remove('border-gray-300', 'focus:border-custom-blue-300', 'focus:ring-custom-blue-300');
                             inputElement.classList.add('border-red-500', 'focus:border-red-500', 'focus:ring-red-500');
                             inputElement.dataset.hasError = 'true';
-                            // Optional: Tampilkan error pertama di bawah field
-                            const errorDiv = document.getElementById(`error-${inputElement.id}`);
-                            if (errorDiv && data.errors[fieldName].length > 0) {
-                                errorDiv.textContent = data.errors[fieldName][0].message;
-                            }
-                        }
+                        });
+                    } else {
+                        // Jika field tidak ditemukan di form, tambahkan error ke pesan general
+                        data.errors[fieldName].forEach(errorDetail => {
+                            errorMessages.push(`${fieldName.replace('_', ' ').capitalize()}: ${errorDetail.message}`);
+                        });
+                    }
+                } else {
+                    // Handle error non-field (__all__)
+                    data.errors[fieldName].forEach(errorDetail => {
+                        errorMessages.push(errorDetail.message);
                     });
                 }
-
-                // Jika tidak ada error spesifik, gunakan pesan general
-                if (errorMessages.length === 0) {
-                    errorMessages.push(data.message || 'Registrasi gagal.');
-                }
-
-                // 3. Panggil showToast dengan pesan error yang digabung pakai <br>
-                if (typeof showToast === 'function') {
-                    showToast(errorMessages.join('<br>'), 'error');
-                }
-            }
-        } catch (error) {
-            console.error('Error:', error);
-            // Ubah pesan error
-            if (typeof showToast === 'function') showToast('Terjadi kesalahan. Coba lagi nanti.', 'error');
+            });
         }
-    });
+
+        // Jika tidak ada error spesifik ATAU errorMessages tetap kosong, gunakan pesan general
+        if (errorMessages.length === 0) {
+            errorMessages.push(data.message || 'Registrasi gagal. Silakan cek kembali isian Anda.');
+        }
+
+        if (typeof showToast === 'function') {
+            const toastMessage = hasSpecificErrors ? ('<b>Registrasi Gagal:</b><br>' + errorMessages.join('<br>')) : errorMessages.join('<br>');
+            showToast(toastMessage, 'error');
+        }
+    }
 </script>
 {% endblock content %}
