@@ -1,9 +1,12 @@
 from django.urls import path
-from . import views # (Meskipun views.py masih kosong, ini tidak apa-apa)
+from . import views 
 
-app_name = 'tournaments' # Tambahkan ini untuk namespace
+app_name = 'tournaments'
 
-# Ini WAJIB ADA, meskipun masih kosong
 urlpatterns = [
-    # path('', views.index, name='index'), # Contoh path, bisa kamu uncomment nanti
+    path('', views.tournament_home, name='tournament_home'),
+    path('json/', views.get_tournaments_json, name='get_tournaments_json'),
+    path('<int:tournament_id>/', views.tournament_detail_page, name='tournament_detail_page'),
+    path('json/<int:tournament_id>/', views.get_tournament_detail_json, name='get_tournament_detail_json'),
+    path('create/', views.create_tournament, name='create_tournament'),
 ]
