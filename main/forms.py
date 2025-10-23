@@ -59,19 +59,29 @@ class UserUpdateForm(forms.ModelForm):
 
 
 class ProfileUpdateForm(forms.ModelForm):
-    profile_picture = forms.URLField(label='URL Foto Profil', required=False)
+    profile_picture = forms.URLField(label='URL Foto Profil', required=False,
+                                     widget=forms.URLInput(attrs={'placeholder': 'https://example.com/image.png'}))
+    bio = forms.CharField(label='Biografi', required=False, widget=forms.Textarea(
+        attrs={'rows': 4}))
 
     class Meta:
         model = Profile
         fields = ['role', 'bio', 'profile_picture']
         labels = {
-            'bio': 'Biografi',
             'role': 'Peran Akun'
         }
         widgets = {
-            'profile_picture': forms.URLInput(attrs={'placeholder': 'https://example.com/image.png'}),
             'bio': forms.Textarea(attrs={'rows': 4}),
         }
+
+    def __init__(self, *args, **kwargs):
+        user = kwargs.get('instance').user if kwargs.get('instance') else None
+        super(ProfileUpdateForm, self).__init__(*args, **kwargs)
+
+        if 'role' in self.fields and user and not user.is_superuser:
+            allowed_choices = Profile.REGISTRATION_ROLE_CHOICES
+
+            self.fields['role'].choices = allowed_choices
 
 
 class CustomPasswordChangeForm(PasswordChangeForm):
