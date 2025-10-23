@@ -5,7 +5,7 @@ class Tournament(models.Model):
     name = models.CharField(max_length=255)
     description = models.TextField(blank=True, null=True)
     organizer = models.ForeignKey(User, on_delete=models.CASCADE)
-    banner = models.ImageField(upload_to='tournament_banners/', blank=True, null=True)
+    banner = models.URLField(max_length=500, blank=True, null=True)
     start_date = models.DateField()
     end_date = models.DateField()
     participants = models.ManyToManyField('teams.Team', related_name='tournaments', blank=True)

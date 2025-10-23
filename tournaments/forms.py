@@ -11,12 +11,12 @@ class TournamentForm(forms.ModelForm):
             'description': forms.Textarea(attrs={'rows': 3, 'placeholder': 'Deskripsi singkat turnamen...'}),
             'start_date': forms.DateInput(attrs={'type': 'date'}),
             'end_date': forms.DateInput(attrs={'type': 'date'}),
-            'banner': forms.FileInput(),
+            'banner': forms.URLInput(attrs={'placeholder': 'https://example.com/banner.jpg'}),
         }
         labels = { # Optional: Prettier labels
             'name': 'Nama Turnamen',
             'description': 'Deskripsi',
-            'banner': 'Gambar Banner (Opsional)',
+            'banner': 'URL Banner (Opsional)',
             'start_date': 'Tanggal Mulai',
             'end_date': 'Tanggal Selesai',
         }
