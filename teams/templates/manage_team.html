@@ -1,8 +1,8 @@
-<div id="modal-join" class="modal-overlay show">
+<div id="modal-manage" class="modal-overlay show">
   <div class="modal">
     <div class="modal-header">
-      <button onclick="closeModal('modal-join')">&times;</button>
-      <h2>Search For a Teams</h2>
+      <button onclick="closeModal('modal-manage')">&times;</button>
+      <h2>Manage Your Teams</h2>
       <div class="modal-search">Search</div>
     </div>
 
@@ -15,20 +15,15 @@
             {% else %}
               <div class="team-avatar"></div>
             {% endif %}
-
             <div class="team-text">
               <h3>{{ team.name }}</h3>
-              {% if team.captain %}
-                <p>Captain: {{ team.captain.username }}</p>
-              {% else %}
-                <p>Captain: -</p>
-              {% endif %}
+              <p>Member count: {{ team.members.count }}</p>
             </div>
           </div>
-          <button class="action-btn">Join</button>
+          <button class="action-btn">Configure</button>
         </div>
       {% empty %}
-        <p>No teams found.</p>
+        <p>No managed teams found.</p>
       {% endfor %}
     </div>
   </div>
