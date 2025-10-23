@@ -150,6 +150,8 @@ STATICFILES_DIRS = [
 # Storage engine untuk WhiteNoise
 STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
+LOGIN_URL = '/login/'
+
 
 # Media files (Uploads Pengguna seperti Foto Profil)
 # =================================================================

@@ -3,7 +3,7 @@
 
 {% block content %}
 <nav class="bg-custom-blue-400 shadow-lg">
-    <div class="container mx-auto px-4"> 
+    <div class="container mx-auto px-4">
         <div class="flex justify-between items-center py-3">
 
             <a href="{% url 'main:home' %}" class="text-2xl font-bold">
@@ -13,10 +13,12 @@
 
             <ul class="hidden md:flex items-center space-x-6">
                 <!-- test forums app: Hillary -->
-                <li><a href="{% url 'forums:forum_index' %}" class="text-custom-blue-50 hover:text-white font-medium">Forums</a></li>
+                <li><a href="{% url 'forums:forum_index' %}"
+                        class="text-custom-blue-50 hover:text-white font-medium">Forums</a></li>
                 <!-- end test forums app -->
                 <!-- test predictions app: Rasyid -->
-                <li><a href="{% url 'predictions:predictions_index' %}" class="text-custom-blue-50 hover:text-white font-medium">Predictions</a></li>
+                <li><a href="{% url 'predictions:predictions_index' %}"
+                        class="text-custom-blue-50 hover:text-white font-medium">Predictions</a></li>
                 <!-- end test predictions app -->
                 <li><a href="{% url 'teams:show_main_teams' %}" class="text-custom-blue-50 hover:text-white font-medium">Teams</a></li>
                 <li><a href="#" class="text-custom-blue-50 hover:text-white font-medium">Tournaments</a></li>
@@ -24,44 +26,46 @@
 
             <div class="flex items-center space-x-3">
                 {% if user.is_authenticated %}
-                    <div class="relative">
-                        <button id="profile-menu-button" class="flex items-center space-x-2 group focus:outline-none">
-                            <span class="text-white font-medium group-hover:text-custom-blue-100">
-                                {{ user.username }}
-                            </span>
-                            <img class="w-9 h-9 rounded-full border-2 border-custom-blue-100 group-hover:border-white object-cover"
-                                 src="{% if user.profile.profile_picture %}{{ user.profile.profile_picture.url }}{% else %}{% static 'images/default_avatar.png' %}{% endif %}"
-                                 alt="{{ user.username }} profile picture">
-                        </button>
+                <div class="relative">
+                    <button id="profile-menu-button" class="flex items-center space-x-2 group focus:outline-none">
+                        <span class="text-white font-medium group-hover:text-custom-blue-100">
+                            {{ user.username }}
+                        </span>
+                        <img class="w-9 h-9 rounded-full border-2 border-custom-blue-100 group-hover:border-white object-cover"
+                            src="{% if user.profile.profile_picture %}{{ user.profile.profile_picture.url }}{% else %}{% static 'images/default_avatar.png' %}{% endif %}"
+                            alt="{{ user.username }} profile picture">
+                    </button>
 
-                        <div id="profile-menu-dropdown" 
-                             class="hidden absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-50 ring-1 ring-black ring-opacity-5">
-                            <a href="{% url 'main:profile' username=user.username %}" 
-                               class="block px-4 py-2 text-sm text-gray-700 hover:bg-custom-blue-50 hover:text-custom-blue-400">
-                                Profil Saya
-                            </a>
-                            <a href="{% url 'main:edit_profile' %}" 
-                               class="block px-4 py-2 text-sm text-gray-700 hover:bg-custom-blue-50 hover:text-custom-blue-400">
-                                Edit Profil
-                            </a>
-                            <div class="border-t border-gray-100 my-1"></div>
-                            <button id="logout-button" 
-                                    data-logout-url="{% url 'main:logout' %}" 
-                                    data-csrf="{{ csrf_token }}"
-                                    class="block w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 hover:text-red-700">
-                                Logout
-                            </button>
-                        </div>
+                    <div id="profile-menu-dropdown"
+                        class="hidden absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-50 ring-1 ring-black ring-opacity-5">
+                        <a href="{% url 'main:profile' username=user.username %}"
+                            class="block px-4 py-2 text-sm text-gray-700 hover:bg-custom-blue-50 hover:text-custom-blue-400">
+                            Profil Saya
+                        </a>
+                        <a href="{% url 'main:edit_profile' %}"
+                            class="block px-4 py-2 text-sm text-gray-700 hover:bg-custom-blue-50 hover:text-custom-blue-400">
+                            Edit Profil
+                        </a>
+                        <a href="{% url 'main:change_password' %}"
+                            class="block px-4 py-2 text-sm text-gray-700 hover:bg-custom-blue-50 hover:text-custom-blue-400">
+                            Ganti Password </a>
+                        <div class="border-t border-gray-100 my-1"></div>
+                        <button id="logout-button" data-logout-url="{% url 'main:logout' %}"
+                            data-csrf="{{ csrf_token }}"
+                            class="block w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 hover:text-red-700">
+                            Logout
+                        </button>
                     </div>
+                </div>
                 {% else %}
-                    <a href="{% url 'main:login' %}"
-                        class="text-white px-3 py-1.5 rounded-md text-sm font-medium hover:bg-custom-blue-300">
-                        Login
-                    </a>
-                    <a href="{% url 'main:register' %}"
-                        class="bg-white text-custom-blue-400 px-3 py-1.5 rounded-md text-sm font-bold hover:bg-custom-blue-50">
-                        Register
-                    </a>
+                <a href="{% url 'main:login' %}"
+                    class="text-white px-3 py-1.5 rounded-md text-sm font-medium hover:bg-custom-blue-300">
+                    Login
+                </a>
+                <a href="{% url 'main:register' %}"
+                    class="bg-white text-custom-blue-400 px-3 py-1.5 rounded-md text-sm font-bold hover:bg-custom-blue-50">
+                    Register
+                </a>
                 {% endif %}
             </div>
         </div>
@@ -86,7 +90,7 @@
             const messagesDataElement = document.getElementById('django-messages');
             if (messagesDataElement) {
                 const messages = JSON.parse(messagesDataElement.textContent);
-                messages.forEach(function(message) {
+                messages.forEach(function (message) {
                     let type = message.tags;
                     if (type === 'warning') type = 'error';
                     if (typeof showToast === 'function') {
@@ -104,16 +108,16 @@
 
 <script>
     // ... (script logout kamu) ...
-    document.addEventListener('DOMContentLoaded', function() {
+    document.addEventListener('DOMContentLoaded', function () {
         const logoutButton = document.getElementById('logout-button');
         if (logoutButton) {
-            logoutButton.addEventListener('click', async function() {
+            logoutButton.addEventListener('click', async function () {
                 const url = logoutButton.dataset.logoutUrl;
                 const csrfToken = logoutButton.dataset.csrf;
                 try {
                     const response = await fetch(url, {
-                        method: 'POST', 
-                        headers: {'X-CSRFToken': csrfToken},
+                        method: 'POST',
+                        headers: { 'X-CSRFToken': csrfToken },
                     });
                     const data = await response.json();
                     if (data.status === 'success') {
@@ -130,16 +134,16 @@
     });
 </script>
 <script>
-    document.addEventListener('DOMContentLoaded', function() {
+    document.addEventListener('DOMContentLoaded', function () {
         const menuButton = document.getElementById('profile-menu-button');
         const dropdownMenu = document.getElementById('profile-menu-dropdown');
 
         if (menuButton && dropdownMenu) {
-            menuButton.addEventListener('click', function(event) {
+            menuButton.addEventListener('click', function (event) {
                 event.stopPropagation();
                 dropdownMenu.classList.toggle('hidden');
             });
-            window.addEventListener('click', function(event) {
+            window.addEventListener('click', function (event) {
                 if (!menuButton.contains(event.target) && !dropdownMenu.contains(event.target)) {
                     dropdownMenu.classList.add('hidden');
                 }
