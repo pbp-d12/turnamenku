@@ -140,7 +140,7 @@ USE_TZ = True
 # =================================================================
 # https://docs.djangoproject.com/en/5.2/howto/static-files/
 
-STATIC_URL = 'static/'
+STATIC_URL = '/static/'
 # Folder tempat 'collectstatic' akan mengumpulkan semua file statis
 STATIC_ROOT = BASE_DIR / 'staticfiles'
 # Folder tambahan untuk file statis (di root proyek)

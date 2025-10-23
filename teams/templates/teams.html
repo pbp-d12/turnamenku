@@ -1,11 +1,158 @@
 <!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Document</title>
-</head>
+<html>
+  {% load static %}
+  <head>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta charset="utf-8" />
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet"> <!--Sementara wok-->
+  </head>
+
+  <style>
+  /* === GLOBAL === */
+  * {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+  }
+
+  body {
+    font-family: "Poppins";
+  }
+
+  /* === TEAMS SECTION === */
+  .teams {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3rem;
+    padding: 6rem 2rem;
+  }
+
+  /* === FRAMES CONTAINER === */
+  .frames-container {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 2rem;
+    width: 100%;
+    max-width: 1200px;
+  }
+
+  /* === FRAME (CARD) === */
+  .frame {
+    flex: 1 1 300px; /* Responsive width */
+    max-width: 360px;
+    background: #ffffff;
+    border-radius: 32px;
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.08);
+    padding: 2rem 1.5rem;
+    text-align: center;
+    transition: transform 0.25s ease, box-shadow 0.25s ease;
+    align-items: center;
+    justify-content: center;;
+  }
+
+  .frame:hover {
+    transform: translateY(-6px);
+    box-shadow: 0 12px 24px rgba(0, 0, 0, 0.1);
+  }
+
+  /* === ICON === */
+  .frame img {
+    width: 110px;
+    height: 110px;
+    object-fit: contain;
+    margin-bottom: 1rem;
+  }
+
+
+  /* === TITLE INSIDE CARD === */
+  .text-wrapper-2 {
+    font-weight: 700;
+    font-size: 1.25rem;
+    margin-bottom: 0.5rem;
+  }
+
+  /* === PARAGRAPH === */
+  .p {
+    font-size: 0.95rem;
+    line-height: 1.6;
+    color: #333;
+    margin-bottom: 1.5rem;
+    padding: 0 0.5rem;
+  }
+
+  /* === BUTTON === */
+  .text-wrapper {
+    background-color: #7593af;
+    color: #fff;
+    font-size: 0.9rem;
+    font-weight: 500;
+    border-radius: 12px;
+    padding: 0.6rem 1.4rem;
+    transition: background-color 0.3s ease;
+    cursor: pointer;
+  }
+
+  .text-wrapper:hover {
+    background-color: #5f7c97;
+  }
+
+  /* === RESPONSIVE === */
+  @media (max-width: 900px) {
+    .frames-container {
+      gap: 1.5rem;
+    }
+
+    .frame {
+      flex: 1 1 280px;
+    }
+  }
+
+  @media (max-width: 600px) {
+    .frames-container {
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .frame {
+      max-width: 90%;
+    }
+  }
+</style>
 <body>
-    <p>Hello Teams</p>
+  {% include 'layout_navbar.html' %}
+  <div class="teams">
+    <div class="frames-container">
+      <div class="frame">
+        <div class="flex justify-center items-center">
+          <img src="{% static 'images/Superman Night 1 Streamline UX Line.png' %}" alt="team leadership" />
+        </div>
+        <div class="text-wrapper-2">Meet Your Team</div>
+        <p class="p">Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt.</p>
+        <button class="text-wrapper">Let’s meet em!</button>
+      </div>
+
+      <div class="frame">
+        <div class="flex justify-center items-center">
+          <img src="{% static 'images/Friends Wave Streamline UX Line.png' %}" alt="joining team" />
+        </div>  
+        <div class="text-wrapper-2">I Need A Team</div>
+        <p class="p">Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt.</p>
+        <button class="text-wrapper">I’m a human too</button>
+      </div>
+
+      <div class="frame">
+        <div class="flex justify-center items-center">
+          <img src="{% static 'images/Comment Rating Streamline UX Line.png' %}" alt="manage team" />
+        </div>
+          <div class="text-wrapper-2">Manage Your Team</div>
+        <p class="p">Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt.</p>
+        <button class="text-wrapper">I am the boss!!</button>
+      </div>
+    </div>
+  </div>
 </body>
+
 </html>

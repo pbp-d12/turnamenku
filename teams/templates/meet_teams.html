@@ -1,8 +1,8 @@
-<div id="modal-join" class="modal-overlay show">
+<div id="modal-meet" class="modal-overlay show">
   <div class="modal">
     <div class="modal-header">
-      <button onclick="closeModal('modal-join')">&times;</button>
-      <h2>Search For a Teams</h2>
+      <button onclick="closeModal('modal-meet')">&times;</button>
+      <h2>Meet Your Teams</h2>
       <div class="modal-search">Search</div>
     </div>
 
@@ -18,17 +18,13 @@
 
             <div class="team-text">
               <h3>{{ team.name }}</h3>
-              {% if team.captain %}
-                <p>Captain: {{ team.captain.username }}</p>
-              {% else %}
-                <p>Captain: -</p>
-              {% endif %}
+              <p>Captain: {{ team.captain.username|default:"-" }}</p>
             </div>
           </div>
-          <button class="action-btn">Join</button>
+          <button class="action-btn">Detail</button>
         </div>
       {% empty %}
-        <p>No teams found.</p>
+        <p>You’re not in any team yet.</p>
       {% endfor %}
     </div>
   </div>

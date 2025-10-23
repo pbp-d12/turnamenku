@@ -1,0 +1,126 @@
+/* Overlay for modal background */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background-color: rgba(31, 41, 55, 0.5); /* gray-800 opacity-50 */
+  display: none; /* hide by default */
+  justify-content: center;
+  align-items: center;
+  z-index: 50;
+}
+
+/* Modal box */
+.modal {
+  width: 90%;
+  max-width: 480px;
+  background: white;
+  border-radius: 12px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  max-height: 90vh;
+}
+
+/* Header */
+.modal-header {
+  background-color: #6b85a5;
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem;
+}
+
+.modal-header h2 {
+  font-size: 1.2rem;
+  font-weight: 600;
+  margin: 0;
+}
+
+.modal-header button {
+  background: none;
+  border: none;
+  color: white;
+  font-size: 1.5rem;
+  cursor: pointer;
+}
+
+.modal-search {
+  background-color: #4b6584;
+  color: white;
+  padding: 0.4rem 1rem;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: background 0.2s;
+}
+
+.modal-search:hover {
+  background-color: #3a5570;
+}
+
+/* Scrollable list */
+.modal-body {
+  overflow-y: auto;
+  padding: 1rem;
+}
+
+.team-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background-color: #e1ecf7;
+  border-radius: 8px;
+  padding: 0.8rem 1rem;
+  margin-bottom: 1rem;
+}
+
+.team-info {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.team-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background-color: #7b9bbd;
+}
+
+.team-text {
+  display: flex;
+  flex-direction: column;
+}
+
+.team-text h3 {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.team-text p {
+  margin: 0;
+  font-size: 0.8rem;
+  color: #6b7280;
+}
+
+/* Action buttons */
+.action-btn {
+  background-color: #1e3a8a;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  padding: 0.4rem 1rem;
+  cursor: pointer;
+  font-weight: 500;
+}
+
+.action-btn:hover {
+  background-color: #1d4ed8;
+}
+
+/* show modal */
+.show {
+  display: flex;
+}
