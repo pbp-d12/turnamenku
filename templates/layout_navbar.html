@@ -20,7 +20,8 @@
                 <li><a href="{% url 'predictions:predictions_index' %}"
                         class="text-custom-blue-50 hover:text-white font-medium">Predictions</a></li>
                 <!-- end test predictions app -->
-                <li><a href="{% url 'teams:show_main_teams' %}" class="text-custom-blue-50 hover:text-white font-medium">Teams</a></li>
+                <li><a href="{% url 'teams:show_main_teams' %}"
+                        class="text-custom-blue-50 hover:text-white font-medium">Teams</a></li>
                 <li><a href="#" class="text-custom-blue-50 hover:text-white font-medium">Tournaments</a></li>
             </ul>
 
@@ -32,7 +33,7 @@
                             {{ user.username }}
                         </span>
                         <img class="w-9 h-9 rounded-full border-2 border-custom-blue-100 group-hover:border-white object-cover"
-                            src="{% if user.profile.profile_picture %}{{ user.profile.profile_picture.url }}{% else %}{% static 'images/default_avatar.png' %}{% endif %}"
+                            src="{{ user.profile.profile_picture_url_timestamped }}"
                             alt="{{ user.username }} profile picture">
                     </button>
 
@@ -42,7 +43,7 @@
                             class="block px-4 py-2 text-sm text-gray-700 hover:bg-custom-blue-50 hover:text-custom-blue-400">
                             Profil Saya
                         </a>
-                        <a href="{% url 'main:edit_profile' %}"
+                        <a href="{% url 'main:edit_my_profile' %}"
                             class="block px-4 py-2 text-sm text-gray-700 hover:bg-custom-blue-50 hover:text-custom-blue-400">
                             Edit Profil
                         </a>

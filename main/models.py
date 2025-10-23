@@ -1,7 +1,9 @@
 from django.db import models
 from django.contrib.auth.models import User
 import os
+import time
 from django.conf import settings
+from django.templatetags.static import static
 
 
 def user_profile_pic_path(instance, filename):
@@ -31,6 +33,18 @@ class Profile(models.Model):
         upload_to=user_profile_pic_path,
         blank=True, null=True
     )
+
+    @property
+    def profile_picture_url_timestamped(self):
+        if self.profile_picture:
+            try:
+                file_path = os.path.join(
+                    settings.MEDIA_ROOT, self.profile_picture.name)
+                timestamp = int(os.path.getmtime(file_path))
+                return f"{self.profile_picture.url}?v={timestamp}"
+            except (FileNotFoundError, OSError):
+                pass
+        return static('images/default_avatar.png')
 
     def __str__(self):
         return f'{self.user.username} Profile'
