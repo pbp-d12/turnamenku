@@ -13,31 +13,56 @@
         <h1 class="text-4xl font-bold text-custom-blue-400 mt-2">{{ thread.title }}</h1>
         <p class="text-lg text-custom-blue-300">
             Dimulai oleh <span class="font-semibold">{{ thread.author.username }}</span> pada {{ thread.created_at|date:"d M Y" }}
+            
+            &bull; <span id="post-count" class="font-semibold">{{ posts.count|add:"-1" }}</span> Balasan
         </p>
     </div>
 
     <div id="posts-list" class="space-y-4 mb-8">
         {% for post in posts %}
-        <div class="bg-white p-5 rounded-lg shadow-lg flex space-x-4">
-
-            <div class="flex-shrink-0 w-24 text-center">
-                <img src="https://placehold.co/80x80/D1DBE4/194A7A?text={{ post.author.username|slice:':1'|upper }}" alt="Avatar" class="rounded-full mx-auto mb-2">
-                <span class="font-bold text-custom-blue-400">{{ post.author.username }}</span>
-            </div>
-
-            <div class="flex-1">
-                <p class="text-xs text-custom-blue-200 mb-2">{{ post.created_at|date:"d M Y, H:i" }}</p>
-                <p class="text-custom-blue-400 whitespace-pre-wrap">{{ post.body }}</p>
+        <div class="{% if not forloop.first %}ml-12{% endif %}">
+            <div class="bg-white p-5 rounded-lg shadow-lg {% if forloop.first %}border-l-4 border-custom-blue-400{% endif %} relative">
+                <!-- Thread starter line for replies -->
+                {% if not forloop.first %}
+                <div class="absolute -left-12 top-0 bottom-0 w-12 border-l-2 border-b-2 border-custom-blue-100 rounded-bl-2xl"></div>
+                {% endif %}
+                
+                <div class="flex items-start space-x-3">
+                    <div class="flex-shrink-0">
+                        <img src="https://placehold.co/40x40/D1DBE4/194A7A?text={{ post.author.username|slice:':1'|upper }}" alt="Avatar" class="rounded-full w-10 h-10">
+                    </div>
+                    <div class="flex-1 min-w-0">
+                        <div class="flex items-center justify-between mb-1">
+                            <div class="flex items-center space-x-2">
+                                <span class="font-bold text-custom-blue-400 text-base">{{ post.author.username }}</span>
+                                {% if forloop.first %}
+                                <span class="text-custom-blue-300 text-sm">•</span>
+                                <span class="text-custom-blue-300 text-sm">{{ post.created_at|date:"d M Y, H:i" }}</span>
+                                {% endif %}
+                            </div>
+                            {% if forloop.first %}
+                            <span class="bg-custom-blue-400 text-white text-xs font-semibold px-3 py-1 rounded-full">
+                                Pembuat Thread
+                            </span>
+                            {% endif %}
+                        </div>
+                        
+                        {% if not forloop.first %}
+                        <p class="text-xs text-custom-blue-300 mb-2">{{ post.created_at|date:"d M Y, H:i" }}</p>
+                        {% endif %}
+                        
+                        <p class="text-custom-blue-400 whitespace-pre-wrap text-base {% if forloop.first %}mb-3{% endif %}">{{ post.body }}</p>
+                    </div>
+                </div>
             </div>
         </div>
         {% endfor %}
     </div>
 
-    <!-- Form Balas Thread -->
     {% if user.is_authenticated %}
     <div class="bg-white p-5 rounded-lg shadow-xl">
         <h3 class="text-2xl font-bold text-custom-blue-400 mb-4">Tinggalkan Balasan</h3>
-        <form id="new-post-form" method="POST">
+        <form id="new-post-form" method="POST" action="{% url 'forums:thread_posts' thread.id %}">
             {% csrf_token %}
             <div class="mb-4">
                 <label for="post-content" class="sr-only">Komentar kamu</label>
@@ -53,7 +78,11 @@
                 <button type="submit" 
                         id="submit-button"
                         class="bg-custom-blue-400 text-white font-bold py-2 px-5 rounded-lg shadow-md hover:bg-custom-blue-300 transition-colors duration-300 disabled:bg-custom-blue-200 disabled:cursor-not-allowed">
-                    Kirim Balasan
+                    <span id="submit-text">Kirim Balasan</span>
+                    <svg id="loading-spinner" class="animate-spin -ml-1 mr-3 h-5 w-5 text-white hidden" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" style="display: none;">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
                 </button>
             </div>
         </form>
@@ -67,24 +96,25 @@
 </div>
 {% endtimezone %}
 {% endblock content %}
+
 {% block javascript %}
+{{ block.super }} 
 <script>
     document.addEventListener('DOMContentLoaded', function () {
         const postForm = document.getElementById('new-post-form');
         const contentInput = document.getElementById('post-content');
         const submitButton = document.getElementById('submit-button');
+        const submitText = document.getElementById('submit-text');
+        const loadingSpinner = document.getElementById('loading-spinner');
         const errorDiv = document.getElementById('post-error');
         
         if (postForm) {
-            // Real-time validation
             contentInput.addEventListener('input', function() {
                 const content = contentInput.value.trim();
                 const isEmpty = content.length === 0;
                 
-                // Disable button if empty
                 submitButton.disabled = isEmpty;
                 
-                // Show/hide error message
                 if (isEmpty) {
                     errorDiv.classList.remove('hidden');
                     contentInput.classList.add('border-red-300');
@@ -98,12 +128,11 @@
     
             postForm.addEventListener('submit', async function (e) {
                 e.preventDefault();
-                console.log('AJAX submission started'); // Debug line
-    
+                console.log('AJAX submission started'); 
+
                 const content = contentInput.value.trim();
                 const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
-    
-                // Double-check validation
+
                 if (!content) {
                     errorDiv.classList.remove('hidden');
                     contentInput.classList.add('border-red-300');
@@ -112,45 +141,42 @@
                     if (typeof showToast === 'function') {
                         showToast('Balasan tidak boleh kosong!', 'error');
                     } else {
-                        alert('Balasan tidak boleh kosong!');
+                        console.error('Balasan tidak boleh kosong!');
                     }
-                    return false; // Prevent form submission
+                    return false; 
                 }
-    
-                // Disable button during submission
+
                 submitButton.disabled = true;
-                submitButton.textContent = 'Mengirim...';
-    
+                submitText.textContent = 'Mengirim...';
+                loadingSpinner.style.display = 'inline-block';
+
                 try {
-                    // Use FormData
-                    const formData = new FormData();
-                    formData.append('body', content);
-    
-                    const response = await fetch(window.location.pathname, {
+
+                    const response = await fetch(postForm.action, {
                         method: 'POST',
                         headers: {
-                            'X-CSRFToken': csrfToken
+                            'Content-Type': 'application/json',
+                            'X-CSRFToken': csrfToken,
+                            'X-Requested-With': 'XMLHttpRequest'
                         },
-                        body: formData
+                        body: JSON.stringify({'body': content})
                     });
-    
+
                     if (response.ok) {
                         const data = await response.json();
                         
                         appendNewPost(data);
                         
-                        // Clear form
                         contentInput.value = '';
                         errorDiv.classList.add('hidden');
                         contentInput.classList.remove('border-red-300');
                         contentInput.classList.add('border-custom-blue-100');
-    
+                        submitButton.disabled = true; 
+
                         if (typeof showToast === 'function') {
                             showToast('Balasan berhasil dikirim!', 'success');
-                        } else {
-                            alert('Balasan berhasil dikirim!');
                         }
-    
+
                     } else {
                         const errorData = await response.json();
                         throw new Error(errorData.error || 'Gagal mengirim balasan.');
@@ -159,41 +185,55 @@
                     console.error('Error:', error);
                     if (typeof showToast === 'function') {
                         showToast(error.message || 'Terjadi kesalahan jaringan.', 'error');
-                    } else {
-                        alert(error.message || 'Terjadi kesalahan jaringan.');
                     }
                 } finally {
-                    // Re-enable button
                     submitButton.disabled = false;
-                    submitButton.textContent = 'Kirim Balasan';
+                    submitText.textContent = 'Kirim Balasan';
+                    loadingSpinner.style.display = 'none';
                 }
-    
-                return false; // Completely prevent form submission
+
+                return false; 
             });
         }
-    
+
         function appendNewPost(data) {
             const postsList = document.getElementById('posts-list');
             if (!postsList) return;
-    
+
             const newPostHtml = `
-            <div class="bg-white p-5 rounded-lg shadow-lg flex space-x-4">
-                <div class="flex-shrink-0 w-24 text-center">
-                    <img src="https://placehold.co/80x80/D1DBE4/194A7A?text=${data.username.charAt(0).toUpperCase()}" alt="Avatar" class="rounded-full mx-auto mb-2">
-                    <span class="font-bold text-custom-blue-400">${data.username}</span>
-                </div>
-                <div class="flex-1">
-                    <p class="text-xs text-custom-blue-200 mb-2">${data.created_at}</p>
-                    <p class="text-custom-blue-400 whitespace-pre-wrap">${data.content}</p>
+            <div class="ml-12">
+                <div class="bg-white p-5 rounded-lg shadow-lg relative">
+                    <div class="absolute -left-12 top-0 bottom-0 w-12 border-l-2 border-b-2 border-custom-blue-100 rounded-bl-2xl"></div>
+                    
+                    <div class="flex items-start space-x-3">
+                        <div class="flex-shrink-0">
+                            <img src="https://placehold.co/40x40/D1DBE4/194A7A?text=${data.username.charAt(0).toUpperCase()}" alt="Avatar" class="rounded-full w-10 h-10">
+                        </div>
+                        <div class="flex-1 min-w-0">  
+                            <div class="flex items-center space-x-2 mb-1">
+                                <span class="font-bold text-custom-blue-400 text-base">${data.username}</span>
+                                <span class="text-custom-blue-300 text-sm">•</span>
+                                <span class="text-custom-blue-300 text-sm">${data.created_at}</span>
+                            </div>
+                            <p class="text-custom-blue-400 whitespace-pre-wrap text-base mb-3">${data.body}</p>
+                        </div>
+                    </div>
                 </div>
             </div>
             `;
             
             postsList.insertAdjacentHTML('beforeend', newPostHtml);
-            
-            // Scroll to the new post
+
             postsList.lastElementChild.scrollIntoView({ behavior: 'smooth' });
+
+            const countElement = document.getElementById('post-count');
+            if (countElement) {
+                let currentCount = parseInt(countElement.textContent, 10);
+                if (!isNaN(currentCount)) {
+                    countElement.textContent = currentCount + 1;
+                }
+            }
         }
     });
-    </script>
+</script>
 {% endblock javascript %}

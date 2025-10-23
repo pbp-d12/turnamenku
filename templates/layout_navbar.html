@@ -15,16 +15,13 @@
 
             <ul class="hidden md:flex items-center space-x-6">
                 <!-- test forums app: Hillary -->
-                <li><a href="{% url 'forums:forum_index' %}"
-                        class="text-custom-blue-50 hover:text-white font-medium">Forums</a></li>
+                <li><a href="{% url 'forums:forum_index' %}" class="text-custom-blue-50 hover:text-white font-medium">Forums</a></li>
                 <!-- end test forums app -->
                 <!-- test predictions app: Rasyid -->
-                <li><a href="{% url 'predictions:predictions_index' %}"
-                        class="text-custom-blue-50 hover:text-white font-medium">Predictions</a></li>
+                <li><a href="{% url 'predictions:predictions_index' %}" class="text-custom-blue-50 hover:text-white font-medium">Predictions</a></li>
                 <!-- end test predictions app -->
-                <li><a href="{% url 'teams:show_main_teams' %}"
-                        class="text-custom-blue-50 hover:text-white font-medium">Teams</a></li>
-                <li><a href="{% url 'tournaments:tournament_home' %}" class="text-custom-blue-50 hover:text-white font-medium">Tournaments</a></li>
+                <li><a href="#" class="text-custom-blue-50 hover:text-white font-medium">Teams</a></li>
+                <li><a href="#" class="text-custom-blue-50 hover:text-white font-medium">Tournaments</a></li>
             </ul>
 
             <div class="flex items-center space-x-3">
@@ -112,9 +109,12 @@
     {% endblock main_content %}
 </main>
 
+{% endblock content %}
+{% block javascript %}
+
 <script>
     // ... (script logout kamu) ...
-    document.addEventListener('DOMContentLoaded', function () {
+    document.addEventListener('DOMContentLoaded', function() {
         const logoutButton = document.getElementById('logout-button');
         if (logoutButton) {
             logoutButton.addEventListener('click', async function () {
@@ -158,4 +158,4 @@
     });
 </script>
 
-{% endblock content %}
+{% endblock javascript %}
