@@ -39,8 +39,7 @@ def submit_prediction(request):
 
         return JsonResponse({
             'success': True,
-            'message': f'Prediksi {team.name} disimpan!',
-            'team': team.name,
+            'message': f'Berhasil voting untuk {team.name}!',
         })
 
     return JsonResponse({'success': False, 'message': 'Permintaan tidak valid.'}, status=400)

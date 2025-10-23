@@ -3,50 +3,56 @@
 {% block main_content %}
 <h1 class="text-3xl font-bold mb-6">Prediksi Pertandingan</h1>
 
+<!-- Tombol Leaderboard -->
+<div class="mb-6">
+  <a href="{% url 'predictions:leaderboard' %}" 
+     class="bg-custom-blue-100 hover:bg-custom-blue-300 text-white px-4 py-2 rounded-md font-semibold">
+     Leaderboard
+  </a>
+</div>
+
 {% if matches %}
-  <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-    {% for match in matches %}
-      <div class="bg-white shadow-lg rounded-xl p-4">
-        <h2 class="text-xl font-semibold mb-2">{{ match.home_team.name }} vs {{ match.away_team.name }}</h2>
-        <p class="text-sm text-gray-500 mb-4">Tanggal: {{ match.match_date }}</p>
-        <div class="flex justify-between">
-          <button 
-            class="team-btn bg-custom-blue-100 hover:bg-custom-blue-300 text-white px-3 py-2 rounded-md"
-            data-match-id="{{ match.id }}" data-team-id="{{ match.team1.id }}">
-            {{ match.home_team.name }}
-          </button>
-          <button 
-            class="team-btn bg-custom-blue-100 hover:bg-custom-blue-300 text-white px-3 py-2 rounded-md"
-            data-match-id="{{ match.id }}" data-team-id="{{ match.team2.id }}">
-            {{ match.away_team.name }}
-          </button>
-        </div>
-      </div>
-    {% endfor %}
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+  {% for match in matches %}
+  <div class="bg-white shadow-lg rounded-xl p-4">
+    <h2 class="text-xl font-semibold mb-2">{{ match.home_team.name }} vs {{ match.away_team.name }}</h2>
+    <p class="text-sm text-gray-500 mb-4">Tanggal: {{ match.match_date }}</p>
+    <div class="flex justify-between">
+      <button class="team-btn bg-custom-blue-100 hover:bg-custom-blue-300 text-white px-3 py-2 rounded-md"
+        data-match-id="{{ match.id }}" data-team-id="{{ match.home_team.id }}">
+        {{ match.home_team.name }}
+      </button>
+      <button class="team-btn bg-custom-blue-100 hover:bg-custom-blue-300 text-white px-3 py-2 rounded-md"
+        data-match-id="{{ match.id }}" data-team-id="{{ match.away_team.id }}">
+        {{ match.away_team.name }}
+      </button>
+    </div>
   </div>
+  {% endfor %}
+</div>
 {% else %}
-  <p class="text-gray-600">Belum ada pertandingan yang bisa diprediksi.</p>
+<p class="text-gray-600">Belum ada pertandingan yang bisa diprediksi.</p>
 {% endif %}
 
 <script>
-document.addEventListener('DOMContentLoaded', function() {
-  document.querySelectorAll('.team-btn').forEach(btn => {
-    btn.addEventListener('click', async function() {
-      const matchId = this.dataset.matchId;
-      const teamId = this.dataset.teamId;
+  document.addEventListener('DOMContentLoaded', function () {
+    document.querySelectorAll('.team-btn').forEach(btn => {
+      btn.addEventListener('click', async function () {
+        const matchId = this.dataset.matchId;
+        const teamId = this.dataset.teamId;
 
-      const csrfToken = '{{ csrf_token }}';
-      const response = await fetch("{% url 'predictions:submit_prediction' %}", {
-        method: 'POST',
-        headers: {'X-CSRFToken': csrfToken, 'Content-Type': 'application/x-www-form-urlencoded'},
-        body: new URLSearchParams({ match_id: matchId, team_id: teamId })
+        const csrfToken = '{{ csrf_token }}';
+        const response = await fetch("{% url 'predictions:submit_prediction' %}", {
+          method: 'POST',
+          headers: { 'X-CSRFToken': csrfToken, 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: new URLSearchParams({ match_id: matchId, team_id: teamId })
+        });
+
+        const data = await response.json();
+        if (data.success) showToast(data.message, 'success');
+        else showToast(data.message, 'error');
       });
-
-      const data = await response.json();
-      if (data.success) showToast(data.message, 'success');
-      else showToast(data.message, 'error');
     });
   });
-});
 </script>
 {% endblock main_content %}
