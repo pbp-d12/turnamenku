@@ -7,9 +7,8 @@
 <div class="max-w-lg mx-auto bg-white p-8 rounded-xl shadow-md border border-gray-200">
     <h2 class="text-3xl font-bold text-custom-blue-400 mb-8 text-center">Edit Profil</h2>
 
-    <img id="profile-pic-preview"
-        src="{% if user.profile.profile_picture %}{{ user.profile.profile_picture.url }}{% else %}{% static 'images/default_avatar.png' %}{% endif %}"
-        alt="Preview Foto Profil"
+    <img id="profile-pic-preview" src="{{ editing_user.profile.profile_picture_url_timestamped }}"
+        alt="Preview Foto Profil {{ editing_user.username }}"
         class="w-64 h-64 rounded-full mx-auto mb-8 object-cover border-4 border-custom-blue-100">
     <form id="edit-profile-form" method="POST" enctype="multipart/form-data" class="space-y-6">
         {% csrf_token %}
@@ -122,15 +121,21 @@
     const profilePicInput = document.getElementById('id_profile_picture');
     const profilePicPreview = document.getElementById('profile-pic-preview');
 
+    const originalSrc = profilePicPreview.src;
+
     if (profilePicInput) {
         profilePicInput.addEventListener('change', function (event) {
             const file = event.target.files[0];
             if (file) {
                 const reader = new FileReader();
                 reader.onload = function (e) {
+                    // Gunakan e.target.result (Data URL) untuk preview, BUKAN URL lama + timestamp
                     profilePicPreview.src = e.target.result;
                 }
                 reader.readAsDataURL(file);
+            } else {
+                // Jika user batal pilih file, kembalikan ke gambar asli
+                profilePicPreview.src = originalSrc;
             }
         });
     }
