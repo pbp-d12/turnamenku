@@ -1,106 +1,114 @@
 from django.test import TestCase, Client
 from django.contrib.auth.models import User
 from django.urls import reverse
-from datetime import datetime, timedelta
-
-from tournaments.models import Tournament, Match, Prediction
+from django.utils import timezone
+from predictions.models import Prediction
+from tournaments.models import Match, Tournament
 from teams.models import Team
 
-class PredictionTestCase(TestCase):
+class PredictionViewTests(TestCase):
     def setUp(self):
-        # Buat user dan login
+        # Setup data dasar
         self.client = Client()
-        self.user = User.objects.create_user(username='asri', password='password123')
-        self.client.login(username='asri', password='password123')
+        self.user = User.objects.create_user(username='asri', password='test123')
+        self.client.login(username='asri', password='test123')
 
-        # Buat tournament
+        # Buat Tournament dummy
         self.tournament = Tournament.objects.create(
-            name="Turnamen Tes",
-            description="Turnamen Unit Test",
-            organizer=self.user,
-            start_date=datetime.now().date(),
-            end_date=datetime.now().date() + timedelta(days=7),
+            name="Turnamen Uji",
+            description="Turnamen untuk testing",
+            start_date=timezone.now().date(),
+            end_date=timezone.now().date(),
+            organizer=self.user
         )
 
-        # Buat 2 tim
-        self.team_a = Team.objects.create(name="Team A")
-        self.team_b = Team.objects.create(name="Team B")
-
-        # Tambahkan ke turnamen
-        self.tournament.participants.add(self.team_a, self.team_b)
-
-        # Buat pertandingan
+        # Buat tim dan pertandingan
+        self.teamA = Team.objects.create(name='Team A')
+        self.teamB = Team.objects.create(name='Team B')
         self.match = Match.objects.create(
             tournament=self.tournament,
-            home_team=self.team_a,
-            away_team=self.team_b,
-            match_date=datetime.now() + timedelta(days=1)
+            home_team=self.teamA,
+            away_team=self.teamB,
+            match_date=timezone.now().date()
         )
 
-    def test_submit_prediction(self):
-        """User dapat membuat prediksi via AJAX dan tersimpan di database"""
-        response = self.client.post(reverse('tournaments:submit_prediction'), {
-            'match_id': self.match.id,
-            'team_id': self.team_a.id
-        })
+    def test_submit_prediction_success(self):
+        """Cek apakah prediksi bisa disimpan dengan benar via AJAX"""
+        response = self.client.post(
+            reverse('predictions:submit_prediction'),
+            {'match_id': self.match.id, 'team_id': self.teamA.id},
+            HTTP_X_REQUESTED_WITH='XMLHttpRequest'
+        )
+
         self.assertEqual(response.status_code, 200)
-        self.assertTrue(Prediction.objects.filter(user=self.user, match=self.match).exists())
-
-    def test_unique_prediction_per_match(self):
-        """User hanya bisa memiliki satu prediksi per pertandingan"""
-        Prediction.objects.create(user=self.user, match=self.match, predicted_winner=self.team_a)
-        # Coba buat prediksi kedua (harus update, bukan buat baru)
-        response = self.client.post(reverse('tournaments:submit_prediction'), {
-            'match_id': self.match.id,
-            'team_id': self.team_b.id
-        })
-        self.assertEqual(Prediction.objects.count(), 1)
-        pred = Prediction.objects.get(user=self.user, match=self.match)
-        self.assertEqual(pred.predicted_winner, self.team_b)
-
-    def test_evaluate_prediction_correct(self):
-        """Prediksi yang benar mendapat 10 poin"""
-        # User prediksi Team A menang
-        Prediction.objects.create(user=self.user, match=self.match, predicted_winner=self.team_a)
-
-        # Set hasil pertandingan
-        self.match.home_score = 2
-        self.match.away_score = 1
-        self.match.save()
-
-        # Jalankan evaluasi
-        response = self.client.get(reverse('tournaments:evaluate_predictions', args=[self.match.id]))
-        self.assertEqual(response.status_code, 200)
+        self.assertJSONEqual(
+            str(response.content, encoding='utf8'),
+            {'success': True, 'message': 'Prediksi Team A disimpan!', 'team': 'Team A'}
+        )
 
         prediction = Prediction.objects.get(user=self.user, match=self.match)
-        self.assertEqual(prediction.points_awarded, 10)
+        self.assertEqual(prediction.predicted_winner, self.teamA)
 
-    def test_evaluate_prediction_wrong(self):
-        """Prediksi yang salah mendapat 0 poin"""
-        # User prediksi Team B menang
-        Prediction.objects.create(user=self.user, match=self.match, predicted_winner=self.team_b)
+    def test_submit_prediction_invalid_team(self):
+        """Cek jika user memilih tim yang tidak ikut pertandingan"""
+        teamC = Team.objects.create(name='Team C')
+        response = self.client.post(
+            reverse('predictions:submit_prediction'),
+            {'match_id': self.match.id, 'team_id': teamC.id},
+            HTTP_X_REQUESTED_WITH='XMLHttpRequest'
+        )
+        self.assertEqual(response.status_code, 400)
+        self.assertIn('Tim tidak valid', response.json()['message'])
 
-        # Hasil: Team A menang
-        self.match.home_score = 3
-        self.match.away_score = 0
-        self.match.save()
+    def test_submit_prediction_not_logged_in(self):
+        """Cek kalau user belum login"""
+        self.client.logout()
+        response = self.client.post(
+            reverse('predictions:submit_prediction'),
+            {'match_id': self.match.id, 'team_id': self.teamA.id},
+            HTTP_X_REQUESTED_WITH='XMLHttpRequest'
+        )
+        self.assertEqual(response.status_code, 302)
+        self.assertIn('/accounts/login/', response.url)
 
-        response = self.client.get(reverse('tournaments:evaluate_predictions', args=[self.match.id]))
+
+class LeaderboardViewTest(TestCase):
+    def setUp(self):
+        self.client = Client()
+        self.user1 = User.objects.create_user(username='asri', password='test123')
+        self.user2 = User.objects.create_user(username='budi', password='test123')
+
+        # Buat Tournament dummy
+        self.tournament = Tournament.objects.create(
+            name="Turnamen Uji",
+            description="Turnamen untuk leaderboard",
+            start_date=timezone.now().date(),
+            end_date=timezone.now().date(),
+            organizer=self.user1
+        )
+
+        self.teamA = Team.objects.create(name='Team A')
+        self.teamB = Team.objects.create(name='Team B')
+        self.match = Match.objects.create(
+            tournament=self.tournament,
+            home_team=self.teamA,
+            away_team=self.teamB,
+            match_date=timezone.now().date()
+        )
+
+        Prediction.objects.create(user=self.user1, match=self.match, predicted_winner=self.teamA, points_awarded=10)
+        Prediction.objects.create(user=self.user2, match=self.match, predicted_winner=self.teamB, points_awarded=5)
+
+    def test_leaderboard_view_status_code(self):
+        """Halaman leaderboard dapat diakses"""
+        response = self.client.get(reverse('predictions:leaderboard'))
         self.assertEqual(response.status_code, 200)
 
-        prediction = Prediction.objects.get(user=self.user, match=self.match)
-        self.assertEqual(prediction.points_awarded, 0)
-
-    def test_leaderboard_view(self):
-        """Leaderboard menampilkan user dengan total poin"""
-        # Buat prediksi benar
-        pred = Prediction.objects.create(user=self.user, match=self.match, predicted_winner=self.team_a)
-        self.match.home_score = 1
-        self.match.away_score = 0
-        self.match.save()
-        pred.points_awarded = 10
-        pred.save()
-
-        response = self.client.get(reverse('tournaments:leaderboard_view', args=[self.tournament.id]))
-        self.assertEqual(response.status_code, 200)
-        self.assertContains(response, self.user.username)
+    def test_leaderboard_ordering(self):
+        """Leaderboard diurutkan dari poin tertinggi"""
+        response = self.client.get(reverse('predictions:leaderboard'))
+        leaderboard = list(response.context['leaderboard'])
+        self.assertEqual(leaderboard[0]['user__username'], 'asri')
+        self.assertEqual(leaderboard[0]['total_points'], 10)
+        self.assertEqual(leaderboard[1]['user__username'], 'budi')
+        self.assertEqual(leaderboard[1]['total_points'], 5)

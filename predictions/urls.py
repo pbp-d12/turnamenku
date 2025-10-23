@@ -1,11 +1,11 @@
 from django.urls import path
-from predictions.views import prediction_list, submit_prediction, evaluate_predictions, leaderboard_view
+from . import views
 
 app_name = 'predictions'
 
 urlpatterns = [
-    path('<int:tournament_id>/', prediction_list, name='prediction_list'),
-    path('submit/', submit_prediction, name='submit_prediction'),
-    path('evaluate/<int:match_id>/', evaluate_predictions, name='evaluate_predictions'),
-    path('leaderboard/<int:tournament_id>/', leaderboard_view, name='leaderboard'),
+    path('', views.predictions_index, name='predictions_index'),
+    path('submit/', views.submit_prediction, name='submit_prediction'),
+    path('leaderboard/', views.leaderboard_view, name='leaderboard'),
+    path('evaluate/<int:match_id>/', views.evaluate_predictions, name='evaluate_predictions'),
 ]
