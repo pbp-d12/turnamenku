@@ -11,7 +11,10 @@ urlpatterns = [
     path('register/', views.register_view, name='register'),
     path('login/', views.login_view, name='login'),
     path('logout/', views.logout_view, name='logout'),
-    path('profile/edit/', views.edit_profile_view, name='edit_profile'),
+    path('profile/edit/', views.edit_my_profile_view, name='edit_my_profile'),
+    # URL BARU untuk admin edit profil user lain (DENGAN username)
+    path('profile/edit/<str:username>/',
+         views.edit_user_profile_view, name='edit_user_profile'),
     path('profile/u/<str:username>/', views.profile_view, name='profile'),
 
     path('change_password/',

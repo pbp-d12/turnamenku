@@ -5,8 +5,7 @@
 <div class="max-w-2xl mx-auto bg-white p-8 rounded-xl shadow-lg">
     <div class="flex flex-col items-center">
         <img class="w-64 h-64 rounded-full border-4 border-custom-blue-100 object-cover"
-            src="{% if profile.profile_picture %}{{ profile.profile_picture.url }}{% else %}{% static 'images/default_avatar.png' %}{% endif %}"
-            alt="Foto profil {{ profile_user.username }}">
+            src="{{ profile.profile_picture_url_timestamped }}" alt="Foto profil {{ profile_user.username }}">
         <h1 class="text-3xl font-bold text-custom-blue-400 mt-4">{{ profile_user.username }}</h1>
         <span class="mt-1 text-sm font-medium bg-custom-blue-100 text-custom-blue-400 px-3 py-1 rounded-full">
             {{ profile.get_role_display }} </span>
@@ -15,11 +14,22 @@
             {{ profile.bio|default:"User ini belum menulis bio." }}
         </p>
 
-        {% if user.is_authenticated and user == profile_user %}
-        <a href="{% url 'main:edit_profile' %}"
-            class="mt-6 w-full text-center bg-custom-blue-400 text-white font-bold py-2 px-4 rounded-lg hover:bg-custom-blue-300 focus:outline-none focus:ring-2 focus:ring-custom-blue-200">
+        {% if user.is_authenticated %}
+        {% if user == profile_user %}
+        {# Link untuk edit diri sendiri #}
+        <a href="{% url 'main:edit_my_profile' %}" class="mt-6 w-full text-center bg-custom-blue-400 text-white
+            font-bold py-2 px-4 rounded-lg hover:bg-custom-blue-300 focus:outline-none focus:ring-2
+            focus:ring-custom-blue-200">
             Edit Profil
         </a>
+        {% elif user.is_superuser %}
+        {# Link BARU untuk admin edit user lain #}
+        <a href="{% url 'main:edit_user_profile' username=profile_user.username %}" class="mt-6 w-full text-center bg-custom-blue-400 text-white 
+            font-bold py-2 px-4 rounded-lg hover:bg-custom-blue-300
+            focus:outline-none focus:ring-2 focus:ring-custom-blue-200">
+            Edit Profil (sebagai Admin)
+        </a>
+        {% endif %}
         {% endif %}
     </div>
 

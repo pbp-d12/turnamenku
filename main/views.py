@@ -1,17 +1,3 @@
-from django.urls import reverse_lazy, reverse
-from django.contrib.auth.mixins import LoginRequiredMixin
-from django.contrib import messages
-from django.contrib.auth import authenticate, login, logout, update_session_auth_hash
-from django.shortcuts import render, redirect, get_object_or_404
-from django.http import JsonResponse, HttpResponseRedirect
-from django.contrib.auth import authenticate, login, logout
-from django.contrib.auth.models import User
-from django.contrib import messages
-from django.contrib.auth.decorators import login_required
-from django.urls import reverse, reverse_lazy
-import datetime
-from django.contrib.auth.views import PasswordChangeView as DjangoPasswordChangeView
-
 from .forms import (
     UserRegisterForm,
     LoginForm,
@@ -20,6 +6,23 @@ from .forms import (
     CustomPasswordChangeForm
 )
 from .models import Profile
+from django.urls import reverse_lazy, reverse
+from django.contrib.auth.mixins import LoginRequiredMixin
+from django.contrib import messages
+from django.contrib.auth import authenticate, login, logout, update_session_auth_hash
+from django.shortcuts import render, redirect, get_object_or_404
+from django.http import JsonResponse, HttpResponseRedirect, HttpResponseForbidden
+from django.contrib.auth import authenticate, login, logout
+from django.contrib.auth.models import User
+from django.contrib import messages
+from django.contrib.auth.decorators import login_required, user_passes_test
+from django.urls import reverse, reverse_lazy
+import datetime
+from django.contrib.auth.views import PasswordChangeView as DjangoPasswordChangeView
+
+
+def is_superuser(user):
+    return user.is_superuser
 
 
 def home_view(request):
@@ -129,12 +132,23 @@ def profile_view(request, username):
 
 
 @login_required
-def edit_profile_view(request):
+def edit_my_profile_view(request):
+    """
+    Menangani user mengedit profilnya sendiri via AJAX.
+    (Ini adalah view 'edit_profile_view' lama, ganti nama saja)
+    """
+    target_user = request.user  # Targetnya selalu user yang login
+
     if request.method == 'POST':
-        u_form = UserUpdateForm(request.POST, instance=request.user)
+        # Kita tidak izinkan user biasa ganti username
+        u_form = UserUpdateForm(request.POST, instance=target_user)
+        # Email bisa diganti
+        if 'username' in u_form.changed_data:  # Cegah manipulasi HTML
+            return JsonResponse({"status": "error", "message": "Nama pengguna tidak bisa diubah."}, status=400)
+
         p_form = ProfileUpdateForm(request.POST,
                                    request.FILES,
-                                   instance=request.user.profile)
+                                   instance=target_user.profile)
 
         if u_form.is_valid() and p_form.is_valid():
             u_form.save()
@@ -142,35 +156,97 @@ def edit_profile_view(request):
             return JsonResponse({
                 "status": "success",
                 "message": "Profil kamu berhasil diperbarui!",
-                "redirect_url": reverse('main:profile', kwargs={'username': request.user.username})
+                "redirect_url": reverse('main:profile', kwargs={'username': target_user.username})
             }, status=200)
         else:
             errors_dict = {}
-            u_form_errors = u_form.errors.get_json_data()
-            for field, error_list in u_form_errors.items():
-                if field not in errors_dict:
-                    errors_dict[field] = []
-                errors_dict[field].extend(error_list)
-            p_form_errors = p_form.errors.get_json_data()
-            for field, error_list in p_form_errors.items():
-                if field not in errors_dict:
-                    errors_dict[field] = []
-                errors_dict[field].extend(error_list)
-
+            # ... (logic kumpulkan error tetap sama) ...
+            u_form_errors = u_form.errors.get_json_data(escape_html=True)
+            p_form_errors = p_form.errors.get_json_data(escape_html=True)
+            errors_dict.update(u_form_errors)
+            errors_dict.update(p_form_errors)
             return JsonResponse({
                 "status": "error",
                 "message": "Gagal memperbarui profil.",
                 "errors": errors_dict
             }, status=400)
-
     else:
-        u_form = UserUpdateForm(instance=request.user)
-        p_form = ProfileUpdateForm(instance=request.user.profile)
+        # Tampilkan form untuk user yang login
+        u_form = UserUpdateForm(instance=target_user)
+        p_form = ProfileUpdateForm(instance=target_user.profile)
 
     context = {
         'u_form': u_form,
-        'p_form': p_form
+        'p_form': p_form,
+        'editing_user': target_user  # Kirim info user yg diedit ke template
     }
+    return render(request, 'main/edit_profile.html', context)
+
+
+# --- View BARU KHUSUS ADMIN mengedit profil ORANG LAIN ---
+@user_passes_test(is_superuser)  # Hanya superuser yang bisa akses
+def edit_user_profile_view(request, username):
+    """
+    Menangani ADMIN mengedit profil user lain via AJAX.
+    """
+    try:
+        target_user = User.objects.get(
+            username=username)  # User yang mau diedit
+        target_profile = target_user.profile
+    except (User.DoesNotExist, Profile.DoesNotExist):
+        messages.error(
+            request, f"Pengguna '{username}' atau profilnya tidak ditemukan.")
+        # Redirect jika user/profile target tidak ada
+        return redirect('main:home')
+
+    if request.method == 'POST':
+        # Admin BOLEH ganti username user lain
+        u_form = UserUpdateForm(request.POST, instance=target_user)
+        # Aktifkan kembali field username khusus untuk view ini
+        u_form.fields['username'].disabled = False
+        # Info tambahan
+        u_form.fields['username'].help_text = "Admin dapat mengubah nama pengguna."
+
+        p_form = ProfileUpdateForm(request.POST,
+                                   request.FILES,
+                                   instance=target_profile)
+
+        if u_form.is_valid() and p_form.is_valid():
+            u_form.save()
+            p_form.save()
+            return JsonResponse({
+                "status": "success",
+                "message": f"Profil '{username}' berhasil diperbarui oleh Admin!",
+                # Redirect kembali ke profil user yang diedit
+                "redirect_url": reverse('main:profile', kwargs={'username': target_user.username})
+            }, status=200)
+        else:
+            errors_dict = {}
+            # ... (logic kumpulkan error tetap sama) ...
+            u_form_errors = u_form.errors.get_json_data(escape_html=True)
+            p_form_errors = p_form.errors.get_json_data(escape_html=True)
+            errors_dict.update(u_form_errors)
+            errors_dict.update(p_form_errors)
+            return JsonResponse({
+                "status": "error",
+                "message": f"Gagal memperbarui profil '{username}'.",
+                "errors": errors_dict
+            }, status=400)
+    else:
+        # Tampilkan form untuk user TARGET
+        u_form = UserUpdateForm(instance=target_user)
+        # Aktifkan field username untuk admin
+        u_form.fields['username'].disabled = False
+        u_form.fields['username'].help_text = "Admin dapat mengubah nama pengguna."
+
+        p_form = ProfileUpdateForm(instance=target_profile)
+
+    context = {
+        'u_form': u_form,
+        'p_form': p_form,
+        'editing_user': target_user  # Kirim info user yg diedit ke template
+    }
+    # Kita bisa pakai template yang sama, tapi judulnya perlu disesuaikan
     return render(request, 'main/edit_profile.html', context)
 
 
