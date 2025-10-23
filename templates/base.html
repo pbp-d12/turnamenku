@@ -41,8 +41,7 @@
     {% block content %}
     {% endblock content %}
 
-    
-    {% block javascript %}
+
     <script>
         // Fungsi toast tetap sama, pesan error diubah
         function showToast(message, type = 'info') {
@@ -87,6 +86,7 @@
             }, 5000);
         }
     </script>
+    {% block javascript %}
     {% endblock javascript %}
 
 </body>

@@ -1,5 +1,5 @@
 {% extends 'layout_navbar.html' %}
-{% load static %} {# Pastikan load static ada #}
+{% load static %}
 
 {% block page_title %}Edit Profil {{ editing_user.username }}{% endblock page_title %}
 
@@ -173,7 +173,7 @@
             const data = await response.json();
 
             if (data.status === "success") {
-                if (typeof showToast === 'function') showToast(data.message, 'success');
+                showToast(data.message, 'success');
                 setTimeout(() => { window.location.href = data.redirect_url; }, 1000);
 
             } else if (data.status === "error") {
