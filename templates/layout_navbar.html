@@ -20,8 +20,8 @@
                 <!-- test predictions app: Rasyid -->
                 <li><a href="{% url 'predictions:predictions_index' %}" class="text-custom-blue-50 hover:text-white font-medium">Predictions</a></li>
                 <!-- end test predictions app -->
-                <li><a href="#" class="text-custom-blue-50 hover:text-white font-medium">Teams</a></li>
-                <li><a href="#" class="text-custom-blue-50 hover:text-white font-medium">Tournaments</a></li>
+                <li><a href="{% url 'teams:show_main_teams' %}" class="text-custom-blue-50 hover:text-white font-medium">Teams</a></li>
+                <li><a href="{% url 'tournaments:tournament_home' %}" class="text-custom-blue-50 hover:text-white font-medium">Tournaments</a></li>
             </ul>
 
             <div class="flex items-center space-x-3">
