@@ -1,0 +1,26 @@
+{% extends 'layout_navbar.html' %}
+{% block page_title %}Leaderboard{% endblock page_title %}
+{% block main_content %}
+<h1 class="text-3xl font-bold mb-6">Leaderboard Prediksi</h1>
+
+<table class="w-full bg-white rounded-lg shadow-lg overflow-hidden">
+  <thead class="bg-custom-blue-400 text-white">
+    <tr>
+      <th class="px-6 py-3 text-left">Peringkat</th>
+      <th class="px-6 py-3 text-left">Nama Pengguna</th>
+      <th class="px-6 py-3 text-left">Total Poin</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for entry in leaderboard %}
+      <tr class="border-b hover:bg-custom-blue-50">
+        <td class="px-6 py-3">{{ forloop.counter }}</td>
+        <td class="px-6 py-3">{{ entry.user__username }}</td>
+        <td class="px-6 py-3 font-semibold">{{ entry.total_points|default:0 }}</td>
+      </tr>
+    {% empty %}
+      <tr><td colspan="3" class="text-center p-4">Belum ada data leaderboard.</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock main_content %}
