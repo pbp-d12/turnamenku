@@ -18,7 +18,6 @@ from django.contrib import admin
 from django.urls import path, include
 from django.conf import settings
 from django.conf.urls.static import static
-from django.contrib.auth import views as auth_views #Hillary yang nambahin
 
 urlpatterns = [
     path('admin/', admin.site.urls),
@@ -27,16 +26,8 @@ urlpatterns = [
     path('predictions/', include('predictions.urls')),
     path('teams/', include('teams.urls')),
     path('tournaments/', include('tournaments.urls')),
-
-    #Halo ini hillary yang nambahin path untuk authentication ya
-    #==== Mulai =====
-
-    path('accounts/login/', auth_views.LoginView.as_view(template_name='main/login.html'), name='login'),
-    path('accounts/', include('django.contrib.auth.urls')),
-    
-    #==== Selesai ====
-
 ]
 
 if settings.DEBUG:
-    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+    urlpatterns += static(settings.MEDIA_URL,
+                          document_root=settings.MEDIA_ROOT)
