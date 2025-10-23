@@ -8,7 +8,7 @@ from .models import Profile
 class UserRegisterForm(UserCreationForm):
     email = forms.EmailField(required=True, help_text="Email wajib diisi.")
     role = forms.ChoiceField(
-        choices=Profile.ROLE_CHOICES,
+        choices=Profile.REGISTRATION_ROLE_CHOICES,
         required=True,
         label="Daftar sebagai"
     )
@@ -63,6 +63,14 @@ class ProfileUpdateForm(forms.ModelForm):
         widgets = {
             'profile_picture': forms.FileInput(),
         }
+
+    def __init__(self, *args, **kwargs):
+        user = kwargs.get('instance').user if kwargs.get('instance') else None
+        super(ProfileUpdateForm, self).__init__(*args, **kwargs)
+
+        if 'role' in self.fields and user and not user.is_superuser:
+            allowed_choices = Profile.REGISTRATION_ROLE_CHOICES
+            self.fields['role'].choices = allowed_choices
 
 
 class CustomPasswordChangeForm(PasswordChangeForm):
