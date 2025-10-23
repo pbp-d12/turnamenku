@@ -1,3 +1,92 @@
+/* === GLOBAL === */
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: "Poppins";
+}
+
+/* === TEAMS SECTION === */
+.teams {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3rem;
+  padding: 6rem 2rem;
+}
+
+/* === FRAMES CONTAINER === */
+.frames-container {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 2rem;
+  width: 100%;
+  max-width: 1200px;
+}
+
+/* === FRAME (CARD) === */
+.frame {
+  flex: 1 1 300px; /* Responsive width */
+  max-width: 360px;
+  background: #ffffff;
+  border-radius: 32px;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.08);
+  padding: 2rem 1.5rem;
+  text-align: center;
+  transition: transform 0.25s ease, box-shadow 0.25s ease;
+}
+
+.frame:hover {
+  transform: translateY(-6px);
+  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.1);
+}
+
+/* === ICON === */
+.frame img {
+  width: 110px;
+  height: 110px;
+  object-fit: contain;
+  margin-bottom: 1rem;
+}
+
+
+/* === TITLE INSIDE CARD === */
+.text-wrapper-2 {
+  font-weight: 700;
+  font-size: 1.25rem;
+  margin-bottom: 0.5rem;
+}
+
+/* === PARAGRAPH === */
+.p {
+  font-size: 0.95rem;
+  line-height: 1.6;
+  color: #333;
+  margin-bottom: 1.5rem;
+  padding: 0 0.5rem;
+}
+
+/* === BUTTON === */
+.text-wrapper {
+  background-color: #7593af;
+  color: #fff;
+  font-size: 0.9rem;
+  font-weight: 500;
+  border-radius: 12px;
+  padding: 0.6rem 1.4rem;
+  transition: background-color 0.3s ease;
+  cursor: pointer;
+}
+
+.text-wrapper:hover {
+  background-color: #5f7c97;
+}
+
 /* Overlay for modal background */
 .modal-overlay {
   position: fixed;
@@ -123,4 +212,30 @@
 /* show modal */
 .show {
   display: flex;
+}
+
+.modal-overlay.show {
+  display: flex;
+}
+
+/* === RESPONSIVE === */
+@media (max-width: 900px) {
+  .frames-container {
+    gap: 1.5rem;
+  }
+
+  .frame {
+    flex: 1 1 280px;
+  }
+}
+
+@media (max-width: 600px) {
+  .frames-container {
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .frame {
+    max-width: 90%;
+  }
 }

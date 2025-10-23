@@ -6,8 +6,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}Turnamenku{% endblock title %}</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
-
     <script>
         tailwind.config = {
             theme: {
@@ -25,16 +25,21 @@
             }
         }
     </script>
+
+    <style>
+        body {
+            font-family: 'Poppins', sans-serif !important;
+        }
+    </style>
+    {% block extra_css %}{% endblock %}
 </head>
 
 <body class="bg-custom-blue-50 text-custom-blue-400 min-h-screen">
-
     <div id="toast-container" class="fixed bottom-5 right-5 z-50 space-y-3 w-full max-w-sm">
     </div>
 
     {% block content %}
     {% endblock content %}
-
 
     <script>
         // Fungsi toast tetap sama, pesan error diubah
@@ -82,5 +87,7 @@
     </script>
 
 </body>
+
+{% block extra_js %}{% endblock extra_js %}
 
 </html>

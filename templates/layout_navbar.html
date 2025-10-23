@@ -1,5 +1,7 @@
 {% extends 'base.html' %}
-{% load static %} {% block title %}{% block page_title %}{% endblock page_title %} | Turnamenku{% endblock title %}
+{% load static %}
+
+{% block title %}{% block page_title %}{% endblock page_title %} | Turnamenku{% endblock title %}
 
 {% block content %}
 <nav class="bg-custom-blue-400 shadow-lg">
@@ -33,7 +35,7 @@
                             {{ user.username }}
                         </span>
                         <img class="w-9 h-9 rounded-full border-2 border-custom-blue-100 group-hover:border-white object-cover"
-                            src="{{ user.profile.profile_picture_url_timestamped }}"
+                            src="{{ user.profile.profile_picture_url_or_default }}"
                             alt="{{ user.username }} profile picture">
                     </button>
 
@@ -49,7 +51,8 @@
                         </a>
                         <a href="{% url 'main:change_password' %}"
                             class="block px-4 py-2 text-sm text-gray-700 hover:bg-custom-blue-50 hover:text-custom-blue-400">
-                            Ganti Password </a>
+                            Ganti Password
+                        </a>
                         <div class="border-t border-gray-100 my-1"></div>
                         <button id="logout-button" data-logout-url="{% url 'main:logout' %}"
                             data-csrf="{{ csrf_token }}"
