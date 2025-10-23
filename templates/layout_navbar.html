@@ -36,6 +36,8 @@
                         </span>
                         <img class="w-9 h-9 rounded-full border-2 border-custom-blue-100 group-hover:border-white object-cover"
                             src="{{ user.profile.profile_picture_url_or_default }}"
+                            data-default-src="{% static 'images/default_avatar.png' %}"
+                            onerror="this.onerror=null; this.src=this.dataset.defaultSrc;"
                             alt="{{ user.username }} profile picture">
                     </button>
 
