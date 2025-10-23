@@ -12,6 +12,12 @@ def user_profile_pic_path(instance, filename):
 
 class Profile(models.Model):
     ROLE_CHOICES = (
+        ('ADMIN', 'Admin'),
+        ('PENYELENGGARA', 'Penyelenggara'),
+        ('PEMAIN', 'Pemain'),
+    )
+
+    REGISTRATION_ROLE_CHOICES = (
         ('PENYELENGGARA', 'Penyelenggara'),
         ('PEMAIN', 'Pemain'),
     )

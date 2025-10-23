@@ -48,7 +48,7 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'whitenoise.runserver_nostatic',
     'django.contrib.staticfiles',
-    'main',
+    'main.apps.MainConfig',
     'forums',
     'predictions',
     'teams',
