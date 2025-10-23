@@ -8,4 +8,6 @@ urlpatterns = [
     path('<int:tournament_id>/', views.forum_threads, name='forum_threads'),
     path('<int:tournament_id>/create/', views.create_thread, name='create_thread'),
     path('thread/<int:thread_id>/', views.thread_posts, name='thread_posts'),
+    path('api/search-tournaments/', views.search_tournaments, name='search_tournaments'),
+    path('<int:tournament_id>/api/threads/', views.get_tournament_threads, name='get_tournament_threads'),
 ]

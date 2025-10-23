@@ -95,11 +95,13 @@ def profile_view(request, username):
 def edit_my_profile_view(request):
     target_user = request.user
     if request.method == 'POST':
-        u_form = UserUpdateForm(request.POST, instance=target_user)
+        u_form = UserUpdateForm(
+            request.POST, instance=target_user, user=request.user)
         if 'username' in u_form.changed_data:
             return JsonResponse({"status": "error", "message": "Nama pengguna tidak bisa diubah."}, status=400)
 
-        p_form = ProfileUpdateForm(request.POST, instance=target_user.profile)
+        p_form = ProfileUpdateForm(
+            request.POST, instance=target_user.profile, request=request)
 
         if u_form.is_valid() and p_form.is_valid():
             u_form.save()
@@ -113,8 +115,9 @@ def edit_my_profile_view(request):
             errors_dict.update(p_form_errors)
             return JsonResponse({"status": "error", "message": "Gagal memperbarui profil.", "errors": errors_dict}, status=400)
     else:
-        u_form = UserUpdateForm(instance=target_user)
-        p_form = ProfileUpdateForm(instance=target_user.profile)
+        u_form = UserUpdateForm(instance=target_user, user=request.user)
+        p_form = ProfileUpdateForm(
+            instance=target_user.profile, request=request)
     context = {'u_form': u_form, 'p_form': p_form, 'editing_user': target_user}
     return render(request, 'main/edit_profile.html', context)
 
@@ -130,11 +133,10 @@ def edit_user_profile_view(request, username):
         return redirect('main:home')
 
     if request.method == 'POST':
-        u_form = UserUpdateForm(request.POST, instance=target_user)
-        u_form.fields['username'].disabled = False
-        u_form.fields['username'].help_text = "Admin dapat mengubah nama pengguna."
-
-        p_form = ProfileUpdateForm(request.POST, instance=target_profile)
+        u_form = UserUpdateForm(
+            request.POST, instance=target_user, user=request.user)
+        p_form = ProfileUpdateForm(
+            request.POST, instance=target_profile, request=request)
 
         if u_form.is_valid() and p_form.is_valid():
             u_form.save()
@@ -148,10 +150,8 @@ def edit_user_profile_view(request, username):
             errors_dict.update(p_form_errors)
             return JsonResponse({"status": "error", "message": f"Gagal memperbarui profil '{username}'.", "errors": errors_dict}, status=400)
     else:
-        u_form = UserUpdateForm(instance=target_user)
-        u_form.fields['username'].disabled = False
-        u_form.fields['username'].help_text = "Admin dapat mengubah nama pengguna."
-        p_form = ProfileUpdateForm(instance=target_profile)
+        u_form = UserUpdateForm(instance=target_user, user=request.user)
+        p_form = ProfileUpdateForm(instance=target_profile, request=request)
     context = {'u_form': u_form, 'p_form': p_form, 'editing_user': target_user}
     return render(request, 'main/edit_profile.html', context)
 

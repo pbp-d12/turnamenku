@@ -19,18 +19,17 @@
 
     <!-- Form Container -->
     <div class="bg-white rounded-2xl shadow-xl p-6 md:p-8 border border-custom-blue-100">
-        {% if error %}
-        <div class="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
+        <!-- Error display -->
+        <div id="ajax-error-container" class="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg hidden">
             <div class="flex items-center">
                 <svg class="w-5 h-5 text-red-500 mr-3" fill="currentColor" viewBox="0 0 20 20">
                     <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"></path>
                 </svg>
-                <span class="text-red-700 font-medium">{{ error }}</span>
+                <span id="ajax-error-message" class="text-red-700 font-medium"></span>
             </div>
         </div>
-        {% endif %}
 
-        <form method="POST" class="space-y-6">
+        <form id="create-thread-form" method="POST" action="{% url 'forums:create_thread' tournament.id %}" class="space-y-6">
             {% csrf_token %}
             
             <!-- Title Field -->
@@ -67,13 +66,18 @@
                    class="px-6 py-3 border border-custom-blue-300 text-custom-blue-400 font-semibold rounded-xl hover:bg-custom-blue-50 transition-all duration-300 text-center">
                     Batal
                 </a>
-                <button type="submit" 
-                        class="px-8 py-3 bg-custom-blue-400 text-white font-semibold rounded-xl shadow-md hover:bg-custom-blue-300 hover:shadow-lg transform hover:-translate-y-0.5 transition-all duration-300">
+                <button type="submit"
+                        id="submit-button"
+                        class="px-8 py-3 bg-custom-blue-400 text-white font-semibold rounded-xl shadow-md hover:bg-custom-blue-300 hover:shadow-lg transform hover:-translate-y-0.5 transition-all duration-300 disabled:bg-custom-blue-200 disabled:cursor-not-allowed">
                     <div class="flex items-center justify-center">
-                        <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <svg id="submit-icon" class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
                         </svg>
-                        Buat Thread
+                        <svg id="loading-spinner" class="animate-spin -ml-1 mr-3 h-5 w-5 text-white hidden" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        <span id="submit-text">Buat Thread</span>
                     </div>
                 </button>
             </div>
@@ -81,3 +85,70 @@
     </div>
 </div>
 {% endblock content %}
+
+{% block javascript %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.getElementById('create-thread-form');
+    const submitButton = document.getElementById('submit-button');
+    const submitText = document.getElementById('submit-text');
+    const submitIcon = document.getElementById('submit-icon');
+    const loadingSpinner = document.getElementById('loading-spinner');
+    const errorContainer = document.getElementById('ajax-error-container');
+    const errorMessage = document.getElementById('ajax-error-message');
+
+    if (form) {
+        form.addEventListener('submit', async function(e) {
+            e.preventDefault();
+
+            errorContainer.classList.add('hidden');
+
+            submitButton.disabled = true;
+            submitText.textContent = 'Membuat...';
+            submitIcon.classList.add('hidden');
+            loadingSpinner.classList.remove('hidden');
+
+            const title = document.getElementById('title').value;
+            const body = document.getElementById('body').value;
+            const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+
+            try {
+                const response = await fetch(form.action, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': csrfToken,
+                        'X-Requested-With': 'XMLHttpRequest' 
+                    },
+                    body: JSON.stringify({
+                        'title': title,
+                        'body': body
+                    })
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    window.location.href = data.thread_url;
+                } else {
+                    errorMessage.textContent = data.error || 'Terjadi kesalahan.';
+                    errorContainer.classList.remove('hidden');
+                    submitButton.disabled = false;
+                    submitText.textContent = 'Buat Thread';
+                    submitIcon.classList.remove('hidden');
+                    loadingSpinner.classList.add('hidden');
+                }
+            } catch (error) {
+                console.error('Network error:', error);
+                errorMessage.textContent = 'Tidak dapat terhubung ke server. Silakan coba lagi.';
+                errorContainer.classList.remove('hidden');
+                submitButton.disabled = false;
+                submitText.textContent = 'Buat Thread';
+                submitIcon.classList.remove('hidden');
+                loadingSpinner.classList.add('hidden');
+            }
+        });
+    }
+});
+</script>
+{% endblock javascript %}

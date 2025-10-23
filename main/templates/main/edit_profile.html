@@ -1,5 +1,5 @@
 {% extends 'layout_navbar.html' %}
-{% load static %}
+{% load static %} {# Pastikan load static ada #}
 
 {% block page_title %}Edit Profil {{ editing_user.username }}{% endblock page_title %}
 
@@ -10,10 +10,12 @@
             Edit Profil {% if request.user == editing_user %}Saya{% else %}{{ editing_user.username }}{% endif %}
         </h2>
 
-        <img id="profile-pic-preview"
-            src="{% if editing_user.profile.profile_picture_url_or_default %}{{ editing_user.profile.profile_picture_url_or_default }}{% else %}{% static 'images/default_avatar.png' %}{% endif %}"
+        <img id="profile-pic-preview" src="{{ editing_user.profile.profile_picture_url_or_default }}"
             alt="Preview Foto Profil {{ editing_user.username }}"
-            class="w-32 h-32 rounded-full mx-auto mb-8 object-cover border-4 border-custom-blue-100">
+            src="{{ user.profile.profile_picture_url_or_default }}"
+            data-default-src="{% static 'images/default_avatar.png' %}"
+            onerror="this.onerror=null; this.src=this.dataset.defaultSrc;"
+            class="w-64 h-64 rounded-full mx-auto mb-8 object-cover border-4 border-custom-blue-100">
 
         <form id="edit-profile-form" method="POST"
             action="{% if request.user.is_superuser and request.user != editing_user %}{% url 'main:edit_user_profile' username=editing_user.username %}{% else %}{% url 'main:edit_my_profile' %}{% endif %}"
@@ -23,8 +25,9 @@
             {% for field in u_form %}
             <div>
                 <label for="{{ field.id_for_label }}" class="block text-sm font-semibold text-gray-700 mb-1">
-                    {{ field.label }} </label>
-                {{ field }}
+                    {{ field.label }}
+                </label>
+                {{ field }} {# Script di bawah akan styling #}
                 {% if field.help_text %} <p class="text-xs text-gray-500 mt-1">{{ field.help_text|safe }}</p>
                 {% endif %}
                 <div id="error-{{ field.id_for_label }}" class="text-red-500 text-sm mt-1"></div>
@@ -34,21 +37,23 @@
             {% for field in p_form %}
             <div>
                 <label for="{{ field.id_for_label }}" class="block text-sm font-semibold text-gray-700 mb-1">
-                    {{ field.label }} </label>
-                {{ field }}
+                    {{ field.label }}
+                </label>
+                {{ field }} {# Termasuk input URL profile_picture #}
                 <div id="error-{{ field.id_for_label }}" class="text-red-500 text-sm mt-1"></div>
             </div>
             {% endfor %}
 
             <button type="submit"
                 class="w-full bg-custom-blue-400 text-white font-bold py-2.5 px-4 rounded-lg hover:bg-custom-blue-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-custom-blue-300 transition duration-150 ease-in-out mt-4">
-                Simpan Perubahan </button>
+                Simpan Perubahan
+            </button>
         </form>
     </div>
 </div>
 
 <script>
-    document.addEventListener('DOMContentLoaded', function () { // Pastikan DOM siap
+    document.addEventListener('DOMContentLoaded', function () {
         const form = document.getElementById('edit-profile-form');
         if (!form) return;
 
@@ -56,16 +61,12 @@
         form.querySelectorAll('input[type="text"], input[type="email"], input[type="url"], textarea').forEach(el => {
             el.classList.add(
                 'block', 'w-full', 'px-4', 'py-2', 'mt-1',
-                'border', 'border-gray-300',
-                'rounded-md', 'shadow-sm',
-                'placeholder-gray-400',
-                'text-gray-900',
-                'focus:outline-none',
-                'focus:ring-2', 'focus:ring-custom-blue-300',
-                'focus:border-custom-blue-300',
-                'transition', 'duration-150', 'ease-in-out'
+                'border', 'border-gray-300', 'rounded-md', 'shadow-sm',
+                'placeholder-gray-400', 'text-gray-900',
+                'focus:outline-none', 'focus:ring-2', 'focus:ring-custom-blue-300',
+                'focus:border-custom-blue-300', 'transition', 'duration-150', 'ease-in-out'
             );
-            // Styling error
+            // Styling error (jika ada dari submit sebelumnya - jarang terjadi krn AJAX)
             if (el.dataset.hasError === 'true') {
                 el.classList.remove('border-gray-300', 'focus:border-custom-blue-300');
                 el.classList.add('border-red-500', 'focus:border-red-500', 'focus:ring-red-500');
@@ -76,28 +77,66 @@
         form.querySelectorAll('select').forEach(el => {
             el.classList.add(
                 'block', 'w-full', 'px-4', 'py-2', 'mt-1',
-                'border', 'border-gray-300',
-                'rounded-md', 'shadow-sm',
-                'text-gray-900',
-                'focus:outline-none',
-                'focus:ring-2', 'focus:ring-custom-blue-300',
-                'focus:border-custom-blue-300',
-                'transition', 'duration-150', 'ease-in-out',
+                'border', 'border-gray-300', 'rounded-md', 'shadow-sm', 'text-gray-900',
+                'focus:outline-none', 'focus:ring-2', 'focus:ring-custom-blue-300',
+                'focus:border-custom-blue-300', 'transition', 'duration-150', 'ease-in-out',
                 'appearance-none'
             );
             el.style.backgroundImage = `url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e")`;
             el.style.backgroundPosition = 'right 0.5rem center';
-            el.style.backgroundRepeat = 'no-repeat';
-            el.style.backgroundSize = '1.5em 1.5em';
-            el.style.paddingRight = '2.5rem';
-
+            el.style.backgroundRepeat = 'no-repeat'; el.style.backgroundSize = '1.5em 1.5em'; el.style.paddingRight = '2.5rem';
             // Styling error
             if (el.dataset.hasError === 'true') {
                 el.classList.remove('border-gray-300', 'focus:border-custom-blue-300');
                 el.classList.add('border-red-500', 'focus:border-red-500', 'focus:ring-red-500');
             }
         });
-        // Hapus styling untuk File Input karena sudah tidak ada
+    });
+</script>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const urlInput = document.getElementById('id_profile_picture'); // ID input URL
+        const profilePicPreview = document.getElementById('profile-pic-preview'); // ID img preview
+        const defaultAvatarUrl = "{% static 'images/default_avatar.png' %}"; // URL default
+
+        if (urlInput && profilePicPreview) {
+
+            // Fungsi untuk menangani error load gambar di preview
+            const handlePreviewError = () => {
+                console.log("Image load error detected, setting default."); // Debug log
+                profilePicPreview.src = defaultAvatarUrl;
+                // Hapus listener error ini setelah dijalankan agar tidak menumpuk
+                profilePicPreview.removeEventListener('error', handlePreviewError);
+            };
+
+            // Fungsi untuk menghapus listener error jika gambar berhasil load
+            const handlePreviewLoad = () => {
+                //console.log("Image loaded successfully, removing error handler."); // Debug log
+                profilePicPreview.removeEventListener('error', handlePreviewError);
+                profilePicPreview.removeEventListener('load', handlePreviewLoad); // Hapus listener load juga
+            };
+
+            urlInput.addEventListener('input', function () {
+                const newUrl = urlInput.value.trim();
+
+                // Hapus listener error dan load lama sebelum set src baru
+                profilePicPreview.removeEventListener('error', handlePreviewError);
+                profilePicPreview.removeEventListener('load', handlePreviewLoad);
+
+                if (newUrl) {
+                    // Tambahkan listener error BARU SEBELUM set src
+                    profilePicPreview.addEventListener('error', handlePreviewError);
+                    // Tambahkan listener load BARU SEBELUM set src
+                    profilePicPreview.addEventListener('load', handlePreviewLoad);
+                    // Coba set src ke URL baru
+                    profilePicPreview.src = newUrl;
+                } else {
+                    // Jika input kosong, langsung set ke default
+                    profilePicPreview.src = defaultAvatarUrl;
+                }
+            });
+        }
     });
 </script>
 
@@ -112,10 +151,12 @@
         // Reset error styling
         inputs.forEach(el => {
             el.classList.remove('border-red-500', 'focus:border-red-500', 'focus:ring-red-500');
-            if (!el.classList.contains('border-gray-300')) { // Hanya tambahkan jika belum ada
+            // Pastikan style normal kembali
+            if (el.type !== 'file' && !el.classList.contains('border-gray-300')) {
                 el.classList.add('border-gray-300', 'focus:border-custom-blue-300', 'focus:ring-custom-blue-300');
             }
             el.dataset.hasError = 'false';
+            // Kosongkan div error di bawah field
             const errorDiv = document.getElementById(`error-${el.id}`);
             if (errorDiv) errorDiv.textContent = '';
         });
@@ -123,7 +164,7 @@
         try {
             const response = await fetch(form.action, {
                 method: 'POST',
-                body: formData, // FormData handle URL field juga
+                body: formData,
                 headers: {
                     'X-CSRFToken': formData.get('csrfmiddlewaretoken'),
                 },
@@ -143,11 +184,14 @@
                             errorMessages.push(errorDetail.message); // Kumpulkan pesan saja
                         });
 
-                        if (fieldName === '__all__') return;
+                        if (fieldName === '__all__') return; // Abaikan error non-field
                         const inputElement = form.querySelector(`[name="${fieldName}"]`);
                         if (inputElement) {
+                            // Tandai field error
                             inputElement.classList.remove('border-gray-300', 'focus:border-custom-blue-300', 'focus:ring-custom-blue-300');
-                            inputElement.classList.add('border-red-500', 'focus:border-red-500', 'focus:ring-red-500');
+                            if (inputElement.type !== 'file') { // Jangan ubah style file input saat error
+                                inputElement.classList.add('border-red-500', 'focus:border-red-500', 'focus:ring-red-500');
+                            }
                             inputElement.dataset.hasError = 'true';
                             // Tampilkan error pertama di bawah field
                             const errorDiv = document.getElementById(`error-${inputElement.id}`);
@@ -158,7 +202,7 @@
                     });
                 }
                 if (errorMessages.length === 0) {
-                    errorMessages.push(data.message || 'Update gagal.');
+                    errorMessages.push(data.message || 'Update gagal.'); // Fallback message
                 }
                 // Tampilkan semua error di toast
                 if (typeof showToast === 'function') {
@@ -167,7 +211,6 @@
             }
         } catch (error) {
             console.error('Error:', error);
-            // Ubah pesan error
             if (typeof showToast === 'function') showToast('Terjadi kesalahan. Coba lagi nanti.', 'error');
         }
     });

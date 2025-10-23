@@ -1,0 +1,319 @@
+{% extends 'layout_navbar.html' %}
+{% load static %}
+
+{% block page_title %}Daftar Turnamen{% endblock page_title %}
+
+{% block main_content %}
+<div class="max-w-6xl mx-auto">
+
+    <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-6 gap-4">
+        <h1 class="text-3xl font-bold text-custom-blue-400">
+            Daftar Turnamen
+        </h1>
+        
+        {# Tombol untuk Membuka Modal (Hanya untuk Penyelenggara & Admin) #}
+        {% if user.is_authenticated and user.profile.role in "PENYELENGGARA,ADMIN" %}
+        <button id="open-create-modal-btn"
+                class="w-full sm:w-auto bg-custom-blue-400 text-white font-bold py-2 px-5 rounded-lg shadow-md hover:bg-custom-blue-300 transition-colors duration-300">
+            <span class="flex items-center justify-center">
+                <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path></svg>
+                Buat Turnamen
+            </span>
+        </button>
+        {% endif %}
+    </div>
+
+    {# Kontrol Filter #}
+    <div class="mb-6 p-4 bg-white rounded-lg shadow border border-gray-200 flex flex-col md:flex-row gap-4 items-center">
+        <div class="flex-grow w-full md:w-auto">
+            <label for="search-input" class="sr-only">Cari Nama Turnamen</label>
+            <input type="text" id="search-input" placeholder="Cari nama turnamen..."
+                   class="block w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-custom-blue-300 focus:border-custom-blue-300 text-sm">
+        </div>
+        <div class="w-full md:w-auto md:flex-shrink-0">
+             <label for="status-filter" class="sr-only">Filter Status</label>
+             <select id="status-filter"
+                     class="block w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-custom-blue-300 focus:border-custom-blue-300 text-sm appearance-none bg-white pr-8"
+                     style="background-image: url('data:image/svg+xml,%3csvg xmlns=\'http://www.w3.org/2000/svg\' fill=\'none\' viewBox=\'0 0 20 20\'%3e%3cpath stroke=\'%236b7280\' stroke-linecap=\'round\' stroke-linejoin=\'round\' stroke-width=\'1.5\' d=\'M6 8l4 4 4-4\'/%3e%3c/svg%3e'); background-position: right 0.5rem center; background-repeat: no-repeat; background-size: 1.5em 1.5em;">
+                <option value="">Semua Status</option>
+                <option value="upcoming">Akan Datang</option>
+                <option value="ongoing">Sedang Berlangsung</option>
+                <option value="past">Sudah Selesai</option>
+            </select>
+        </div>
+    </div>
+
+    {# Indikator Loading #}
+    <div id="loading-indicator" class="text-center p-10 text-custom-blue-300">
+        <svg class="animate-spin h-8 w-8 text-custom-blue-300 mx-auto" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+          </svg>
+        <p class="mt-2">Memuat turnamen...</p>
+    </div>
+
+    {# Kontainer Kartu Turnamen #}
+    <div id="tournament-list-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 hidden">
+        {# Kartu akan diinjeksi di sini oleh JavaScript #}
+    </div>
+
+    {# Pesan jika tidak ada turnamen #}
+    <div id="no-tournaments-message" class="hidden text-center p-10 bg-white rounded-lg shadow-lg text-custom-blue-300">
+        <p class="text-lg font-semibold">Belum ada turnamen yang tersedia.</p>
+        <p id="no-tournaments-subtext" class="mt-2"></p> {# Subteks akan diatur oleh JavaScript #}
+    </div>
+
+</div>
+
+{# --- Modal Buat Turnamen --- #}
+{% if user.is_authenticated and user.profile.role in "PENYELENGGARA,ADMIN" %}
+<div id="create-tournament-modal" class="fixed inset-0 bg-gray-900 bg-opacity-75 flex items-center justify-center z-50 hidden p-4 transition-opacity duration-300 opacity-0">
+    <div class="bg-white rounded-xl shadow-xl w-full max-w-lg max-h-[90vh] flex flex-col transform scale-95 transition-all duration-300">
+        <div class="flex justify-between items-center p-5 border-b border-gray-200">
+            <h2 class="text-2xl font-bold text-custom-blue-400">Buat Turnamen Baru</h2>
+            <button id="close-create-modal-btn" class="text-gray-400 hover:text-gray-700 text-3xl leading-none">&times;</button>
+        </div>
+        <div class="p-6 overflow-y-auto">
+            {# DIUBAH: Hapus enctype="multipart/form-data" #}
+            <form id="create-tournament-form" method="POST" class="space-y-4">
+                {% csrf_token %}
+                {% for field in create_form %}
+                <div>
+                    <label for="{{ field.id_for_label }}" class="block text-sm font-semibold text-gray-700 mb-1">
+                        {{ field.label }} {% if field.field.required %}<span class="text-red-500">*</span>{% endif %}
+                    </label>
+                    {{ field }}
+                    {% if field.help_text %}
+                    <p class="text-xs text-gray-500 mt-1">{{ field.help_text|safe }}</p>
+                    {% endif %}
+                    <div id="error-{{ field.id_for_label }}" class="text-red-500 text-sm mt-1 font-medium"></div>
+                </div>
+                {% endfor %}
+
+                 <div id="error-non_field_errors" class="text-red-500 text-sm mt-1 font-medium"></div>
+
+                 <div class="pt-4 mt-6 border-t border-gray-200">
+                    <button type="submit" id="create-submit-btn" class="w-full bg-custom-blue-400 text-white font-bold py-2.5 px-4 rounded-lg
+                               hover:bg-custom-blue-300 focus:outline-none focus:ring-2
+                               focus:ring-offset-2 focus:ring-custom-blue-300 transition duration-150 ease-in-out disabled:opacity-50 disabled:cursor-wait">
+                        Simpan Turnamen
+                    </button>
+                 </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endif %}
+{# --- End Modal --- #}
+
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const tournamentContainer = document.getElementById('tournament-list-container');
+        const loadingIndicator = document.getElementById('loading-indicator');
+        const noTournamentsMessage = document.getElementById('no-tournaments-message');
+        const noTournamentsSubtext = document.getElementById('no-tournaments-subtext');
+        
+        const defaultBannerSvg = `
+            <div class="h-40 bg-custom-blue-100 flex items-center justify-center text-custom-blue-300">
+                <svg class="w-12 h-12" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 18.657A8 8 0 016.343 7.343S7 9 9 10m0-2.657A8 8 0 0121.657 15S21 13 19 12m0 6.657a8 8 0 01-11.314-11.314m1.414 1.414A6 6 0 0119 12m-2 2a6 6 0 01-5.586 5.586"></path></svg>
+            </div>`;
+
+        const searchInput = document.getElementById('search-input');
+        const statusFilter = document.getElementById('status-filter');
+        let searchTimeout;
+
+        // --- Helper: Membuat HTML Kartu Turnamen ---
+        function createTournamentCardHtml(tournament) {
+            // DIUBAH: Logika banner sekarang hanya mengecek jika tournament.banner_url ada (truthy)
+            const bannerHtml = tournament.banner_url
+                ? `<img src="${tournament.banner_url}" alt="${tournament.name}" class="w-full h-40 object-cover" onerror="this.replaceWith(this.ownerDocument.createRange().createContextualFragment(defaultBannerSvg))">` // Tambah onerror fallback
+                : defaultBannerSvg;
+
+            return `
+            <a href="${tournament.detail_page_url}" class="block bg-white rounded-lg shadow-lg overflow-hidden hover:shadow-xl transition-shadow duration-300">
+                ${bannerHtml}
+                <div class="p-4">
+                    <h3 class="text-xl font-bold text-custom-blue-400 mb-1 truncate" title="${tournament.name}">${tournament.name}</h3>
+                    <p class="text-sm text-custom-blue-300 mb-2">Oleh: ${tournament.organizer}</p>
+                    <p class="text-xs text-custom-blue-200 mb-3">${tournament.start_date} - ${tournament.end_date}</p>
+                    <p class="text-sm text-gray-700 leading-snug line-clamp-2">${tournament.description || 'Tidak ada deskripsi.'}</p>
+                </div>
+            </a>
+            `;
+        }
+
+        // --- Fungsi Utama: Fetch dan Tampilkan Turnamen (dengan filter) ---
+        async function fetchTournaments() {
+            loadingIndicator.classList.remove('hidden');
+            tournamentContainer.classList.add('hidden');
+            tournamentContainer.innerHTML = '';
+            noTournamentsMessage.classList.add('hidden');
+            noTournamentsMessage.classList.remove('text-red-600');
+
+            const searchValue = searchInput.value.trim();
+            const statusValue = statusFilter.value;
+            const url = new URL("{% url 'tournaments:get_tournaments_json' %}", window.location.origin);
+            if (searchValue) url.searchParams.append('search', searchValue);
+            if (statusValue) url.searchParams.append('status', statusValue);
+
+            try {
+                const response = await fetch(url);
+                if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                const tournaments = await response.json();
+
+                if (tournaments.length === 0) {
+                    noTournamentsMessage.querySelector('p:first-child').textContent = 'Tidak ada turnamen yang cocok dengan filter Anda.';
+                    noTournamentsSubtext.textContent = 'Coba ubah kriteria pencarian atau filter status.';
+                    noTournamentsMessage.classList.remove('hidden');
+                } else {
+                    tournaments.forEach(tournament => {
+                        const cardHtml = createTournamentCardHtml(tournament);
+                        tournamentContainer.insertAdjacentHTML('beforeend', cardHtml);
+                    });
+                    tournamentContainer.classList.remove('hidden');
+                }
+            } catch (error) {
+                console.error("Error fetching tournaments:", error);
+                 noTournamentsMessage.querySelector('p:first-child').textContent = 'Gagal memuat daftar turnamen.';
+                 noTournamentsSubtext.textContent = 'Terjadi kesalahan saat menghubungi server.';
+                 noTournamentsMessage.classList.add('text-red-600');
+                 noTournamentsMessage.classList.remove('hidden');
+                if (typeof showToast === 'function') showToast('Gagal memuat turnamen.', 'error');
+            } finally {
+                loadingIndicator.classList.add('hidden');
+            }
+        }
+
+        // --- Event Listener untuk Filter ---
+        searchInput.addEventListener('input', () => {
+            clearTimeout(searchTimeout);
+            searchTimeout = setTimeout(fetchTournaments, 300);
+        });
+        statusFilter.addEventListener('change', fetchTournaments);
+
+        // --- Logika Modal (Hanya jika elemen modal ada) ---
+        {% if user.is_authenticated and user.profile.role in "PENYELENGGARA,ADMIN" %}
+        const createModal = document.getElementById('create-tournament-modal');
+        const openModalBtn = document.getElementById('open-create-modal-btn');
+        const closeModalBtn = document.getElementById('close-create-modal-btn');
+        const createForm = document.getElementById('create-tournament-form');
+        const createSubmitBtn = document.getElementById('create-submit-btn');
+
+        function openModal() {
+            if (!createModal) return;
+            createModal.classList.remove('hidden');
+            setTimeout(() => {
+                createModal.classList.remove('opacity-0');
+                createModal.querySelector('.transform').classList.remove('scale-95');
+            }, 10);
+        }
+        
+        function closeModal() {
+            if (!createModal) return;
+            createModal.classList.add('opacity-0');
+            createModal.querySelector('.transform').classList.add('scale-95');
+            setTimeout(() => {
+                createModal.classList.add('hidden');
+                if (createForm) {
+                    createForm.reset();
+                    createForm.querySelectorAll('[id^="error-"]').forEach(el => el.textContent = '');
+                    createForm.querySelectorAll('.border-red-500').forEach(el => {
+                         el.classList.remove('border-red-500', 'focus:border-red-500', 'focus:ring-red-500');
+                         el.classList.add('border-gray-300', 'focus:border-custom-blue-300', 'focus:ring-custom-blue-300');
+                    });
+                }
+            }, 300);
+        }
+
+        if (openModalBtn) openModalBtn.addEventListener('click', openModal);
+        if (closeModalBtn) closeModalBtn.addEventListener('click', closeModal);
+        if (createModal) createModal.addEventListener('click', (event) => { if (event.target === createModal) closeModal(); });
+
+        // Terapkan styling ke form di dalam modal
+        if (createForm) {
+            // DIUBAH: Tambahkan 'input[type="url"]'
+            createForm.querySelectorAll('input[type="text"], input[type="date"], input[type="url"], textarea, select').forEach(el => {
+                el.classList.add(
+                    'block', 'w-full', 'px-3', 'py-2', 'mt-1',
+                    'border', 'border-gray-300', 'rounded-md', 'shadow-sm',
+                    'placeholder-gray-400', 'text-gray-900',
+                    'focus:outline-none', 'focus:ring-2', 'focus:ring-custom-blue-300', 'focus:border-custom-blue-300',
+                    'transition', 'duration-150', 'ease-in-out'
+                );
+            });
+        }
+
+        // Handle submit AJAX
+        if (createForm) {
+            createForm.addEventListener('submit', async function(e) {
+                e.preventDefault();
+                createSubmitBtn.disabled = true;
+                createSubmitBtn.textContent = 'Menyimpan...';
+
+                createForm.querySelectorAll('[id^="error-"]').forEach(el => el.textContent = '');
+                createForm.querySelectorAll('.border-red-500').forEach(el => {
+                    el.classList.remove('border-red-500', 'focus:border-red-500', 'focus:ring-red-500');
+                    el.classList.add('border-gray-300', 'focus:border-custom-blue-300', 'focus:ring-custom-blue-300');
+                });
+
+                // DIUBAH: Kita tidak lagi meng-upload file, jadi FormData OK
+                const formData = new FormData(createForm);
+                const csrfToken = formData.get('csrfmiddlewaretoken');
+
+                try {
+                    const response = await fetch("{% url 'tournaments:create_tournament' %}", {
+                        method: 'POST',
+                        headers: { 'X-CSRFToken': csrfToken, 'Accept': 'application/json' },
+                        body: formData
+                    });
+
+                    const data = await response.json();
+
+                    if (response.ok && data.status === 'success') {
+                        closeModal();
+                        if (typeof showToast === 'function') showToast(data.message, 'success');
+                        
+                        const newCardHtml = createTournamentCardHtml(data.tournament);
+                        tournamentContainer.insertAdjacentHTML('afterbegin', newCardHtml);
+                        noTournamentsMessage.classList.add('hidden');
+                        tournamentContainer.classList.remove('hidden');
+
+                    } else {
+                         let generalErrorMessage = data.message || 'Terjadi kesalahan validasi.';
+                         if (data.errors) {
+                             Object.keys(data.errors).forEach(fieldName => {
+                                 const errorDiv = document.getElementById(`error-${fieldName === '__all__' ? 'non_field_errors' : 'id_'+fieldName}`);
+                                 const fieldEl = document.getElementById(`id_${fieldName}`);
+                                 
+                                 if (errorDiv && data.errors[fieldName].length > 0) {
+                                     errorDiv.textContent = data.errors[fieldName][0].message;
+                                 }
+                                 if (fieldEl) {
+                                     fieldEl.classList.add('border-red-500', 'focus:border-red-500', 'focus:ring-red-500');
+                                     fieldEl.classList.remove('border-gray-300', 'focus:border-custom-blue-300', 'focus:ring-custom-blue-300');
+                                 }
+                                 if (fieldName === '__all__') {
+                                     generalErrorMessage = data.errors[fieldName][0].message;
+                                 }
+                             });
+                         }
+                         if (typeof showToast === 'function') showToast(generalErrorMessage, 'error');
+                    }
+                } catch (error) {
+                    console.error('Error submitting form:', error);
+                    if (typeof showToast === 'function') showToast('Gagal terhubung ke server.', 'error');
+                } finally {
+                    createSubmitBtn.disabled = false;
+                    createSubmitBtn.textContent = 'Simpan Turnamen';
+                }
+            });
+        }
+        {% endif %}
+
+        // --- Fetch data awal saat halaman dimuat ---
+        fetchTournaments();
+    });
+</script>
+{% endblock main_content %}
+
