@@ -1,8 +1,7 @@
 from django import forms
 from django.contrib.auth.models import User
-from django.contrib.auth.forms import UserCreationForm
+from django.contrib.auth.forms import UserCreationForm, PasswordChangeForm
 from django.contrib.auth.forms import AuthenticationForm as LoginForm
-
 from .models import Profile
 
 
@@ -34,34 +33,51 @@ class UserRegisterForm(UserCreationForm):
 
 
 class UserUpdateForm(forms.ModelForm):
-    """
-    Form untuk mengedit data User (username, email).
-    """
     email = forms.EmailField()
 
     class Meta:
         model = User
         fields = ['username', 'email']
+        labels = {  # Tambah label Indonesia
+            'username': 'Nama Pengguna',
+            'email': 'Alamat Email'
+        }
 
     def __init__(self, *args, **kwargs):
         super(UserUpdateForm, self).__init__(*args, **kwargs)
         if 'username' in self.fields:
             self.fields['username'].disabled = True
-            self.fields['username'].help_text = "Username cannot be changed."
+            # Ubah help text
+            self.fields['username'].help_text = "Nama pengguna tidak bisa diubah."
 
 
 class ProfileUpdateForm(forms.ModelForm):
-    """
-    Form untuk mengedit data Profile (bio, foto, role).
-    """
     class Meta:
         model = Profile
         fields = ['role', 'bio', 'profile_picture']
         labels = {
-            'bio': 'Bio',
+            'bio': 'Biografi',
             'profile_picture': 'Foto Profil',
-            'role': 'Role'
+            'role': 'Peran Akun'
         }
         widgets = {
             'profile_picture': forms.FileInput(),
         }
+
+
+class CustomPasswordChangeForm(PasswordChangeForm):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['old_password'].help_text = None
+        self.fields['new_password1'].help_text = None
+        self.fields['new_password2'].help_text = None
+
+        # Override label ke Bahasa Indonesia
+        self.fields['old_password'].label = "Password Lama"
+        self.fields['new_password1'].label = "Password Baru"
+        self.fields['new_password2'].label = "Konfirmasi Password Baru"
+
+        for field_name in self.fields:
+            self.fields[field_name].widget.attrs.update({
+                'class': 'block w-full px-4 py-2 mt-1 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 text-gray-900 focus:outline-none focus:ring-2 focus:ring-custom-blue-300 focus:border-custom-blue-300 transition duration-150 ease-in-out'
+            })

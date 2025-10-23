@@ -1,17 +1,23 @@
+from django.urls import reverse_lazy, reverse
+from django.contrib.auth.mixins import LoginRequiredMixin
+from django.contrib import messages
+from django.contrib.auth import authenticate, login, logout, update_session_auth_hash
 from django.shortcuts import render, redirect, get_object_or_404
 from django.http import JsonResponse, HttpResponseRedirect
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.models import User
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
-from django.urls import reverse
+from django.urls import reverse, reverse_lazy
 import datetime
+from django.contrib.auth.views import PasswordChangeView as DjangoPasswordChangeView
 
 from .forms import (
     UserRegisterForm,
     LoginForm,
     UserUpdateForm,
-    ProfileUpdateForm
+    ProfileUpdateForm,
+    CustomPasswordChangeForm
 )
 from .models import Profile
 
@@ -48,10 +54,12 @@ def register_view(request):
 
 def login_view(request):
     if request.user.is_authenticated:
-        return redirect('main:profile', username=request.user.username)
+        return redirect('main:home')
 
     if request.method == 'POST':
         form = LoginForm(request, data=request.POST)
+        next_url = request.POST.get('next') or request.GET.get('next')
+
         if form.is_valid():
             username = form.cleaned_data['username']
             password = form.cleaned_data['password']
@@ -59,22 +67,26 @@ def login_view(request):
 
             if user is not None:
                 login(request, user)
+                redirect_target = next_url or reverse("main:home")
                 response_data = {
                     "status": "success",
                     "message": "Login berhasil!",
-                    "redirect_url": reverse("main:profile", kwargs={'username': user.username})
+                    "redirect_url": redirect_target
                 }
                 response = JsonResponse(response_data, status=200)
                 response.set_cookie('last_login', str(datetime.datetime.now()))
                 return response
-        else:
-            return JsonResponse({
-                "status": "error",
-                "message": "Username atau password salah."
-            }, status=401)
+
+        return JsonResponse({
+            "status": "error",
+            "message": "Username atau password salah."
+        }, status=401)
 
     form = LoginForm()
-    context = {'form': form}
+    context = {
+        'form': form,
+        'next': request.GET.get('next', '')
+    }
     return render(request, 'main/login.html', context)
 
 
@@ -84,7 +96,7 @@ def logout_view(request):
     response_data = {
         "status": "success",
         "message": "Kamu berhasil logout.",
-        "redirect_url": reverse('main:login')
+        "redirect_url": reverse('main:home')
     }
     response = JsonResponse(response_data)
     response.delete_cookie('last_login')
@@ -160,3 +172,32 @@ def edit_profile_view(request):
         'p_form': p_form
     }
     return render(request, 'main/edit_profile.html', context)
+
+
+class CustomPasswordChangeView(LoginRequiredMixin, DjangoPasswordChangeView):
+    form_class = CustomPasswordChangeForm
+    template_name = 'main/change_password.html'
+    success_url = reverse_lazy('main:password_change_done')
+
+    def form_valid(self, form):
+        user = form.save()
+        update_session_auth_hash(self.request, user)
+
+        return JsonResponse({
+            "status": "success",
+            "message": "Password Anda berhasil diubah!",
+            "redirect_url": reverse('main:profile', kwargs={'username': self.request.user.username})
+        }, status=200)
+
+    def form_invalid(self, form):
+        errors_dict = form.errors.get_json_data()
+
+        return JsonResponse({
+            "status": "error",
+            "message": "Gagal mengubah password.",
+            "errors": errors_dict
+        }, status=400)
+
+    def get(self, request, *args, **kwargs):
+        form = self.get_form()
+        return render(request, self.template_name, {'form': form})
