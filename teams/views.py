@@ -14,8 +14,9 @@ def show_main_teams(request):
 def create_teams(request): #skip dlu lah
     return render(request, 'create_teams.html')
 
-def join_teams(request): #skip dlu lah
-    return render(request, 'join_teams.html')
+def join_teams(request): 
+    teams = Team.objects.all()
+    return render(request, 'join_teams.html', {'teams': teams})
 
 def team_details(request, team_id):
     return render(request, 'team_details.html', {'team_id': team_id})
