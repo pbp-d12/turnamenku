@@ -7,18 +7,18 @@
   <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
     {% for match in matches %}
       <div class="bg-white shadow-lg rounded-xl p-4">
-        <h2 class="text-xl font-semibold mb-2">{{ match.team1.name }} vs {{ match.team2.name }}</h2>
-        <p class="text-sm text-gray-500 mb-4">Tanggal: {{ match.date }}</p>
+        <h2 class="text-xl font-semibold mb-2">{{ match.home_team.name }} vs {{ match.away_team.name }}</h2>
+        <p class="text-sm text-gray-500 mb-4">Tanggal: {{ match.match_date }}</p>
         <div class="flex justify-between">
           <button 
             class="team-btn bg-custom-blue-100 hover:bg-custom-blue-300 text-white px-3 py-2 rounded-md"
             data-match-id="{{ match.id }}" data-team-id="{{ match.team1.id }}">
-            {{ match.team1.name }}
+            {{ match.home_team.name }}
           </button>
           <button 
             class="team-btn bg-custom-blue-100 hover:bg-custom-blue-300 text-white px-3 py-2 rounded-md"
             data-match-id="{{ match.id }}" data-team-id="{{ match.team2.id }}">
-            {{ match.team2.name }}
+            {{ match.away_team.name }}
           </button>
         </div>
       </div>
