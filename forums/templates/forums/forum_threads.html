@@ -8,7 +8,6 @@
 {% timezone "Asia/Jakarta" %} 
 <div class="container mx-auto p-4 md:p-8 max-w-4xl">
 
-    <!-- Header Halaman -->
     <div class="mb-6">
         <a href="{% url 'forums:forum_index' %}" class="text-custom-blue-300 hover:underline">
             &larr; Kembali ke Forum
@@ -17,58 +16,237 @@
         <p class="text-xl text-custom-blue-300">Selamat datang di forum diskusi.</p>
     </div>
 
-<!-- Tombol Buat Thread Baru -->
-    {% if user.is_authenticated %}
-        <div class="mb-6">
+    <div class="mb-6 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+        {% if user.is_authenticated %}
             <a href="{% url 'forums:create_thread' tournament.id %}"
-            class="bg-custom-blue-400 text-white font-bold py-2 px-4 rounded-lg shadow-md hover:bg-custom-blue-300 transition-colors duration-300">
+            class="bg-custom-blue-400 text-white font-bold py-3 px-6 rounded-lg shadow-md hover:bg-custom-blue-300 transition-colors duration-300 whitespace-nowrap">
                 + Buat Thread Baru
             </a>
-        </div>
-    {% else %}
-        <div class="mb-6">
+        
+        {% else %}
             <p class="text-custom-blue-300">
-                Silakan <a href="{% url 'login' %}" class="underline">login</a> untuk membuat thread baru.
+                Silakan <a href="{% url 'main:login' %}" class="underline">login</a> untuk membuat thread baru.
             </p>
-        </div>
-    {% endif %}
-
-    <div class="bg-white rounded-lg shadow-xl overflow-hidden">
-        <div class="divide-y divide-custom-blue-50">
-            
-            <div class="flex bg-custom-blue-50 text-custom-blue-300 font-bold p-4">
-                <div class="w-3/5">Topik</div>
-                <div class="w-1/5 text-center">Penulis</div>
-                <div class="w-1/5 text-right">Dibuat</div>
-            </div>
-
-            {% if threads %}
-                {% for thread in threads %}
-
-                <a href="{% url 'forums:thread_posts' thread.pk %}" class="flex p-4 items-center hover:bg-custom-blue-50 transition-colors duration-150">
-                    <div class="w-3/5">
-                        <span class="font-semibold text-lg text-custom-blue-400 hover:underline">{{ thread.title }}</span>
-                    </div>
-                    <div class="w-1/5 text-center text-custom-blue-300">
-                        {{ thread.author.username }}
-                    </div>
-                    <div class="w-1/5 text-right text-sm text-custom-blue-200">
-                        <div>{{ thread.created_at|date:"d M Y" }}</div>
-                        <div class="text-xs">{{ thread.created_at|date:"H:i" }}</div>
-                    </div>
-                </a>
-                {% endfor %}
-            {% else %}
-
-            <div class="p-6 text-center text-custom-blue-300">
-                <p class="text-lg">Belum ada thread di forum ini.</p>
-                <p>Jadilah yang pertama untuk memulai diskusi!</p>
-            </div>
-            {% endif %}
-
+        {% endif %}
+        
+        <div class="w-full md:w-1/2">
+            <input type="text" 
+                   id="search-threads" 
+                   placeholder="Cari thread..." 
+                   class="w-full px-4 py-3 border border-custom-blue-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-custom-blue-300 focus:border-transparent transition-all duration-300 text-custom-blue-400 placeholder-custom-blue-200">
         </div>
     </div>
+
+    <div class="bg-white rounded-lg shadow-xl overflow-hidden">
+        
+        <div class="flex bg-custom-blue-50 text-custom-blue-300 font-bold p-4">
+            <div class="w-6/12">Topik</div>
+            <div class="w-2/12 text-left">Penulis</div>
+            <div class="w-2/12 text-left">Dibuat</div>
+            <div class="w-2/12 text-center">Balasan</div>
+        </div>
+        <div class="p-8 text-center text-custom-blue-300" id="loading-state">
+            <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-custom-blue-400 mx-auto"></div>
+            <p class="text-custom-blue-300 mt-4">Memuat thread...</p>
+        </div>
+
+        <div class="divide-y divide-custom-blue-50" id="threads-container">
+            </div>
+
+    </div>
+    
+    <nav id="pagination-container" class="mt-6 flex justify-center items-center space-x-1 hidden">
+        </nav>
 
 </div>
 {% endtimezone %}
 {% endblock content %}
+
+{% block javascript %}
+{{ block.super }}
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+    const container = document.getElementById('threads-container');
+    const loadingState = document.getElementById('loading-state');
+    const searchInput = document.getElementById('search-threads');
+    const paginationContainer = document.getElementById('pagination-container');
+
+    let currentPage = 1;
+    let currentQuery = '';
+    let isLoading = false;
+    let totalPages = 1;
+
+    function showLoading() {
+        if (loadingState) loadingState.style.display = 'block';
+    }
+
+    function hideLoading() {
+        if (loadingState) loadingState.style.display = 'none';
+    }
+
+    async function fetchThreads(page = 1, query = '', isNewSearch = false) {
+        if (isLoading) return;
+        isLoading = true;
+
+        showLoading();
+        container.innerHTML = '';
+        paginationContainer.classList.add('hidden'); 
+
+        try {
+            let apiUrl = `{% url 'forums:get_tournament_threads' tournament.id %}?page=${page}`;
+            if (query) {
+                apiUrl += `&q=${encodeURIComponent(query)}`;
+            }
+
+            const response = await fetch(apiUrl, {
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            });
+
+            if (!response.ok) throw new Error('Gagal memuat data');
+
+            const data = await response.json();
+            const threads = data.threads; 
+            const pagination = data.pagination;
+
+            hideLoading();
+
+            if (threads && threads.length > 0) {
+                threads.forEach(thread => {
+                    const threadHtml = createThreadRow(thread); 
+                    container.insertAdjacentHTML('beforeend', threadHtml);
+                });
+
+                currentPage = pagination.current_page;
+                totalPages = pagination.total_pages;
+                
+                renderPagination(currentPage, totalPages);
+                paginationContainer.classList.remove('hidden');
+
+            } else if (page === 1) {
+                container.innerHTML = `
+                <div class="p-6 text-center text-custom-blue-300">
+                    <p class="text-lg">${query ? 'Tidak ada thread yang sesuai dengan pencarian.' : 'Belum ada thread di forum ini.'}</p>
+                    ${query ? '' : '<p>Jadilah yang pertama untuk memulai diskusi!</p>'}
+                </div>
+                `;
+                paginationContainer.classList.add('hidden');
+            }
+
+        } catch (error) {
+            console.error('Error:', error);
+            hideLoading();
+            
+            if (page === 1) {
+                container.innerHTML = `
+                <div class="p-6 text-center text-red-500">
+                    <p class="text-lg">Terjadi kesalahan saat memuat data.</p>
+                    <button onclick="location.reload()" class="mt-4 bg-custom-blue-400 text-white px-4 py-2 rounded hover:bg-custom-blue-300">
+                        Muat Ulang Halaman
+                    </button>
+                </div>
+                `;
+            }
+            paginationContainer.classList.add('hidden');
+        } finally {
+            isLoading = false;
+        }
+    }
+    
+    function createThreadRow(thread) {
+        return `
+        <a href="${thread.url}" class="flex p-4 items-center hover:bg-custom-blue-50 transition-colors duration-150">
+            <div class="w-6/12">
+                <span class="font-semibold text-lg text-custom-blue-400 hover:underline">${thread.title}</span>
+            </div>
+            <div class="w-2/12 text-left text-custom-blue-300">
+                ${thread.author_username}
+            </div>
+            <div class="w-2/12 text-left text-sm text-custom-blue-200">
+                <div>${thread.created_date}</div>
+                <div class="text-xs">${thread.created_time}</div>
+            </div>
+            <div class="w-2/12 text-center">
+                <span class="bg-custom-blue-400 text-white text-xs font-bold rounded-full px-3 py-1">
+                    ${thread.reply_count}
+                </span>
+            </div>
+        </a>
+        `;
+    }
+
+    function createPageButton(page, text, isDisabled = false, isActive = false) {
+        let classes = 'px-4 py-2 mx-0.5 rounded-lg transition-colors duration-150 text-sm font-medium ';
+        if (isDisabled) {
+            return `<span class="${classes} text-custom-blue-200 cursor-not-allowed">${text}</span>`;
+        }
+        if (isActive) {
+            classes += 'bg-custom-blue-400 text-white cursor-default';
+            return `<span class="${classes}">${text}</span>`;
+        }
+        classes += 'bg-white text-custom-blue-400 border border-custom-blue-200 hover:bg-custom-blue-50';
+        return `<button data-page="${page}" class="${classes}">${text}</button>`;
+    }
+
+    function renderPagination(currentPage, totalPages) {
+        paginationContainer.innerHTML = ''; 
+        if (totalPages <= 1) {
+            paginationContainer.classList.add('hidden');
+            return;
+        }
+        let html = '';
+        html += createPageButton(currentPage - 1, '&laquo; Prev', currentPage === 1);
+        let pagesToShow = new Set();
+        pagesToShow.add(1); 
+        for (let i = -2; i <= 2; i++) {
+            const page = currentPage + i;
+            if (page > 1 && page < totalPages) {
+                pagesToShow.add(page);
+            }
+        }
+        pagesToShow.add(currentPage);
+        pagesToShow.add(totalPages); 
+        const sortedPages = Array.from(pagesToShow).sort((a, b) => a - b);
+        let lastPage = 0;
+        for (const page of sortedPages) {
+            if (lastPage !== 0 && page > lastPage + 1) {
+                html += `<span class="px-2 py-2 text-custom-blue-300">...</span>`;
+            }
+            html += createPageButton(page, page, false, page === currentPage);
+            lastPage = page;
+        }
+        html += createPageButton(currentPage + 1, 'Next &raquo;', currentPage === totalPages);
+        paginationContainer.innerHTML = html;
+        paginationContainer.classList.remove('hidden'); 
+    }
+
+    function handlePaginationClick(e) {
+        const target = e.target.closest('button[data-page]');
+        if (!target) return;
+        target.disabled = true;
+        const page = parseInt(target.dataset.page);
+        if (page !== currentPage) {
+            fetchThreads(page, currentQuery); 
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+    }
+
+    if (searchInput) {
+        let searchTimeout;
+        searchInput.addEventListener('input', function(e) {
+            clearTimeout(searchTimeout);
+            searchTimeout = setTimeout(() => {
+                currentQuery = e.target.value.trim();
+                currentPage = 1;
+                fetchThreads(1, currentQuery, true); 
+            }, 500);
+        });
+    }
+    
+    paginationContainer.addEventListener('click', handlePaginationClick);
+    
+    fetchThreads(1, ''); 
+});
+</script>
+{% endblock javascript %}
