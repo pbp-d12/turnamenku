@@ -12,7 +12,9 @@
 
         <img id="profile-pic-preview" src="{{ editing_user.profile.profile_picture_url_or_default }}"
             alt="Preview Foto Profil {{ editing_user.username }}"
-            onerror="this.onerror=null; this.src='{% static 'images/default_avatar.png' %}';"
+            src="{{ user.profile.profile_picture_url_or_default }}"
+            data-default-src="{% static 'images/default_avatar.png' %}"
+            onerror="this.onerror=null; this.src=this.dataset.defaultSrc;"
             class="w-64 h-64 rounded-full mx-auto mb-8 object-cover border-4 border-custom-blue-100">
 
         <form id="edit-profile-form" method="POST"
