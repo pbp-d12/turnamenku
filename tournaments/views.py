@@ -1,7 +1,7 @@
 from django.shortcuts import render, get_object_or_404
 from django.http import JsonResponse, HttpResponseForbidden
 from django.urls import reverse
-from django.db.models import Prefetch
+from django.db.models import Prefetch, Q # Import Q
 from django.utils import timezone
 from django.contrib.auth.decorators import login_required
 from django.views.decorators.http import require_POST
@@ -12,10 +12,10 @@ from .forms import TournamentForm
 
 def tournament_home(request):
     """
-    Renders the main page for tournaments, which includes the
-    'Create Tournament' modal form for eligible users.
+    Merender halaman HTML utama untuk turnamen,
+    termasuk form modal 'Buat Turnamen'.
     """
-    create_form = TournamentForm() # Instantiate form for the modal
+    create_form = TournamentForm()
     context = {
         'create_form': create_form
     }
@@ -23,14 +23,13 @@ def tournament_home(request):
 
 def get_tournaments_json(request):
     """
-    Returns a JSON list of tournaments, applying filters based on GET parameters.
-    Filters:
-        - status (upcoming, ongoing, past)
-        - search (by name)
+    Mengembalikan daftar turnamen dalam format JSON, menerapkan filter
+    berdasarkan parameter GET.
     """
     queryset = Tournament.objects.select_related('organizer').all()
     today = timezone.now().date()
 
+    # --- Terapkan Filter ---
     status_filter = request.GET.get('status', None)
     search_query = request.GET.get('search', None)
 
@@ -45,7 +44,8 @@ def get_tournaments_json(request):
     if search_query:
         queryset = queryset.filter(Q(name__icontains=search_query))
 
-    tournaments = queryset.order_by('-start_date', 'name') 
+    # --- Urutkan dan Serialisasi ---
+    tournaments = queryset.order_by('-start_date', 'name')
     
     data = []
     for t in tournaments:
@@ -56,7 +56,7 @@ def get_tournaments_json(request):
             'organizer': t.organizer.username,
             'start_date': t.start_date.strftime('%d %b %Y'),
             'end_date': t.end_date.strftime('%d %b %Y'),
-            'banner_url': t.banner.url if t.banner else None,
+            'banner_url': t.banner, # DIUBAH: Akses langsung field URLField
             'detail_page_url': reverse('tournaments:tournament_detail_page', args=[t.pk])
         })
     return JsonResponse(data, safe=False)
@@ -65,10 +65,9 @@ def get_tournaments_json(request):
 @require_POST
 def create_tournament(request):
     """
-    Handles AJAX POST request to create a new tournament.
-    Restricted to 'PENYELENGGARA' and 'ADMIN' roles.
+    Menangani request POST AJAX untuk membuat turnamen baru.
+    Dibatasi untuk role 'PENYELENGGARA' dan 'ADMIN'.
     """
-    # Role Check: User must have a profile and be an Organizer or Admin
     profile = getattr(request.user, 'profile', None)
     if not profile or profile.role not in ['PENYELENGGARA', 'ADMIN']:
         return JsonResponse({
@@ -76,13 +75,14 @@ def create_tournament(request):
             'message': 'Akses ditolak: Hanya Penyelenggara atau Admin yang dapat membuat turnamen.'
         }, status=403) # 403 Forbidden
 
-    form = TournamentForm(request.POST, request.FILES)
+    # DIUBAH: Hapus request.FILES karena kita tidak lagi mengunggah file
+    form = TournamentForm(request.POST) 
+    
     if form.is_valid():
         tournament = form.save(commit=False)
-        tournament.organizer = request.user # Set organizer to the logged-in user
+        tournament.organizer = request.user
         tournament.save()
         
-        # Return data for the newly created tournament
         return JsonResponse({
             'status': 'success',
             'message': 'Turnamen berhasil dibuat!',
@@ -93,12 +93,11 @@ def create_tournament(request):
                 'organizer': tournament.organizer.username,
                 'start_date': tournament.start_date.strftime('%d %b %Y'),
                 'end_date': tournament.end_date.strftime('%d %b %Y'),
-                'banner_url': tournament.banner.url if tournament.banner else None,
+                'banner_url': tournament.banner, # DIUBAH: Akses langsung field URLField
                 'detail_page_url': reverse('tournaments:tournament_detail_page', args=[tournament.pk])
             }
         }, status=201) # 201 Created
     else:
-        # Return form validation errors
         errors_dict = form.errors.get_json_data(escape_html=True)
         return JsonResponse({
             'status': 'error',
@@ -108,10 +107,8 @@ def create_tournament(request):
 
 def tournament_detail_page(request, tournament_id):
     """
-    Renders the HTML shell for the tournament detail page.
-    Passes the ID to the template for AJAX fetching.
+    Merender shell HTML untuk halaman detail turnamen.
     """
-    # Ensure the tournament exists before rendering the page
     get_object_or_404(Tournament, pk=tournament_id)
     context = {
         'tournament_id': tournament_id
@@ -120,10 +117,9 @@ def tournament_detail_page(request, tournament_id):
 
 def get_tournament_detail_json(request, tournament_id):
     """
-    Returns detailed JSON data for a single tournament, including matches.
+    Mengembalikan data JSON detail untuk satu turnamen, termasuk data pertandingan.
     """
     try:
-        # Optimized query to get tournament, organizer, and all related matches+teams
         tournament = get_object_or_404(
             Tournament.objects.select_related('organizer').prefetch_related(
                 Prefetch('matches', queryset=Match.objects.select_related('home_team', 'away_team').order_by('match_date'))
@@ -131,7 +127,6 @@ def get_tournament_detail_json(request, tournament_id):
             pk=tournament_id
         )
 
-        # Serialize match data
         match_data = []
         for match in tournament.matches.all():
             local_match_time = timezone.localtime(match.match_date)
@@ -145,7 +140,6 @@ def get_tournament_detail_json(request, tournament_id):
                 'is_finished': match.home_score is not None and match.away_score is not None
             })
 
-        # Serialize main tournament data
         data = {
             'id': tournament.pk,
             'name': tournament.name,
@@ -154,9 +148,8 @@ def get_tournament_detail_json(request, tournament_id):
             'organizer_profile_url': reverse('main:profile', args=[tournament.organizer.username]),
             'start_date_formatted': tournament.start_date.strftime('%d %b %Y'),
             'end_date_formatted': tournament.end_date.strftime('%d %b %Y'),
-            'banner_url': tournament.banner.url if tournament.banner else None,
+            'banner_url': tournament.banner, # DIUBAH: Akses langsung field URLField
             'matches': match_data,
-            # Add URLs for related actions
             'forum_url': reverse('forums:forum_threads', args=[tournament.pk]),
             'predictions_url': f"{reverse('predictions:predictions_index')}?tournament={tournament.pk}"
         }
@@ -165,6 +158,6 @@ def get_tournament_detail_json(request, tournament_id):
     except Tournament.DoesNotExist:
         return JsonResponse({'error': 'Tournament not found'}, status=404)
     except Exception as e:
-        # Log the error for debugging
         print(f"Error fetching tournament detail JSON: {e}")
         return JsonResponse({'error': 'An unexpected error occurred'}, status=500)
+
