@@ -34,15 +34,14 @@
     {% block extra_css %}{% endblock %}
 </head>
 
-<body class="bg-custom-blue-50 text-custom-blue-400 min-h-screen">
+<body class="bg-custom-blue-50 text-custom-blue-400 min-h-screen" {% block body_attributes %}{% endblock body_attributes %}>
     <div id="toast-container" class="fixed bottom-5 right-5 z-50 space-y-3 w-full max-w-sm">
     </div>
 
     {% block content %}
     {% endblock content %}
 
-    
-    {% block javascript %}
+
     <script>
         // Fungsi toast tetap sama, pesan error diubah
         function showToast(message, type = 'info') {
@@ -87,6 +86,7 @@
             }, 5000);
         }
     </script>
+    {% block javascript %}
     {% endblock javascript %}
 
 </body>

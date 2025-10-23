@@ -44,7 +44,7 @@ def register_view(request):
 
 def login_view(request):
     if request.user.is_authenticated:
-        return redirect('main:profile', username=request.user.username)
+        return redirect('main:home', username=request.user.username)
     if request.method == 'POST':
         form = LoginForm(request, data=request.POST)
         if form.is_valid():
@@ -54,7 +54,7 @@ def login_view(request):
             if user is not None:
                 login(request, user)
                 response_data = {"status": "success", "message": "Login berhasil!", "redirect_url": reverse(
-                    "main:profile", kwargs={'username': user.username})}
+                    "main:home")}
                 response = JsonResponse(response_data, status=200)
                 response.set_cookie('last_login', str(datetime.datetime.now()))
                 return response
