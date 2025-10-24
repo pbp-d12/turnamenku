@@ -30,7 +30,7 @@
     </form>
 
     <!-- Kanan: Tambah Match -->
-    {% if user.is_authenticated and user.profile.role == "PENYELENGGARA" %}
+    {% if user.is_authenticated and user.profile.role in "PENYELENGGARA,ADMIN" %}
     <button id="openAddMatchModal"
       class="w-full sm:w-auto bg-custom-blue-400 text-white font-bold py-2 px-5 rounded-lg shadow-md hover:bg-custom-blue-300 transition-colors duration-300">
       + Tambah Match
@@ -64,11 +64,18 @@
           data-match-id="{{ match.id }}" data-team-id="{{ match.away_team.id }}">
           {{ match.away_team.name }}
         </button>
-        {% if user.is_authenticated and user.profile.role == "PENYELENGGARA" %}
-        <button class="edit-score-btn bg-yellow-400 hover:bg-yellow-500 text-white px-4 py-2 rounded-lg font-medium shadow-sm transition duration-200 mt-3"
-          data-match-id="{{ match.id }}">
-          Edit Skor
-        </button>
+        {% if user.is_authenticated and user.profile.role in "PENYELENGGARA,ADMIN" %}
+        <div class="flex flex-col sm:flex-row justify-center gap-3 mt-3">
+          <button class="edit-score-btn bg-custom-blue-400 hover:bg-custom-blue-700 text-white px-4 py-2 rounded-lg font-medium shadow-sm transition duration-200"
+            data-match-id="{{ match.id }}">
+            <!-- text-gray-400 hover:text-gray-700 text-3xl leading-none -->
+            Edit Skor
+          </button>
+          <button class="delete-prediction-btn bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg font-medium shadow-sm transition duration-200"
+            data-match-id="{{ match.id }}">
+            Delete Prediction
+          </button>
+        </div>
         {% endif %}
       </div>
     </div>
@@ -281,5 +288,30 @@ document.addEventListener('DOMContentLoaded', function () {
   });
 
 }); 
+
+// Delete prediction
+document.querySelectorAll(".delete-prediction-btn").forEach(btn => {
+  btn.addEventListener("click", async () => {
+    const matchId = btn.dataset.matchId;
+    const csrfToken = '{{ csrf_token }}';
+
+    if (!confirm("Yakin ingin menghapus prediksi ini?")) return;
+
+    const response = await fetch("{% url 'predictions:delete_prediction' %}", {
+      method: "POST",
+      headers: { "X-CSRFToken": csrfToken, "Content-Type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({ match_id: matchId })
+    });
+
+    const data = await response.json();
+    if (data.success) {
+      showToast(data.message, 'success');
+      setTimeout(() => location.reload(), 1000);
+    } else {
+      showToast(data.message, 'error');
+    }
+  });
+});
+
 </script>
 {% endblock javascript %}

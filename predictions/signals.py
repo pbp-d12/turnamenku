@@ -20,11 +20,14 @@ def update_predictions_after_match(sender, instance, **kwargs):
     # Update poin pada setiap prediksi
     predictions = Prediction.objects.filter(match=instance)
     for pred in predictions:
-        # Reset dulu poin
-        pred.points_awarded = 0
-
-        # Kalau menangnya sama, kasih poin 10
-        if winner and pred.predicted_winner == winner:
+        # Kalau draw
+        if winner is None:
+            pred.points_awarded = 0
+        # Kalau prediksi benar
+        elif pred.predicted_winner == winner:
             pred.points_awarded = 10
+        # Kalau prediksi salah
+        else:
+            pred.points_awarded = -10
 
         pred.save()

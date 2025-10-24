@@ -34,7 +34,7 @@ def predictions_index(request):
 
 @login_required
 def add_match(request):
-    if request.user.profile.role != 'PENYELENGGARA':
+    if request.user.profile.role not in ('PENYELENGGARA', 'ADMIN'):
         return JsonResponse({'success': False, 'message': 'Kamu tidak punya izin.'}, status=403)
 
     if request.method == 'POST':
@@ -114,7 +114,15 @@ def evaluate_predictions(request, match_id):
 
     predictions = Prediction.objects.filter(match=match)
     for p in predictions:
-        p.points_awarded = 10 if correct_team and p.predicted_winner == correct_team else 0
+        if correct_team is None:
+            # Jika hasilnya draw
+            p.points_awarded = 0
+        elif p.predicted_winner == correct_team:
+            # Prediksi benar
+            p.points_awarded = 10
+        else:
+            # Prediksi salah
+            p.points_awarded = -10
         p.save()
 
     return JsonResponse({'success': True, 'message': 'Prediksi telah dievaluasi!'})
@@ -141,3 +149,22 @@ def edit_match_score(request):
     match.save()
 
     return JsonResponse({"success": True, "message": "Skor berhasil diperbarui"})
+
+@login_required
+def delete_prediction(request):
+    if request.user.profile.role not in ('PENYELENGGARA', 'ADMIN'):
+        return JsonResponse({'success': False, 'message': 'Kamu tidak punya izin.'}, status=403)
+    
+    if request.method == 'POST':
+        match_id = request.POST.get('match_id')
+
+        # Hapus semua prediksi untuk match tersebut
+        deleted_count, _ = Prediction.objects.filter(match_id=match_id).delete()
+
+        if deleted_count:
+            return JsonResponse({'success': True, 'message': 'Prediksi berhasil dihapus!'})
+        else:
+            return JsonResponse({'success': False, 'message': 'Prediksi tidak ditemukan.'})
+    
+    return JsonResponse({'success': False, 'message': 'Metode tidak valid.'}, status=400)
+
