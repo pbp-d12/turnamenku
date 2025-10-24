@@ -24,12 +24,12 @@ SECRET_KEY = os.getenv('SECRET_KEY', 'default-insecure-key-ganti-ini')
 DEBUG = os.getenv('DEBUG', 'True').lower() == 'true'
 
 # Sesuaikan ini dengan host production kamu nanti
-ALLOWED_HOSTS = ["localhost", "127.0.0.1", "https://gibran-tegar-turnamenku.pbp.cs.ui.ac.id"]
+ALLOWED_HOSTS = ["localhost", "127.0.0.1"]
 
 if not DEBUG:
-    ALLOWED_HOSTS.append('turnamenku.pbp.cs.ui.ac.id')
+    ALLOWED_HOSTS.append('https://gibran-tegar-turnamenku.pbp.cs.ui.ac.id/')
     CSRF_TRUSTED_ORIGINS = [
-        'https://turnamenku.pbp.cs.ui.ac.id'
+        'https://gibran-tegar-turnamenku.pbp.cs.ui.ac.id'
     ]
 
 # Logic untuk menentukan mode production (dari file .env kamu)
