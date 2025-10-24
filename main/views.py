@@ -47,7 +47,7 @@ def register_view(request):
 
 def login_view(request):
     if request.user.is_authenticated:
-        return redirect('main:home', username=request.user.username)
+        return redirect('main:home')
     if request.method == 'POST':
         form = LoginForm(request, data=request.POST)
         if form.is_valid():
@@ -59,7 +59,7 @@ def login_view(request):
                 response_data = {"status": "success", "message": "Login berhasil!", "redirect_url": reverse(
                     "main:home")}
                 response = JsonResponse(response_data, status=200)
-                response.set_cookie('last_login', str(datetime.datetime.now()))
+                # response.set_cookie('last_login', str(datetime.datetime.now()))
                 return response
         else:
             return JsonResponse({"status": "error", "message": "Nama pengguna atau kata sandi salah."}, status=401)
@@ -112,6 +112,9 @@ def profile_view(request, username):
 def edit_my_profile_view(request):
     target_user = request.user
     if request.method == 'POST':
+        if 'username' in request.POST and request.POST['username'] != target_user.username:
+            return JsonResponse({"status": "error", "message": "Nama pengguna tidak bisa diubah."}, status=400)
+
         u_form = UserUpdateForm(
             request.POST, instance=target_user, user=request.user)
         if 'username' in u_form.changed_data:
@@ -154,6 +157,11 @@ def edit_user_profile_view(request, username):
             request.POST, instance=target_user, user=request.user)
         p_form = ProfileUpdateForm(
             request.POST, instance=target_profile, request=request)
+
+        if not u_form.is_valid():
+            print("!!! DEBUG u_form errors:", u_form.errors)
+        if not p_form.is_valid():
+            print("!!! DEBUG p_form errors:", p_form.errors)
 
         if u_form.is_valid() and p_form.is_valid():
             u_form.save()
