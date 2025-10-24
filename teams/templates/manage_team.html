@@ -11,7 +11,7 @@
           type="text"
           id="manage-search-input"
           placeholder="Search your teams..."
-          onkeyup="searchManageTeams(1)"
+          onkeyup="searchTeams(1, 'manage')"
         />
       </div>
 
@@ -21,45 +21,43 @@
   </div>
 </div>
 
-<div id="modal-configure" class="modal-overlay">
-  <div class="modal">
-    <div class="modal-header">
-      <h2>Configure Team</h2>
-      <button onclick="closeModal('modal-configure')">&times;</button>
+<div id="modal-configure" 
+     style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.55); 
+            z-index:9999; justify-content:center; align-items:center;">
+  <div style="background:#fff; width:420px; padding:20px; border-radius:12px; 
+              box-shadow:0 4px 20px rgba(0,0,0,0.3); position:relative;">
+    <h2 style="margin-top:0; font-size:20px; text-align:center;">Configure Team</h2>
+
+    <input type="hidden" id="config-team-id" />
+
+    <label style="display:block; margin-top:12px;">Team Name:</label>
+    <input type="text" id="config-team-name" 
+           style="width:100%; padding:8px; margin-top:4px; border:1px solid #ccc; border-radius:6px;">
+
+    <label style="display:block; margin-top:12px;">Team Logo:</label>
+    <input type="file" id="config-team-logo" 
+           style="width:100%; margin-top:4px; border-radius:6px;">
+
+    <h3 style="margin-top:16px;">Members</h3>
+    <div id="members-list" 
+         style="max-height:180px; overflow-y:auto; margin-top:6px;">
+      <p style="color:#777; font-size:14px;">Loading...</p>
     </div>
 
-    <div class="modal-body">
-      <form id="configure-form" onsubmit="event.preventDefault(); saveTeamConfig();">
-        <input type="hidden" id="config-team-id" />
-
-        <div class="form-group">
-          <label>Team Name</label>
-          <input type="text" id="config-team-name" required />
-        </div>
-
-        <div class="form-group">
-          <label>Team Logo</label>
-          <input type="file" id="config-team-logo" accept="image/*" />
-        </div>
-
-        <h3>Team Members</h3>
-        <div id="members-list"></div>
-
-        <div class="form-actions">
-          <button type="submit" class="action-btn">Save Changes</button>
-          <button
-            type="button"
-            class="action-btn"
-            style="background: #f44336;"
-            onclick="deleteTeamConfirm()"
-          >
-            Delete Team
-          </button>
-        </div>
-      </form>
+    <div style="margin-top:20px; display:flex; justify-content:space-between;">
+      <button onclick="saveTeamConfig()" 
+              style="background:#4CAF50; color:white; border:none; padding:8px 16px; 
+                     border-radius:6px; cursor:pointer;">Save</button>
+      <button onclick="deleteTeamConfirm()" 
+              style="background:#f44336; color:white; border:none; padding:8px 16px; 
+                     border-radius:6px; cursor:pointer;">Delete</button>
+      <button onclick="closeModal('modal-configure')" 
+              style="background:#888; color:white; border:none; padding:8px 16px; 
+                     border-radius:6px; cursor:pointer;">Close</button>
     </div>
   </div>
 </div>
+
 
 <script>
 async function searchManageTeams(page = 1) {
@@ -76,7 +74,7 @@ async function searchManageTeams(page = 1) {
     const data = await response.json();
 
     if (data.status !== "success" || data.results.length === 0) {
-      container.innerHTML = `<p class="loading">Your not a captain.</p>`;
+      container.innerHTML = `<p class="loading">You're not a captain.</p>`;
       return;
     }
 
@@ -96,13 +94,12 @@ async function searchManageTeams(page = 1) {
             </div>
           </div>
           <div class="team-actions">
-            <button class="action-btn" onclick="openConfigureModal(${team.id})">Configure</button>
+            <button class="action-btn" onclick="openModal('modal-configure', ${team.id})">Configure</button>
           </div>
         </div>`
       )
       .join("");
 
-    // Pagination
     const p = data.pagination;
     let paginationHTML = "";
     if (p.has_previous)
@@ -117,24 +114,23 @@ async function searchManageTeams(page = 1) {
   }
 }
 
-
 async function openConfigureModal(teamId) {
-  openModal("modal-configure");
   document.getElementById("config-team-id").value = teamId;
   document.getElementById("members-list").innerHTML = `<p class="loading">Loading members...</p>`;
 
   try {
-    const response = await fetch(`/teams/${teamId}/json/`);
+    const response = await fetch(`json/${teamId}/`);
     const team = await response.json();
+    console.log(team);
 
     document.getElementById("config-team-name").value = team.name;
 
     const membersHTML = team.members
       .map(
         (m) => `
-        <div class="member-item">
+        <div class="member-item flex justify-between items-center py-1 border-b">
           <span>${m}</span>
-          <button onclick="removeMember(${team.id}, '${m}')">Remove</button>
+          <button style="text-color:red" onclick="kickMember(${team.id}, '${m}')">Kick</button>
         </div>`
       )
       .join("");
@@ -144,6 +140,50 @@ async function openConfigureModal(teamId) {
     document.getElementById("members-list").innerHTML = `<p>Error loading team.</p>`;
   }
 }
+
+function renderMembers(members, teamId) {
+  const container = document.getElementById("members-list");
+  if (!members || members.length === 0) {
+    container.innerHTML = `<p style="color:#777;">No members yet.</p>`;
+    return;
+  }
+
+  container.innerHTML = members
+    .map(
+      (m) => `
+      <div style="display:flex; justify-content:space-between; align-items:center; 
+                  padding:4px 0; border-bottom:1px solid #eee;">
+        <span style="font-size:15px;">${m.name || m}</span>
+        <span onclick="kickMember('${teamId}', '${m.id || m}')"
+              style="color:#f44336; cursor:pointer; font-weight:500;">Kick</span>
+      </div>`
+    )
+    .join("");
+}
+
+async function kickMember(teamId, memberUsername) {
+  try {
+    const response = await fetch(`/teams/${teamId}/member/${memberUsername}/delete/`, {
+      method: "POST",
+      headers: {
+        "X-CSRFToken": getCSRFToken(),
+        "X-Requested-With": "XMLHttpRequest",
+      },
+    });
+
+    const data = await response.json();
+    if (data.status === "success") {
+      showToast("Hore dia pergi!", "success");
+      renderMembers(data.members, teamId);
+    } else {
+      showToast(data.message || "Gagal mengeluarkan dia", "error");
+    }
+  } catch (error) {
+    console.error(error);
+    showToast("Gagal mengeluarkan dia", "error");
+  }
+}
+
 
 async function saveTeamConfig() {
   const teamId = document.getElementById("config-team-id").value;
@@ -158,19 +198,24 @@ async function saveTeamConfig() {
     const response = await fetch(`/teams/${teamId}/edit/`, {
       method: "POST",
       body: formData,
-      headers: { "X-CSRFToken": getCSRFToken() },
+      headers: {
+        "X-CSRFToken": getCSRFToken(),
+        // jangan tambahkan Content-Type manual! biar FormData atur boundary-nya
+      },
     });
+
     const data = await response.json();
+
     if (data.status === "success") {
-      alert("Team updated!");
+      showToast("Nice dah mantap nih!", "success");
       closeModal("modal-configure");
-      searchTeams(1, "manage");
+      searchManageTeams(1);
     } else {
-      alert("Failed to save changes.");
+      showToast("Gagal ganti ni: " + (data.message || "Unknown error"), "error");
     }
   } catch (error) {
     console.error(error);
-    alert("Error saving team.");
+    showToast("Error saving team.", "error");
   }
 }
 
@@ -181,27 +226,30 @@ async function deleteTeamConfirm() {
   try {
     const response = await fetch(`/teams/${teamId}/delete/`, {
       method: "POST",
-      headers: { "X-CSRFToken": getCSRFToken() },
+      headers: {
+        "X-CSRFToken": getCSRFToken(),
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ confirm: true }),
     });
+
     const data = await response.json();
+
     if (data.status === "success") {
-      alert("Team deleted.");
+      showToast("Selamat tinggal teman-teman", "success");
       closeModal("modal-configure");
-      searchTeams(1, "manage");
+      searchManageTeams(1);
     } else {
-      alert("Delete failed.");
+      showToast("Lohee gagal: " + (data.message || ""), "error");
     }
   } catch (error) {
     console.error(error);
-    alert("Error deleting team.");
+    showToast("Error deleting team.", "error");
   }
 }
 
 function getCSRFToken() {
-  const cookieValue = document.cookie
-    .split("; ")
-    .find((row) => row.startsWith("csrftoken="))
-    ?.split("=")[1];
-  return cookieValue || "";
+  const match = document.cookie.match(/csrftoken=([^;]+)/);
+  return match ? match[1] : "";
 }
 </script>
