@@ -5,6 +5,8 @@ from django.db.models import Prefetch, Q
 from django.utils import timezone
 from django.contrib.auth.decorators import login_required
 from django.views.decorators.http import require_POST
+from django.views.decorators.http import require_http_methods
+from django.http import HttpResponseRedirect
 
 from .models import Tournament, Match
 from .forms import TournamentForm
@@ -232,3 +234,39 @@ def edit_tournament(request, tournament_id):
             'errors': errors_dict
         }, status=400)
 
+@login_required
+@require_http_methods(["DELETE"]) # Hanya izinkan metode DELETE
+def delete_tournament(request, tournament_id):
+    """
+    Menangani request DELETE AJAX untuk menghapus turnamen yang ada.
+    Dibatasi untuk organizer atau admin.
+    """
+    tournament = get_object_or_404(Tournament, pk=tournament_id)
+
+    # Pengecekan Keamanan (sama seperti edit)
+    profile = getattr(request.user, 'profile', None)
+    is_admin = profile and profile.role == 'ADMIN'
+    is_organizer = request.user == tournament.organizer
+
+    if not (is_organizer or is_admin):
+        return JsonResponse({
+            'status': 'error',
+            'message': 'Akses ditolak: Hanya organizer atau admin yang dapat menghapus turnamen ini.'
+        }, status=403) # 403 Forbidden
+
+    try:
+        tournament_name = tournament.name # Simpan nama untuk pesan
+        tournament.delete()
+        return JsonResponse({
+            'status': 'success',
+            'message': f'Turnamen "{tournament_name}" berhasil dihapus.',
+            # Kirim URL redirect agar JS bisa mengarahkan pengguna
+            'redirect_url': reverse('tournaments:tournament_home')
+        }, status=200)
+    except Exception as e:
+        # Tangkap error tak terduga saat menghapus
+        print(f"Error deleting tournament: {e}")
+        return JsonResponse({
+            'status': 'error',
+            'message': 'Terjadi kesalahan saat mencoba menghapus turnamen.'
+        }, status=500)
