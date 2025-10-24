@@ -26,12 +26,11 @@ DEBUG = os.getenv('DEBUG', 'True').lower() == 'true'
 # Sesuaikan ini dengan host production kamu nanti
 ALLOWED_HOSTS = ["localhost", "127.0.0.1"]
 
-# TODO: Tambahkan host production kamu di sini saat deploy
-# if not DEBUG:
-#     ALLOWED_HOSTS.append('turnamenku.pbp.cs.ui.ac.id')
-#     CSRF_TRUSTED_ORIGINS = [
-#         'https://turnamenku.pbp.cs.ui.ac.id'
-#     ]
+if not DEBUG:
+    ALLOWED_HOSTS.append('turnamenku.pbp.cs.ui.ac.id')
+    CSRF_TRUSTED_ORIGINS = [
+        'https://turnamenku.pbp.cs.ui.ac.id'
+    ]
 
 # Logic untuk menentukan mode production (dari file .env kamu)
 PRODUCTION = os.getenv('PRODUCTION', 'False').lower() == 'true'
