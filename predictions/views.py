@@ -32,16 +32,6 @@ def predictions_index(request):
     return render(request, 'predictions/predictions_index.html', context)
 
 @login_required
-def add_match_form(request):
-    if request.user.profile.role not in ('PENYELENGGARA', 'ADMIN'):
-        return JsonResponse({'success': False, 'message': 'Kamu tidak punya izin.'}, status=403)
-
-    tournaments = Tournament.objects.all().order_by('name')
-    teams = Team.objects.all().order_by('name')  # <-- diurutkan A-Z
-
-    return render(request, 'predictions/add_match.html', {'tournaments': tournaments, 'teams': teams})
-
-@login_required
 def add_match(request):
     if request.user.profile.role not in ('PENYELENGGARA', 'ADMIN'):
         return JsonResponse({'success': False, 'message': 'Kamu tidak punya izin.'}, status=403)
