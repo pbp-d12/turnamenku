@@ -2,13 +2,13 @@
 {% block page_title %}Leaderboard{% endblock page_title %}
 {% block main_content %}
 <div class="container mx-auto px-4 py-8">
-  <h1 class="text-4xl font-bold mb-8 text-center text-custom-blue-400">Leaderboard Prediksi</h1>
+  <h1 class="text-4xl font-bold mb-8 text-center text-custom-blue-400">Leaderboard Skor Prediksi</h1>
 
   <!-- Tombol Back -->
   <div class="flex justify-center mb-8">
-    <a href="{% url 'predictions:predictions_index' %}" 
-       class="bg-custom-blue-100 hover:bg-custom-blue-300 text-white px-6 py-3 rounded-lg font-semibold shadow-md transition duration-300">
-       Prediction
+    <a href="{% url 'predictions:predictions_index' %}"
+      class="bg-custom-blue-100 hover:bg-custom-blue-300 text-white px-6 py-3 rounded-lg font-semibold shadow-md transition duration-300">
+      Prediction
     </a>
   </div>
 
@@ -18,7 +18,17 @@
         <tr>
           <th class="px-6 py-3">Peringkat</th>
           <th class="px-6 py-3">Nama Pengguna</th>
-          <th class="px-6 py-3">Total Poin</th>
+          <th class="px-6 py-3">
+            Total Poin
+            <a href="?sort={% if sort_order == 'asc' %}desc{% else %}asc{% endif %}"
+              class="ml-2 text-white hover:text-gray-200">
+              {% if sort_order == 'asc' %}
+              ▲
+              {% else %}
+              ▼
+              {% endif %}
+            </a>
+          </th>
         </tr>
       </thead>
       <tbody>
