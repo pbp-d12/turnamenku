@@ -9,6 +9,17 @@ body {
   font-family: "Poppins";
 }
 
+@keyframes popIn {
+  from {
+    transform: scale(0.9);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
 /* === TEAMS SECTION === */
 .teams {
   display: flex;
@@ -217,6 +228,119 @@ body {
 .modal-overlay.show {
   display: flex;
 }
+
+.search-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: #f5f7fa;
+  border: 1px solid #d0d7de;
+  border-radius: 10px;
+  padding: 8px 12px;
+  margin-bottom: 16px;
+  transition: all 0.2s ease-in-out;
+}
+
+.search-bar:focus-within {
+  border-color: #0066ff;
+  box-shadow: 0 0 0 3px rgba(0, 102, 255, 0.2);
+  background: #ffffff;
+}
+
+.search-bar input[type="text"] {
+  width: 100%;
+  border: none;
+  outline: none;
+  background: transparent;
+  font-size: 14px;
+  color: #333;
+}
+
+.search-bar input::placeholder {
+  color: #999;
+}
+
+.search-bar button {
+  background: #0066ff;
+  border: none;
+  color: white;
+  padding: 6px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.search-bar button:hover {
+  background: #0052cc;
+}
+
+.modal-overlay {
+  position: fixed;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0,0,0,0.4);
+  z-index: 1000;
+}
+.modal-overlay.show {
+  display: flex;
+}
+.modal {
+  background: #fff;
+  border-radius: 16px;
+  padding: 20px;
+  width: 90%;
+  max-width: 700px;
+  max-height: 85vh;
+  overflow-y: auto;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+  animation: popIn 0.25s ease;
+}
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.modal-header h2 {
+  margin: 0;
+}
+.close-btn {
+  border: none;
+  background: none;
+  font-size: 24px;
+  cursor: pointer;
+}
+.search-bar {
+  margin: 15px 0;
+  text-align: center;
+}
+.search-bar input {
+  width: 80%;
+  padding: 10px 15px;
+  border-radius: 8px;
+  border: 1px solid #ccc;
+  font-size: 16px;
+}
+
+.pagination {
+  margin-top: 15px;
+  text-align: center;
+}
+.pagination button {
+  margin: 0 5px;
+  padding: 6px 10px;
+  border: none;
+  background: #007bff;
+  color: white;
+  border-radius: 6px;
+  cursor: pointer;
+}
+.pagination span {
+  margin: 0 10px;
+}
+
 
 /* === RESPONSIVE === */
 @media (max-width: 900px) {

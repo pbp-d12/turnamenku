@@ -2,34 +2,180 @@
   <div class="modal">
     <div class="modal-header">
       <button onclick="closeModal('modal-join')">&times;</button>
-      <h2>Search For a Teams</h2>
-      <div class="modal-search">Search</div>
+      <h2>Search For a Team</h2>
     </div>
 
     <div class="modal-body">
-      {% for team in teams %}
-        <div class="team-card">
-          <div class="team-info">
-            {% if team.logo %}
-              <img src="{{ team.logo.url }}" alt="{{ team.name }}" class="team-avatar">
-            {% else %}
-              <div class="team-avatar"></div>
-            {% endif %}
+      <!-- 🔍 Search bar -->
+      <div class="search-container">
+        <input 
+          type="text" 
+          id="team-search" 
+          placeholder="Search teams by name..." 
+          oninput="filterTeams()" 
+          class="search-input"
+        />
+      </div>
 
-            <div class="team-text">
-              <h3>{{ team.name }}</h3>
-              {% if team.captain %}
-                <p>Captain: {{ team.captain.username }}</p>
+      <!-- 🧱 Team list -->
+      <div id="team-list">
+        {% for team in teams %}
+          <div class="team-card">
+            <div class="team-info">
+              {% if team.logo %}
+                <img src="{{ team.logo.url }}" alt="{{ team.name }}" class="team-avatar">
               {% else %}
-                <p>Captain: -</p>
+                <div class="team-avatar default-avatar"></div>
               {% endif %}
+
+              <div class="team-text">
+                <h3 class="team-name">{{ team.name }}</h3>
+                {% if team.captain %}
+                  <p>Captain: {{ team.captain.username }}</p>
+                {% else %}
+                  <p>Captain: -</p>
+                {% endif %}
+              </div>
+            </div>
+            <div class="team-actions">
+              <button class="action-btn join-btn" onclick="handleJoin('{{ team.id }}')">Join</button>
+              <button class="action-btn details-btn" onclick="showDetails('{{ team.id }}')">Details</button>
             </div>
           </div>
-          <button class="action-btn">Join</button>
-        </div>
-      {% empty %}
-        <p>No teams found.</p>
-      {% endfor %}
+        {% empty %}
+          <p>No teams found.</p>
+        {% endfor %}
+      </div>
     </div>
   </div>
 </div>
+
+
+<script>
+  function showLoading(containerId) {
+  const container = document.getElementById(containerId);
+  if (container) {
+    container.innerHTML = `
+      <div style="text-align:center; padding: 20px;">
+        <div class="loading-spinner"></div>
+        <p>Loading...</p>
+      </div>`;
+  }
+}
+
+function showError(containerId, message) {
+  const container = document.getElementById(containerId);
+  if (container) {
+    container.innerHTML = `
+      <p style="color: #f44336; text-align: center; padding: 20px;">${message}</p>`;
+  }
+}
+
+let allTeams = [];
+
+async function searchTeams(page = 1) {
+  const query = document.getElementById("search-input")?.value || '';
+  const container = document.getElementById("teams-container");
+  showLoading("teams-container");
+
+  try {
+    const res = await fetch(`/teams/search/?q=${encodeURIComponent(query)}`);
+    const data = await res.json();
+
+    if (data.status === "success") {
+      allTeams = data.results;
+      renderTeams(allTeams, page);
+    } else {
+      showError("teams-container", "No teams found.");
+    }
+  } catch (e) {
+    console.error(e);
+    showError("teams-container", "Error fetching data.");
+  }
+}
+
+function renderTeams(teams, currentPage = 1) {
+  const container = document.getElementById("teams-container");
+  const pagination = document.getElementById("teams-pagination");
+  const perPage = 4;
+  const totalPages = Math.ceil(teams.length / perPage);
+
+  if (!teams.length) {
+    container.innerHTML = "<p>No teams found.</p>";
+    pagination.innerHTML = "";
+    return;
+  }
+
+  const start = (currentPage - 1) * perPage;
+  const visibleTeams = teams.slice(start, start + perPage);
+
+  container.innerHTML = visibleTeams.map(t => `
+    <div class="team-card">
+      ${t.logo ? `<img src="${t.logo}" class="team-avatar">`
+               : `<div class="team-avatar"></div>`}
+      <div class="team-text">
+        <h3>${t.name}</h3>
+        <p>Captain: ${t.captain || '—'}</p>
+        <p>Members: ${t.members_count || 0}</p>
+      </div>
+      <button class="action-btn" onclick="joinTeam(${t.id}, this)">Join</button>
+    </div>
+  `).join('');
+
+  let paginationHtml = '';
+  if (currentPage > 1) paginationHtml += `<button onclick="renderTeams(allTeams, ${currentPage - 1})">Prev</button>`;
+  paginationHtml += `<span>Page ${currentPage} / ${totalPages}</span>`;
+  if (currentPage < totalPages) paginationHtml += `<button onclick="renderTeams(allTeams, ${currentPage + 1})">Next</button>`;
+  pagination.innerHTML = paginationHtml;
+}
+
+
+document.addEventListener("DOMContentLoaded", () => {
+  searchTeams(1);
+});
+
+function closeModal(modalId) {
+  document.getElementById(modalId).classList.remove('show');
+}
+
+  function filterTeams() {
+    const input = document.getElementById("team-search").value.toLowerCase();
+    const teamCards = document.querySelectorAll("#team-list .team-card");
+
+    teamCards.forEach(card => {
+      const name = card.querySelector(".team-name").textContent.toLowerCase();
+      card.style.display = name.includes(input) ? "flex" : "none";
+    });
+  }
+
+  function handleJoin(teamId) {
+    // kalau belum login, redirect ke login
+    const isAuthenticated = "{{ request.user.is_authenticated|yesno:'true,false' }}" === "true";
+    if (!isAuthenticated) {
+      alert("You must log in to join a team.");
+      return;
+    }
+
+    // kalau sudah login
+    fetch(`/teams/join/${teamId}/`, {
+      method: "POST",
+      headers: {
+        "X-CSRFToken": "{{ csrf_token }}",
+      },
+    })
+      .then(res => {
+        if (!res.ok) throw new Error("Failed to join team");
+        return res.json();
+      })
+      .then(data => {
+        alert(data.message || "Joined team successfully!");
+        location.reload();
+      })
+      .catch(err => console.error(err));
+  }
+
+  function showDetails(teamId) {
+    alert(`Show details for team ID ${teamId} (belum diimplementasi)`);
+  }
+
+</script>
