@@ -8,6 +8,9 @@ from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib.auth.views import PasswordChangeView as DjangoPasswordChangeView
 from django.urls import reverse_lazy, reverse
 import datetime
+from django.db.models import Sum
+from teams.models import Team
+from predictions.models import Prediction
 
 from .forms import (
     UserRegisterForm,
@@ -87,7 +90,21 @@ def profile_view(request, username):
         messages.error(
             request, f"Pengguna '{username}' tidak memiliki profil terkait.")
         return redirect('main:home')
-    context = {'profile_user': profile_user, 'profile': profile}
+    user_teams = Team.objects.filter(members=profile_user)
+    user_predictions = Prediction.objects.filter(
+        user=profile_user
+    ).select_related('match', 'predicted_winner').order_by('-created_at')
+
+    total_points = user_predictions.aggregate(Sum('points_awarded'))[
+        'points_awarded__sum'] or 0
+
+    context = {
+        'profile_user': profile_user,
+        'profile': profile,
+        'user_teams': user_teams,
+        'user_predictions': user_predictions,
+        'total_prediction_points': total_points,
+    }
     return render(request, 'main/profile.html', context)
 
 
