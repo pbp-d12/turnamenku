@@ -1,5 +1,5 @@
 from django.shortcuts import render, get_object_or_404
-from django.http import JsonResponse, HttpResponseForbidden
+from django.http import JsonResponse, HttpResponseForbidden, Http404
 from django.urls import reverse
 from django.db.models import Prefetch, Q
 from django.utils import timezone
@@ -46,7 +46,7 @@ def get_tournaments_json(request):
         queryset = queryset.filter(Q(name__icontains=search_query))
 
     tournaments = queryset.order_by('-start_date', 'name')
-    
+
     data = []
     for t in tournaments:
         data.append({
@@ -71,17 +71,17 @@ def create_tournament(request):
     profile = getattr(request.user, 'profile', None)
     if not profile or profile.role not in ['PENYELENGGARA', 'ADMIN']:
         return JsonResponse({
-            'status': 'error', 
+            'status': 'error',
             'message': 'Akses ditolak: Hanya Penyelenggara atau Admin yang dapat membuat turnamen.'
         }, status=403)
 
     form = TournamentForm(request.POST) # Tidak perlu request.FILES untuk URLField
-    
+
     if form.is_valid():
         tournament = form.save(commit=False)
         tournament.organizer = request.user
         tournament.save()
-        
+
         return JsonResponse({
             'status': 'success',
             'message': 'Turnamen berhasil dibuat!',
@@ -111,7 +111,7 @@ def tournament_detail_page(request, tournament_id):
     """
     get_object_or_404(Tournament, pk=tournament_id)
     # Kirim instance form KOSONG, akan diisi oleh AJAX
-    edit_form = TournamentForm() 
+    edit_form = TournamentForm()
     context = {
         'tournament_id': tournament_id,
         'edit_form': edit_form # Kirim form ke template
@@ -124,6 +124,7 @@ def get_tournament_detail_json(request, tournament_id):
     dan status kepemilikan.
     """
     try:
+        # get_object_or_404 sekarang di dalam try block
         tournament = get_object_or_404(
             Tournament.objects.select_related('organizer').prefetch_related(
                 Prefetch('matches', queryset=Match.objects.select_related('home_team', 'away_team').order_by('match_date'))
@@ -143,7 +144,7 @@ def get_tournament_detail_json(request, tournament_id):
                 'away_score': match.away_score,
                 'is_finished': match.home_score is not None and match.away_score is not None
             })
-        
+
         # Cek status kepemilikan/admin
         is_organizer_or_admin = False
         if request.user.is_authenticated:
@@ -170,11 +171,14 @@ def get_tournament_detail_json(request, tournament_id):
         }
         return JsonResponse(data)
 
-    except Tournament.DoesNotExist:
+    # --- Tangkap Http404 secara eksplisit ---
+    except Http404:
         return JsonResponse({'error': 'Tournament not found'}, status=404)
+    # ----------------------------------------
     except Exception as e:
         print(f"Error fetching tournament detail JSON: {e}")
         return JsonResponse({'error': 'An unexpected error occurred'}, status=500)
+
 
 @login_required
 @require_POST
@@ -191,16 +195,16 @@ def edit_tournament(request, tournament_id):
 
     if not (is_organizer or is_admin):
         return JsonResponse({
-            'status': 'error', 
+            'status': 'error',
             'message': 'Akses ditolak: Hanya organizer atau admin yang dapat mengedit turnamen ini.'
         }, status=403) # 403 Forbidden
 
     # Gunakan 'instance=tournament' untuk memberi tahu form bahwa ini adalah update
-    form = TournamentForm(request.POST, instance=tournament) 
+    form = TournamentForm(request.POST, instance=tournament)
 
     if form.is_valid():
         updated_tournament = form.save()
-        
+
         # Kembalikan data yang sudah diperbarui agar frontend bisa refresh
         # Kita juga perlu mengirim 'is_organizer_or_admin' lagi
         return JsonResponse({
