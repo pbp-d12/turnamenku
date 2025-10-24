@@ -158,7 +158,6 @@
 
 <script>
     document.addEventListener('DOMContentLoaded', function () {
-        // Fungsi untuk handle logout
         const handleLogout = async (button) => {
             const url = button.dataset.logoutUrl;
             const csrfToken = button.dataset.csrf;
@@ -176,12 +175,10 @@
             }
         };
 
-        // Tambahkan listener ke tombol logout desktop
         const logoutButtonDesktop = document.getElementById('logout-button');
         if (logoutButtonDesktop) {
             logoutButtonDesktop.addEventListener('click', () => handleLogout(logoutButtonDesktop));
         }
-        // Tambahkan listener ke tombol logout mobile
         const logoutButtonMobile = document.getElementById('logout-button-mobile');
         if (logoutButtonMobile) {
             logoutButtonMobile.addEventListener('click', () => handleLogout(logoutButtonMobile));
@@ -195,17 +192,14 @@
         const dropdownMenu = document.getElementById('profile-menu-dropdown');
 
         if (menuButton && dropdownMenu) {
-            // 1. Tampilkan/sembunyikan saat tombol diklik
             menuButton.addEventListener('click', function (event) {
-                event.stopPropagation(); // Hentikan event agar tidak ditangkap 'window'
+                event.stopPropagation(); 
                 dropdownMenu.classList.toggle('hidden');
             });
 
-            // 2. Tutup dropdown jika klik di luar
             window.addEventListener('click', function (event) {
-                // Cek apakah yang diklik BUKAN menu-button DAN BUKAN di dalam dropdown
                 if (!menuButton.contains(event.target) && !dropdownMenu.contains(event.target)) {
-                    dropdownMenu.classList.add('hidden'); // Selalu sembunyikan
+                    dropdownMenu.classList.add('hidden'); 
                 }
             });
         }
@@ -219,7 +213,7 @@
 
         if (hamburgerButton && mobileMenu) {
             hamburgerButton.addEventListener('click', function () {
-                mobileMenu.classList.toggle('hidden'); // Toggle class 'hidden'
+                mobileMenu.classList.toggle('hidden'); 
             });
         }
     });
