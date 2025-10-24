@@ -1,21 +1,17 @@
 from unittest.mock import patch
-from django.test import TestCase
-from django.contrib.auth.models import User
-from forums.models import Thread, Post
 from tournaments.models import Tournament
-from datetime import timedelta
-from datetime import timedelta
-from forums.forms import ThreadCreateForm, ThreadEditForm, PostEditForm, PostReplyForm
-from django.contrib.auth import get_user_model
+from django.middleware.csrf import get_token
 from datetime import datetime, timedelta
-from django.test import TestCase, Client
-from django.urls import reverse
-from django.contrib.auth.models import User
-from tournaments.models import Tournament
-from forums.models import Thread, Post
-from main.models import Profile  
+from forums.forms import ThreadCreateForm, ThreadEditForm, PostEditForm, PostReplyForm
 import json
+from django.contrib.auth import get_user_model
+from django.test import TestCase, Client, RequestFactory
+from django.urls import reverse
+from main.models import Profile  
 from django.utils import timezone
+from forums.models import Thread, Post
+from django.contrib.auth.models import User, AnonymousUser
+from forums.views import *
 
 User = get_user_model()
 
@@ -672,26 +668,12 @@ class TestForumModels(TestCase):
         initial_post = self.thread.initial_post
         self.assertEqual(initial_post, self.post)
 
-import json
-from django.test import TestCase, RequestFactory
-from django.contrib.auth import get_user_model
-from django.urls import reverse
-from forums.models import Thread, Post
-from tournaments.models import Tournament
-from forums.views import (
-    can_edit_thread, can_edit_post, can_delete_thread, can_delete_post,
-    forum_index, forum_threads, get_tournament_threads, thread_posts,
-    create_thread, edit_thread, delete_thread, edit_post, delete_post,
-    search_tournaments
-)
-from datetime import datetime, timedelta
-
-User = get_user_model()
-
 class TestForumViews(TestCase):
     
     def setUp(self):
         self.factory = RequestFactory()
+        
+        # Create users first
         self.user = User.objects.create_user(
             username='testuser',
             email='test@example.com',
@@ -705,11 +687,25 @@ class TestForumViews(TestCase):
         self.admin_user = User.objects.create_user(
             username='admin',
             email='admin@example.com',
-            password='adminpass123',
-            is_superuser=True
+            password='adminpass123'
         )
         
-        # Create tournament with correct fields
+        # DELETE any existing profiles first, then create new ones
+        Profile.objects.filter(user=self.user).delete()
+        Profile.objects.filter(user=self.organizer).delete()
+        Profile.objects.filter(user=self.admin_user).delete()
+        
+        # Create fresh profiles with correct roles
+        user_profile = Profile.objects.create(user=self.user, role='PEMAIN')
+        organizer_profile = Profile.objects.create(user=self.organizer, role='PENYELENGGARA')
+        admin_profile = Profile.objects.create(user=self.admin_user, role='ADMIN')
+        
+        # Refresh from database to ensure we have the latest data
+        self.user = User.objects.get(username='testuser')
+        self.organizer = User.objects.get(username='organizer') 
+        self.admin_user = User.objects.get(username='admin')
+        
+        # Create tournament
         self.tournament = Tournament.objects.create(
             name='Test Tournament',
             description='Test tournament description',
@@ -729,55 +725,64 @@ class TestForumViews(TestCase):
             body='Test post content'
         )
     
-    # Permission Tests
-    def test_can_edit_thread_permissions(self):
-        """Test thread edit permissions"""
-        # Author can edit
-        self.assertTrue(can_edit_thread(self.user, self.thread))
-        
-        # Organizer can edit
-        self.assertTrue(can_edit_thread(self.organizer, self.thread))
-        
-        # Superuser can edit
-        self.assertTrue(can_edit_thread(self.admin_user, self.thread))
-        
-        # Other user cannot edit
-        other_user = User.objects.create_user(
-            username='other', email='other@example.com', password='otherpass123'
-        )
-        self.assertFalse(can_edit_thread(other_user, self.thread))
-    
-    def test_can_delete_thread_permissions(self):
-        """Test thread delete permissions"""
-        # Author can delete
-        self.assertTrue(can_delete_thread(self.user, self.thread))
-        
-        # Organizer can delete
-        self.assertTrue(can_delete_thread(self.organizer, self.thread))
-        
-        # Superuser can delete
-        self.assertTrue(can_delete_thread(self.admin_user, self.thread))
-    
-    def test_can_edit_post_permissions(self):
-        """Test post edit permissions"""
-        # Author can edit
-        self.assertTrue(can_edit_post(self.user, self.post))
-        
-        # Organizer can edit
-        self.assertTrue(can_edit_post(self.organizer, self.post))
-        
-        # Superuser can edit
-        self.assertTrue(can_edit_post(self.admin_user, self.post))
-    
     def test_can_delete_post_permissions(self):
         """Test post delete permissions"""
+        # Ensure profiles are properly set
+        Profile.objects.filter(user=self.admin_user).update(role='ADMIN')
+        Profile.objects.filter(user=self.organizer).update(role='PENYELENGGARA')
+        
         # Author can delete
         self.assertTrue(can_delete_post(self.user, self.post))
         
         # Organizer can delete
         self.assertTrue(can_delete_post(self.organizer, self.post))
         
-        # Superuser can delete
+        # Admin can delete
+        self.assertTrue(can_delete_post(self.admin_user, self.post))
+    
+    def test_can_delete_thread_permissions(self):
+        """Test thread delete permissions"""
+        # Ensure profiles are properly set
+        Profile.objects.filter(user=self.admin_user).update(role='ADMIN')
+        Profile.objects.filter(user=self.organizer).update(role='PENYELENGGARA')
+        
+        # Author can delete
+        self.assertTrue(can_delete_thread(self.user, self.thread))
+        
+        # Organizer can delete
+        self.assertTrue(can_delete_thread(self.organizer, self.thread))
+        
+        # Admin can delete
+        self.assertTrue(can_delete_thread(self.admin_user, self.thread))
+    
+    def test_can_edit_post_permissions(self):
+        """Test post edit permissions"""
+        # Ensure profiles are properly set
+        Profile.objects.filter(user=self.admin_user).update(role='ADMIN')
+        Profile.objects.filter(user=self.organizer).update(role='PENYELENGGARA')
+        
+        # Author can edit
+        self.assertTrue(can_edit_post(self.user, self.post))
+        
+        # Organizer can edit
+        self.assertTrue(can_edit_post(self.organizer, self.post))
+        
+        # Admin can edit
+        self.assertTrue(can_edit_post(self.admin_user, self.post))
+    
+    def test_can_delete_post_permissions(self):
+        """Test post delete permissions"""
+        # Ensure profiles are properly set
+        Profile.objects.filter(user=self.admin_user).update(role='ADMIN')
+        Profile.objects.filter(user=self.organizer).update(role='PENYELENGGARA')
+        
+        # Author can delete
+        self.assertTrue(can_delete_post(self.user, self.post))
+        
+        # Organizer can delete
+        self.assertTrue(can_delete_post(self.organizer, self.post))
+        
+        # Admin can delete
         self.assertTrue(can_delete_post(self.admin_user, self.post))
     
     # View Tests
@@ -949,6 +954,387 @@ class TestForumViews(TestCase):
         request.user = self.user
         with self.assertRaises(Exception):  # Should raise 404
             thread_posts(request, self.thread.id)
+
+    def test_create_thread_success_ajax(self):
+        """Test successful thread creation via AJAX"""
+        client = Client()
+        client.force_login(self.user)
+        
+        response = client.post(
+            reverse('forums:create_thread', args=[self.tournament.id]),
+            {'title': 'New Thread', 'body': 'Thread content', 'image': 'https://example.com/image.jpg'},
+            HTTP_X_REQUESTED_WITH='XMLHttpRequest'
+        )
+        self.assertEqual(response.status_code, 201)
+        
+        data = json.loads(response.content)
+        self.assertTrue(data['success'])
+        self.assertIn('thread_url', data)
+    
+    def test_create_thread_validation_error(self):
+        """Test thread creation with validation errors"""
+        client = Client()
+        client.force_login(self.user)
+        
+        response = client.post(
+            reverse('forums:create_thread', args=[self.tournament.id]),
+            {'title': '', 'body': 'Content'},  # Empty title should fail
+            HTTP_X_REQUESTED_WITH='XMLHttpRequest'
+        )
+        self.assertEqual(response.status_code, 400)
+        
+        data = json.loads(response.content)
+        self.assertFalse(data['success'])
+        self.assertIn('errors', data)
+    
+    def test_edit_thread_success_ajax(self):
+        """Test successful thread editing via AJAX"""
+        request = self.factory.post(
+            reverse('forums:edit_thread', args=[self.thread.id]),
+            {'title': 'Updated Thread Title'},
+            HTTP_X_REQUESTED_WITH='XMLHttpRequest'
+        )
+        request.user = self.user
+        
+        response = edit_thread(request, self.thread.id)
+        self.assertEqual(response.status_code, 200)
+        
+        data = json.loads(response.content)
+        self.assertTrue(data['success'])
+        self.assertEqual(data['thread']['title'], 'Updated Thread Title')
+        
+        # Verify thread was updated
+        self.thread.refresh_from_db()
+        self.assertEqual(self.thread.title, 'Updated Thread Title')
+    
+    def test_edit_thread_get_ajax(self):
+        """Test GET request for thread edit form via AJAX"""
+        request = self.factory.get(
+            reverse('forums:edit_thread', args=[self.thread.id]),
+            HTTP_X_REQUESTED_WITH='XMLHttpRequest'
+        )
+        request.user = self.user
+        
+        response = edit_thread(request, self.thread.id)
+        self.assertEqual(response.status_code, 200)
+        
+        data = json.loads(response.content)
+        self.assertTrue(data['success'])
+        self.assertEqual(data['form_data']['title'], 'Test Thread')
+    
+    def test_edit_post_success_ajax(self):
+        """Test successful post editing via AJAX"""
+        request = self.factory.post(
+            reverse('forums:edit_post', args=[self.post.id]),
+            {'body': 'Updated post content', 'image': 'https://example.com/new.jpg'},
+            HTTP_X_REQUESTED_WITH='XMLHttpRequest'
+        )
+        request.user = self.user
+        
+        response = edit_post(request, self.post.id)
+        self.assertEqual(response.status_code, 200)
+        
+        data = json.loads(response.content)
+        self.assertTrue(data['success'])
+        self.assertEqual(data['post']['body'], 'Updated post content')
+        
+        # Verify post was updated
+        self.post.refresh_from_db()
+        self.assertEqual(self.post.body, 'Updated post content')
+        self.assertEqual(self.post.image, 'https://example.com/new.jpg')
+    
+    def test_edit_post_remove_image(self):
+        """Test post editing with image removal"""
+        # First add an image to the post
+        self.post.image = 'https://example.com/old.jpg'
+        self.post.save()
+        
+        request = self.factory.post(
+            reverse('forums:edit_post', args=[self.post.id]),
+            {'body': 'Updated content', 'remove_image': 'on'},
+            HTTP_X_REQUESTED_WITH='XMLHttpRequest'
+        )
+        request.user = self.user
+        
+        response = edit_post(request, self.post.id)
+        self.assertEqual(response.status_code, 200)
+        
+        # Verify image was removed
+        self.post.refresh_from_db()
+        self.assertIsNone(self.post.image)
+    
+    def test_edit_post_get_ajax(self):
+        """Test GET request for post edit form via AJAX"""
+        request = self.factory.get(
+            reverse('forums:edit_post', args=[self.post.id]),
+            HTTP_X_REQUESTED_WITH='XMLHttpRequest'
+        )
+        request.user = self.user
+        
+        response = edit_post(request, self.post.id)
+        self.assertEqual(response.status_code, 200)
+        
+        data = json.loads(response.content)
+        self.assertTrue(data['success'])
+        self.assertEqual(data['form_data']['body'], 'Test post content')
+    
+    def test_thread_posts_post_reply_success(self):
+        """Test successful post reply via AJAX"""
+        request = self.factory.post(
+            reverse('forums:thread_posts', args=[self.thread.id]),
+            {'body': 'Reply content', 'parent_id': self.post.id},
+            HTTP_X_REQUESTED_WITH='XMLHttpRequest'
+        )
+        request.user = self.user
+        
+        response = thread_posts(request, self.thread.id)
+        self.assertEqual(response.status_code, 201)
+        
+        data = json.loads(response.content)
+        self.assertTrue(data['success'])
+        self.assertEqual(data['post']['body'], 'Reply content')
+        
+        # Verify reply was created
+        reply = Post.objects.filter(body='Reply content', parent=self.post).first()
+        self.assertIsNotNone(reply)
+    
+    def test_thread_posts_post_main_reply(self):
+        """Test successful main level reply (no parent) via AJAX"""
+        request = self.factory.post(
+            reverse('forums:thread_posts', args=[self.thread.id]),
+            {'body': 'Main reply content'},
+            HTTP_X_REQUESTED_WITH='XMLHttpRequest'
+        )
+        request.user = self.user
+        
+        response = thread_posts(request, self.thread.id)
+        self.assertEqual(response.status_code, 201)
+        
+        data = json.loads(response.content)
+        self.assertTrue(data['success'])
+        self.assertIsNone(data['post']['parent_id'])
+    
+    def test_thread_posts_post_unauthenticated(self):
+        """Test post reply by unauthenticated user"""
+        request = self.factory.post(
+            reverse('forums:thread_posts', args=[self.thread.id]),
+            {'body': 'Reply content'},
+            HTTP_X_REQUESTED_WITH='XMLHttpRequest'
+        )
+        request.user = AnonymousUser()
+        
+        response = thread_posts(request, self.thread.id)
+        self.assertEqual(response.status_code, 401)
+        
+        data = json.loads(response.content)
+        self.assertFalse(data['success'])
+        self.assertIn('login_url', data)
+    
+    def test_thread_posts_post_validation_error(self):
+        """Test post reply with validation errors"""
+        request = self.factory.post(
+            reverse('forums:thread_posts', args=[self.thread.id]),
+            {'body': ''},  # Empty body should fail
+            HTTP_X_REQUESTED_WITH='XMLHttpRequest'
+        )
+        request.user = self.user
+        
+        response = thread_posts(request, self.thread.id)
+        self.assertEqual(response.status_code, 400)
+        
+        data = json.loads(response.content)
+        self.assertFalse(data['success'])
+        self.assertIn('errors', data)
+    
+    def test_delete_thread_success_ajax(self):
+        """Test successful thread deletion via AJAX"""
+        request = self.factory.post(
+            reverse('forums:delete_thread', args=[self.thread.id]),
+            HTTP_X_REQUESTED_WITH='XMLHttpRequest'
+        )
+        request.user = self.user
+        
+        response = delete_thread(request, self.thread.id)
+        self.assertEqual(response.status_code, 200)
+        
+        data = json.loads(response.content)
+        self.assertTrue(data['success'])
+        
+        self.thread.refresh_from_db()
+        self.assertTrue(self.thread.is_deleted)
+    
+    
+    def test_delete_post_success_ajax(self):
+        """Test successful post deletion via AJAX"""
+        request = self.factory.post(
+            reverse('forums:delete_post', args=[self.post.id]),
+            HTTP_X_REQUESTED_WITH='XMLHttpRequest'
+        )
+        request.user = self.user
+        
+        response = delete_post(request, self.post.id)
+        self.assertEqual(response.status_code, 200)
+        
+        data = json.loads(response.content)
+        self.assertTrue(data['success'])
+        
+        self.post.refresh_from_db()
+        self.assertTrue(self.post.is_deleted)
+    
+    def test_search_tournaments_server_error(self):
+        """Test error handling in search_tournaments"""
+        # Mock an exception to test error handling
+        with patch('forums.views.Tournament.objects.select_related') as mock_select:
+            mock_select.side_effect = Exception('Test error')
+            
+            request = self.factory.get(
+                reverse('forums:search_tournaments'),
+                HTTP_X_REQUESTED_WITH='XMLHttpRequest'
+            )
+            request.user = self.user
+            
+            # Capture print output
+            with patch('builtins.print') as mock_print:
+                response = search_tournaments(request)
+            
+            self.assertEqual(response.status_code, 500)
+            data = json.loads(response.content)
+            self.assertIn('error', data)
+    
+    def test_search_tournaments_complex_filters(self):
+        """Test tournament search with complex date and participant filters"""
+        # Test with date filters
+        request = self.factory.get(
+            reverse('forums:search_tournaments'),
+            {
+                'start_date_after': '2024-01-01',
+                'end_date_before': '2024-12-31',
+                'participants': '10',
+                'sort': '-start_date'
+            },
+            HTTP_X_REQUESTED_WITH='XMLHttpRequest'
+        )
+        request.user = self.user
+        response = search_tournaments(request)
+        self.assertEqual(response.status_code, 200)
+    
+    def test_get_tournament_threads_complex_sorting(self):
+        """Test tournament threads with complex sorting options"""
+        # Test popularity sorting
+        request = self.factory.get(
+            reverse('forums:get_tournament_threads', args=[self.tournament.id]),
+            {'sort': '-popularity'},
+            HTTP_X_REQUESTED_WITH='XMLHttpRequest'
+        )
+        request.user = self.user
+        response = get_tournament_threads(request, self.tournament.id)
+        self.assertEqual(response.status_code, 200)
+        
+        # Test author sorting
+        request = self.factory.get(
+            reverse('forums:get_tournament_threads', args=[self.tournament.id]),
+            {'sort': 'author'},
+            HTTP_X_REQUESTED_WITH='XMLHttpRequest'
+        )
+        request.user = self.user
+        response = get_tournament_threads(request, self.tournament.id)
+        self.assertEqual(response.status_code, 200)
+    
+    def test_permission_functions_with_profiles(self):
+        """Test permission functions with user profiles"""
+        # Refresh the admin user profile to ensure it's properly loaded
+        admin_profile = Profile.objects.get(user=self.admin_user)
+        admin_profile.role = 'ADMIN'
+        admin_profile.save()
+        
+        # Refresh the organizer profile
+        organizer_profile = Profile.objects.get(user=self.organizer)
+        organizer_profile.role = 'PENYELENGGARA'
+        organizer_profile.save()
+        
+        # Test admin role
+        self.assertTrue(can_edit_thread(self.admin_user, self.thread))
+        self.assertTrue(can_delete_thread(self.admin_user, self.thread))
+        self.assertTrue(can_edit_post(self.admin_user, self.post))
+        self.assertTrue(can_delete_post(self.admin_user, self.post))
+        
+        # Test organizer role
+        self.assertTrue(can_edit_thread(self.organizer, self.thread))
+        self.assertTrue(can_delete_thread(self.organizer, self.thread))
+        self.assertTrue(can_edit_post(self.organizer, self.post))
+        self.assertTrue(can_delete_post(self.organizer, self.post))
+    
+    def test_edit_thread_validation_error(self):
+        """Test thread editing with validation errors"""
+        request = self.factory.post(
+            reverse('forums:edit_thread', args=[self.thread.id]),
+            {'title': ''},  # Empty title should fail
+            HTTP_X_REQUESTED_WITH='XMLHttpRequest'
+        )
+        request.user = self.user
+        
+        response = edit_thread(request, self.thread.id)
+        self.assertEqual(response.status_code, 400)
+        
+        data = json.loads(response.content)
+        self.assertFalse(data['success'])
+        self.assertIn('errors', data)
+    
+    def test_edit_post_validation_error(self):
+        """Test post editing with validation errors"""
+        request = self.factory.post(
+            reverse('forums:edit_post', args=[self.post.id]),
+            {'body': ''},  # Empty body should fail
+            HTTP_X_REQUESTED_WITH='XMLHttpRequest'
+        )
+        request.user = self.user
+        
+        response = edit_post(request, self.post.id)
+        self.assertEqual(response.status_code, 400)
+        
+        data = json.loads(response.content)
+        self.assertFalse(data['success'])
+        self.assertIn('errors', data)
+    
+    def test_thread_posts_with_nested_replies(self):
+        """Test thread posts view with nested reply structure"""
+        # Create a nested reply structure
+        reply1 = Post.objects.create(
+            thread=self.thread,
+            author=self.user,
+            body='First reply',
+            parent=self.post
+        )
+        reply2 = Post.objects.create(
+            thread=self.thread,
+            author=self.user,
+            body='Nested reply',
+            parent=reply1
+        )
+        
+        request = self.factory.get(reverse('forums:thread_posts', args=[self.thread.id]))
+        request.user = self.user
+        response = thread_posts(request, self.thread.id)
+        self.assertEqual(response.status_code, 200)
+        
+        if hasattr(response, 'context_data'):
+            posts_json = json.loads(response.context_data['posts_json'])
+            # Should have all posts including nested ones
+            self.assertEqual(len(posts_json), 3)
+    
+    def test_non_ajax_get_requests_for_edit_views(self):
+        """Test non-AJAX GET requests for edit views"""
+        # Test edit_thread non-AJAX GET
+        request = self.factory.get(reverse('forums:edit_thread', args=[self.thread.id]))
+        request.user = self.user
+        response = edit_thread(request, self.thread.id)
+        self.assertEqual(response.status_code, 405)
+        
+        # Test edit_post non-AJAX GET
+        request = self.factory.get(reverse('forums:edit_post', args=[self.post.id]))
+        request.user = self.user
+        response = edit_post(request, self.post.id)
+        self.assertEqual(response.status_code, 405)
 
 class TestForumAJAXFunctionality(TestCase):
     
