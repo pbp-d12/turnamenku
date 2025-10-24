@@ -27,9 +27,9 @@ DEBUG = os.getenv('DEBUG', 'True').lower() == 'true'
 ALLOWED_HOSTS = ["localhost", "127.0.0.1"]
 
 if not DEBUG:
-    ALLOWED_HOSTS.append('https://gibran-tegar-turnamenku.pbp.cs.ui.ac.id/')
+    ALLOWED_HOSTS.append('gibran-tegar-turnamenku.pbp.cs.ui.ac.id/')
     CSRF_TRUSTED_ORIGINS = [
-        'gibran-tegar-turnamenku.pbp.cs.ui.ac.id'
+        'https://gibran-tegar-turnamenku.pbp.cs.ui.ac.id'
     ]
 
 # Logic untuk menentukan mode production (dari file .env kamu)
