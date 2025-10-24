@@ -37,9 +37,71 @@
     </div>
 
     <hr class="my-8">
+
+    <div class="mb-8">
+        <h2 class="text-xl font-bold text-gray-800 mb-4">Tim yang Diikuti</h2>
+        {% if user_teams %}
+        <ul class="space-y-2">
+            {% for team in user_teams %}
+            <li class="flex items-center space-x-3 bg-gray-50 p-3 rounded-lg">
+                {# Tampilkan logo tim jika ada, jika tidak pakai placeholder #}
+                {% if team.logo %}
+                <img src="{{ team.logo.url }}" alt="Logo {{ team.name }}"
+                    class="w-10 h-10 rounded-full object-cover border border-gray-200">
+                {% else %}
+                <span
+                    class="flex items-center justify-center w-10 h-10 rounded-full bg-gray-300 text-gray-600 font-semibold">
+                    {{ team.name|slice:":1"|upper }} {# Ambil huruf pertama #}
+                </span>
+                {% endif %}
+                <span class="font-medium text-gray-700">{{ team.name }}</span>
+                {# <a href="{% url 'teams:detail_team' team.id %}" class="text-custom-blue-400 hover:underline">Lihat
+                    Tim</a> #}
+            </li>
+            {% endfor %}
+        </ul>
+        {% else %}
+        <p class="text-gray-500 italic">Pengguna ini belum bergabung dengan tim manapun.</p>
+        {% endif %}
+    </div>
     <div>
-        <h2 class="text-xl font-bold text-gray-800">Histori Turnamen</h2>
-        <p class="text-gray-500 mt-2">(Data tim dan histori prediksi akan muncul di sini nanti...)</p>
+        <h2 class="text-xl font-bold text-gray-800 mb-4">Histori & Statistik Prediksi</h2>
+        <div class="bg-custom-blue-50 p-4 rounded-lg mb-4">
+            <p class="text-lg font-semibold text-custom-blue-400">Total Poin: {{ total_prediction_points }}</p>
+        </div>
+
+        {% if user_predictions %}
+        <h3 class="text-lg font-semibold text-gray-700 mb-2">Prediksi Terakhir:</h3>
+        <ul class="space-y-3">
+            {# Tampilkan beberapa prediksi terakhir, misal 5 #}
+            {% for prediction in user_predictions|slice:":5" %}
+            <li class="border border-gray-200 p-3 rounded-lg shadow-sm">
+                <p class="text-sm text-gray-500">{{ prediction.created_at|date:"d M Y, H:i" }}</p>
+                <p class="font-medium">
+                    Pertandingan: <span class="text-gray-700">{{ prediction.match }}</span>
+                </p>
+                <p>
+                    Prediksi Menang:
+                    <span class="font-semibold text-custom-blue-400">{{ prediction.predicted_winner.name }}</span>
+                </p>
+                <p>
+                    Poin Didapat:
+                    <span
+                        class="font-semibold {% if prediction.points_awarded > 0 %}text-green-600{% else %}text-gray-500{% endif %}">
+                        {{ prediction.points_awarded }}
+                    </span>
+                </p>
+            </li>
+            {% empty %}
+            <p class="text-gray-500 italic">Belum ada data prediksi.</p>
+            {% endfor %}
+        </ul>
+        {# {% if user_predictions|length > 5 %} #}
+        {# <a href="#" class="text-custom-blue-400 hover:underline mt-4 inline-block">Lihat Semua Prediksi</a> #}
+        {# {% endif %} #}
+        {% else %}
+        <p class="text-gray-500 italic">Pengguna ini belum membuat prediksi apapun.</p>
+        {% endif %}
     </div>
 </div>
 {% endblock main_content %}
