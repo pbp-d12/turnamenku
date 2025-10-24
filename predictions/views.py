@@ -34,7 +34,7 @@ def predictions_index(request):
 
 @login_required
 def add_match(request):
-    if request.user.profile.role != 'PENYELENGGARA':
+    if request.user.profile.role not in ('PENYELENGGARA', 'ADMIN'):
         return JsonResponse({'success': False, 'message': 'Kamu tidak punya izin.'}, status=403)
 
     if request.method == 'POST':
@@ -149,3 +149,22 @@ def edit_match_score(request):
     match.save()
 
     return JsonResponse({"success": True, "message": "Skor berhasil diperbarui"})
+
+@login_required
+def delete_prediction(request):
+    if request.user.profile.role not in ('PENYELENGGARA', 'ADMIN'):
+        return JsonResponse({'success': False, 'message': 'Kamu tidak punya izin.'}, status=403)
+    
+    if request.method == 'POST':
+        match_id = request.POST.get('match_id')
+        user_id = request.user.id
+
+        # Hapus prediksi user untuk match tersebut
+        prediction = Prediction.objects.filter(match_id=match_id, user_id=user_id).first()
+        if prediction:
+            prediction.delete()
+            return JsonResponse({'success': True, 'message': 'Prediksi berhasil dihapus!'})
+        else:
+            return JsonResponse({'success': False, 'message': 'Prediksi tidak ditemukan.'})
+    
+    return JsonResponse({'success': False, 'message': 'Metode tidak valid.'}, status=400)
