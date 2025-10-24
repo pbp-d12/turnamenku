@@ -72,12 +72,11 @@ document.addEventListener('DOMContentLoaded', () => {
       // If you prefer to ensure csrf header too:
       const csrf = getCSRFTokenFromForm();
 
-      const resp = await fetch("/teams/create/", {
+      const resp = await fetch("create/", {
         method: "POST",
         headers: {
           "X-CSRFToken": csrf,
           "X-Requested-With": "XMLHttpRequest"
-          // NOTE: DO NOT set 'Content-Type' — browser will set multipart/form-data boundary
         },
         body: formData
       });
