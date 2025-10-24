@@ -1,35 +1,98 @@
 <div id="modal-join" class="modal-overlay">
   <div class="modal">
     <div class="modal-header">
-      <button onclick="closeModal('modal-join')">&times;</button>
-      <h2>Search For a Teams</h2>
-      <div class="modal-search">Search</div>
+      <h2>Search for Teams</h2>
+      <button class="close-btn" onclick="closeModal('modal-join')">&times;</button>
     </div>
 
     <div class="modal-body">
-      {% for team in teams %}
-        <div class="team-card">
-          <div class="team-info">
-            {% if team.logo %}
-              <img src="{{ team.logo.url }}" alt="{{ team.name }}" class="team-avatar">
-            {% else %}
-              <div class="team-avatar"></div>
-            {% endif %}
+      <!-- Search Bar -->
+      <div class="search-bar">
+        <input
+          type="text"
+          id="search-input"
+          placeholder="Search team name or captain..."
+          onkeyup="searchJoinTeams(1)"
+        />
+      </div>
 
-            <div class="team-text">
-              <h3>{{ team.name }}</h3>
-              {% if team.captain %}
-                <p>Captain: {{ team.captain.username }}</p>
-              {% else %}
-                <p>Captain: -</p>
-              {% endif %}
-            </div>
-          </div>
-          <button class="action-btn">Join</button>
-        </div>
-      {% empty %}
-        <p>No teams found.</p>
-      {% endfor %}
+      <!-- Container hasil -->
+      <div id="teams-container">
+        <p class="loading">Loading teams...</p>
+      </div>
+
+      <!-- Pagination -->
+      <div id="join-pagination" class="pagination"></div>
     </div>
   </div>
 </div>
+
+<script>
+const BASE_URL = "/teams/search/";
+async function searchJoinTeams(page = 1) {
+  const query = document.getElementById("search-input")?.value.trim() || "";
+  const container = document.getElementById("teams-container");
+  const pagination = document.getElementById("join-pagination");
+
+  container.innerHTML = `<p class="loading">Loading...</p>`;
+  pagination.innerHTML = "";
+
+  try {
+    // Kirim query walau kosong, biar tetap dapat semua tim awal
+    const response = await fetch(`${BASE_URL}?mode=join&q=${encodeURIComponent(query)}&page=${page}`);
+    const data = await response.json();
+
+    if (data.status !== "success" || !data.results || data.results.length === 0) {
+      container.innerHTML = `<p class="loading">No teams found.</p>`;
+      return;
+    }
+
+    // === render hasil tim ===
+    container.innerHTML = data.results
+      .map(
+        (team) => `
+        <div class="team-card" data-team-id="${team.id}">
+          <div class="team-info">
+            ${
+              team.logo
+                ? `<img src="${team.logo}" alt="${team.name}" class="team-avatar">`
+                : `<div class="team-avatar"></div>`
+            }
+            <div class="team-text">
+              <h3>${team.name}</h3>
+              <p>Captain: ${team.captain || "N/A"}</p>
+              <p>Members: ${team.members_count}</p>
+            </div>
+          </div>
+          <div class="team-actions">
+            <button class="action-btn join-btn" onclick="joinTeam(${team.id})">Join</button>
+            <button class="action-btn detail-btn" onclick="showTeamDetail(${team.id})">Details</button>
+          </div>
+        </div>`
+      )
+      .join("");
+
+    // === render pagination ===
+    const p = data.pagination;
+    let paginationHTML = "";
+    if (p.has_previous)
+      paginationHTML += `<button onclick="searchJoinTeams(${p.current_page - 1})">&laquo; Prev</button>`;
+    paginationHTML += `<span> Page ${p.current_page} of ${p.total_pages} </span>`;
+    if (p.has_next)
+      paginationHTML += `<button onclick="searchJoinTeams(${p.current_page + 1})">Next &raquo;</button>`;
+    pagination.innerHTML = paginationHTML;
+
+  } catch (error) {
+    console.error(error);
+    container.innerHTML = `<p class="loading">Error loading teams.</p>`;
+  }
+}
+
+// contoh fungsi placeholder
+function joinTeam(id) {
+  alert("Joining team " + id);
+}
+function showTeamDetail(id) {
+  alert("Showing details for team " + id);
+}
+</script>
