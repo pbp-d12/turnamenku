@@ -1,31 +1,180 @@
 <div id="modal-meet" class="modal-overlay">
   <div class="modal">
     <div class="modal-header">
-      <button onclick="closeModal('modal-meet')">&times;</button>
       <h2>Meet Your Teams</h2>
-      <div class="modal-search">Search</div>
+      <button onclick="closeModal('modal-meet')">&times;</button>
     </div>
 
     <div class="modal-body">
-      {% for team in teams %}
-        <div class="team-card">
-          <div class="team-info">
-            {% if team.logo %}
-              <img src="{{ team.logo.url }}" alt="{{ team.name }}" class="team-avatar">
-            {% else %}
-              <div class="team-avatar"></div>
-            {% endif %}
+      <div class="search-bar">
+        <input
+          type="text"
+          id="meet-search-input"
+          placeholder="Search your teams..."
+          onkeyup="searchMeetTeams(1)"
+        />
+      </div>
 
-            <div class="team-text">
-              <h3>{{ team.name }}</h3>
-              <p>Captain: {{ team.captain.username|default:"-" }}</p>
-            </div>
-          </div>
-          <button class="action-btn">Detail</button>
-        </div>
-      {% empty %}
-        <p>You’re not in any team yet.</p>
-      {% endfor %}
+      <div id="meet-teams-container"></div>
+
+      <div class="pagination" id="meet-pagination"></div>
     </div>
   </div>
 </div>
+
+<div id="modal-meet-detail" class="modal-overlay">
+  <div class="modal">
+    <div class="modal-header">
+      <h2 id="detail-team-name">Team Detail</h2>
+      <button onclick="closeModal('modal-meet-detail')">&times;</button>
+    </div>
+
+    <div class="modal-body">
+      <div id="detail-team-logo"></div>
+      <p><strong>Captain:</strong> <span id="detail-captain"></span></p>
+      <p><strong>Members (<span id="detail-members-count"></span>):</strong></p>
+      <div id="detail-members-list"></div>
+      <br>
+      <button class="action-btn" style="background: #f44336;" onclick="leaveTeamConfirm()">Leave Team</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  async function searchMeetTeams(page = 1) {
+    const query = document.getElementById("meet-search-input").value.trim();
+    const container = document.getElementById("meet-teams-container");
+    const pagination = document.getElementById("meet-pagination");
+
+    container.innerHTML = `<p class="loading">Loading your teams...</p>`;
+    pagination.innerHTML = "";
+
+    try {
+      const response = await fetch(`/teams/search/?mode=meet&q=${encodeURIComponent(query)}&page=${page}`);
+      const data = await response.json();
+
+      if (data.status !== "success" || !data.results || data.results.length === 0) {
+        container.innerHTML = `<p>You're not in any team yet.</p>`;
+        return;
+      }
+
+      // Render daftar tim
+      container.innerHTML = data.results
+        .map(
+          (team) => `
+          <div class="team-card" data-team-id="${team.id}">
+            <div class="team-info">
+              ${
+                team.logo
+                  ? `<img src="${team.logo}" alt="${team.name}" class="team-avatar">`
+                  : `<div class="team-avatar"></div>`
+              }
+              <div class="team-text">
+                <h3>${team.name}</h3>
+                <p>Captain: ${team.captain || "-"}</p>
+              </div>
+            </div>
+            <button class="action-btn" onclick="showMeetTeamDetail(${team.id})">Detail</button>
+          </div>
+        `
+        )
+        .join("");
+
+      // Render pagination (dari backend)
+      const p = data.pagination;
+      let paginationHTML = "";
+      if (p.has_previous)
+        paginationHTML += `<button onclick="searchMeetTeams(${p.current_page - 1})">&laquo; Prev</button>`;
+      paginationHTML += `<span> Page ${p.current_page} of ${p.total_pages} </span>`;
+      if (p.has_next)
+        paginationHTML += `<button onclick="searchMeetTeams(${p.current_page + 1})">Next &raquo;</button>`;
+      pagination.innerHTML = paginationHTML;
+    } catch (error) {
+      console.error("Search error:", error);
+      container.innerHTML = `<p>Error loading your teams.</p>`;
+    }
+  }
+
+  async function showMeetTeamDetail(teamId) {
+    try {
+      const response = await fetch(`/teams/json/${teamId}/`);
+      const team = await response.json();
+
+      if (!team || team.status === "error") {
+        alert("Team not found");
+        return;
+      }
+
+      document.getElementById("detail-team-name").textContent = team.name;
+      document.getElementById("detail-captain").textContent = team.captain || "-";
+      document.getElementById("detail-members-count").textContent = team.members.length;
+
+      const logoContainer = document.getElementById("detail-team-logo");
+      logoContainer.innerHTML = team.logo
+        ? `<img src="${team.logo}" class="team-avatar" style="width: 80px; height: 80px; margin-bottom: 16px;">`
+        : `<div class="team-avatar" style="width: 80px; height: 80px; margin-bottom: 16px;"></div>`;
+
+      const membersList = document.getElementById("detail-members-list");
+      membersList.innerHTML = `<ul style="padding-left: 20px;">${team.members.map((m) => `<li>${m}</li>`).join("")}</ul>`;
+
+      document.getElementById("modal-meet-detail").dataset.teamId = teamId;
+
+      closeModal("modal-meet");
+      document.getElementById("modal-meet-detail").classList.add("show");
+    } catch (error) {
+      console.error("Detail error:", error);
+      alert("Failed to load team details.");
+    }
+  }
+
+  async function leaveTeamConfirm() {
+    const teamId = document.getElementById("modal-meet-detail").dataset.teamId;
+    const teamName = document.getElementById("detail-team-name").textContent;
+
+    if (!confirm(`Are you sure you want to leave team "${teamName}"?`)) return;
+
+    try {
+      const response = await fetch(`/teams/leave/${teamId}/`, {
+        method: "POST",
+        headers: {
+          "X-CSRFToken": getCSRFToken(),
+          "X-Requested-With": "XMLHttpRequest",
+        },
+      });
+
+      const data = await response.json();
+      if (data.status === "success") {
+        alert("You have left the team successfully!");
+        closeModal("modal-meet-detail");
+        document.getElementById("modal-meet").classList.add("show");
+        searchMeetTeams(1);
+      } else {
+        alert(data.message || "Failed to leave team");
+      }
+    } catch (error) {
+      console.error("Leave error:", error);
+      alert("Failed to leave team");
+    }
+  }
+
+  function getCSRFToken() {
+    return document.querySelector("[name=csrfmiddlewaretoken]")?.value || "";
+  }
+
+  function closeModal(modalId) {
+    document.getElementById(modalId).classList.remove("show");
+  }
+
+  function openModal(modalId) {
+    const modal = document.getElementById(modalId);
+    modal.classList.add("show");
+    if (modalId === "modal-meet") searchMeetTeams(1);
+  }
+
+  document.addEventListener("DOMContentLoaded", function () {
+    const meetModal = document.getElementById("modal-meet");
+    if (meetModal && meetModal.classList.contains("show")) {
+      searchMeetTeams(1);
+    }
+  });
+</script>

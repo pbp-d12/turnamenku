@@ -1,26 +1,50 @@
 {% extends 'layout_navbar.html' %}
 {% block page_title %}Leaderboard{% endblock page_title %}
 {% block main_content %}
-<h1 class="text-3xl font-bold mb-6">Leaderboard Prediksi</h1>
+<div class="container mx-auto px-4 py-8">
+  <h1 class="text-4xl font-bold mb-8 text-center text-custom-blue-400">Leaderboard Skor Prediksi</h1>
 
-<table class="w-full bg-white rounded-lg shadow-lg overflow-hidden">
-  <thead class="bg-custom-blue-400 text-white">
-    <tr>
-      <th class="px-6 py-3 text-left">Peringkat</th>
-      <th class="px-6 py-3 text-left">Nama Pengguna</th>
-      <th class="px-6 py-3 text-left">Total Poin</th>
-    </tr>
-  </thead>
-  <tbody>
-    {% for entry in leaderboard %}
-      <tr class="border-b hover:bg-custom-blue-50">
-        <td class="px-6 py-3">{{ forloop.counter }}</td>
-        <td class="px-6 py-3">{{ entry.user__username }}</td>
-        <td class="px-6 py-3 font-semibold">{{ entry.total_points|default:0 }}</td>
-      </tr>
-    {% empty %}
-      <tr><td colspan="3" class="text-center p-4">Belum ada data leaderboard.</td></tr>
-    {% endfor %}
-  </tbody>
-</table>
+  <!-- Tombol Back -->
+  <div class="flex justify-center mb-8">
+    <a href="{% url 'predictions:predictions_index' %}"
+      class="bg-custom-blue-100 hover:bg-custom-blue-300 text-white px-6 py-3 rounded-lg font-semibold shadow-md transition duration-300">
+      Prediction
+    </a>
+  </div>
+
+  <div class="overflow-x-auto">
+    <table class="w-full bg-white rounded-2xl shadow-md overflow-hidden text-left">
+      <thead class="bg-custom-blue-400 text-white">
+        <tr>
+          <th class="px-6 py-3">Peringkat</th>
+          <th class="px-6 py-3">Nama Pengguna</th>
+          <th class="px-6 py-3">
+            Total Poin
+            <a href="?sort={% if sort_order == 'asc' %}desc{% else %}asc{% endif %}"
+              class="ml-2 text-white hover:text-gray-200">
+              {% if sort_order == 'asc' %}
+              ▲
+              {% else %}
+              ▼
+              {% endif %}
+            </a>
+          </th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for entry in leaderboard %}
+        <tr class="border-b last:border-b-0 hover:bg-custom-blue-50 transition duration-200">
+          <td class="px-6 py-3">{{ forloop.counter }}</td>
+          <td class="px-6 py-3">{{ entry.user__username }}</td>
+          <td class="px-6 py-3 font-semibold">{{ entry.total_points|default:0 }}</td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="3" class="text-center py-6 text-gray-400">Belum ada data leaderboard.</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
 {% endblock main_content %}

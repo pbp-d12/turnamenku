@@ -1,69 +1,194 @@
-from django.shortcuts import render
-from django.http import HttpResponseRedirect, JsonResponse
-from django.urls import reverse
-from django.views.decorators.csrf import csrf_exempt
-from django.views.decorators.http import require_POST
-from django.shortcuts import get_object_or_404
+from django.shortcuts import render, get_object_or_404
+from django.http import JsonResponse
 from django.contrib.auth.decorators import login_required
+from django.views.decorators.http import require_POST
+from django.db.models import Q, Count
+from django.core.paginator import Paginator, EmptyPage
+from django.views.decorators.csrf import csrf_exempt
 from .models import Team
 
+
 def show_main_teams(request):
-    user = request.user 
-    return render(request, 'teams.html', {'user': user})
-
-def create_teams(request): #skip dlu lah
-    return render(request, 'create_teams.html')
-
-def join_teams(request): 
+    """Halaman utama Teams"""
     teams = Team.objects.all()
-    return render(request, 'join_teams.html', {'teams': teams})
-
-def team_details(request, team_id):
-    return render(request, 'team_details.html', {'team_id': team_id})
-
-def meet_teams(request):
-    teams = Team.objects.all().filter(member=request.user)
-    return render(request, 'meet_teams.html', {'teams': teams})
-
-def edit_team(request, team_id):    
-    return JsonResponse({'status': 'success'})
-
-def delete_team(request, team_id):
-    return JsonResponse({'status': 'success'})
-
-def delete_member(request, team_id, member_id):
-    return JsonResponse({'status': 'success'})
-
-def leave_team(request, team_id):
-    return JsonResponse({'status': 'success'})
+    return render(request, 'teams.html', {'teams': teams})
 
 def manage_team(request):
-    teams = Team.objects.filter(captain=request.user)
-    return render(request, 'manage_team.html', {'teams': teams})
+    """Halaman manage team"""
+    return render(request, 'manage_team.html')
 
-def manage_team_members(request, team_id):
-    return render(request, 'manage_team_members.html', {'team_id': team_id})
+def meet_team(request):
+    """Halaman meet team"""
+    return render(request, 'meet_team.html')
 
-def manage_team_tournaments(request, team_id):
-    return render(request, 'manage_team_tournaments.html', {'team_id': team_id})
+def join_team_page(request):
+    """Halaman join team"""
+    return render(request, 'join_team.html')
 
+# ======== SEARCH / VIEW ========
+@csrf_exempt
 def search_teams(request):
-    query = request.GET.get('q', '')
-    return render(request, 'search_teams.html', {'query': query})
+    """
+    Search tim untuk berbagai mode:
+      - mode=join   : semua tim (kecuali yang sudah diikuti user)
+      - mode=meet   : tim yang user ikuti
+      - mode=manage : tim yang dikapteni user
+    Query param:
+      ?mode=join&q=abc&page=2
+    """
+    query = request.GET.get('q', '').strip()
+    mode = request.GET.get('mode', 'join')  # default: join
+    page = request.GET.get('page', 1)
+
+    # Base queryset
+    teams = Team.objects.all().annotate(members_count=Count('members'))
+
+    if request.user.is_authenticated:
+        if mode == 'join':
+            teams = teams.exclude(members=request.user)
+        elif mode == 'meet':
+            teams = teams.filter(members=request.user)
+        elif mode == 'manage':
+            teams = teams.filter(captain=request.user)
+        else:
+            return JsonResponse({'status': 'error', 'message': 'Mode tidak valid.'}, status=400)
+    else:
+        # Jika belum login, hanya bisa lihat mode join
+        if mode != 'join':
+            return JsonResponse({'status': 'error', 'message': 'Login diperlukan.'}, status=401)
+
+    if query:
+        teams = teams.filter(
+            Q(name__icontains=query) | Q(captain__username__icontains=query)
+        )
+
+    # Pagination
+    paginator = Paginator(teams, 5)
+    try:
+        page_obj = paginator.get_page(page)
+    except EmptyPage:
+        page_obj = paginator.page(paginator.num_pages)
+
+    # Format hasil JSON
+    results = [
+        {
+            'id': team.id,
+            'name': team.name,
+            'logo': team.logo.url if team.logo else None,
+            'captain': team.captain.username if team.captain else None,
+            'members_count': team.members_count,
+        }
+        for team in page_obj
+    ]
+
+    return JsonResponse({
+        'status': 'success',
+        'mode': mode,
+        'results': results,
+        'pagination': {
+            'current_page': page_obj.number,
+            'total_pages': paginator.num_pages,
+            'has_next': page_obj.has_next(),
+            'has_previous': page_obj.has_previous(),
+        }
+    })
+
+# ======== ACTIONS (harus login) ========
+@require_POST
+@login_required
+def create_team(request):
+    name = request.POST.get('name')
+    logo = request.FILES.get('logo')
+
+    if not name:
+        return JsonResponse({'status': 'error', 'message': 'Nama tim wajib diisi.'}, status=400)
+
+    team = Team.objects.create(name=name, captain=request.user, logo=logo)
+    team.members.add(request.user)
+    return JsonResponse({'status': 'success', 'team_id': team.id})
+
+
+@require_POST
+@login_required
+def edit_team(request, team_id):
+    team = get_object_or_404(Team, id=team_id, captain=request.user)
+    name = request.POST.get('name')
+    logo = request.FILES.get('logo')
+
+    if name:
+        team.name = name
+    if logo:
+        team.logo = logo
+    team.save()
+
+    return JsonResponse({'status': 'success'})
+
+
+@require_POST
+@login_required
+def delete_team(request, team_id):
+    team = get_object_or_404(Team, id=team_id, captain=request.user)
+    team.delete()
+    return JsonResponse({'status': 'success'})
+
+
+@require_POST
+@login_required
+def join_team(request, team_id):
+    team = get_object_or_404(Team, id=team_id)
+    team.members.add(request.user)
+    return JsonResponse({'status': 'success'})
+
+
+@require_POST
+@login_required
+def leave_team(request, team_id):
+    team = get_object_or_404(Team, id=team_id)
+    team.members.remove(request.user)
+
+    if team.captain == request.user:
+        return JsonResponse({'status': 'error', 'message': 'Kapten tidak dapat keluar dari tim.'}, status=400)
+    else:
+        return JsonResponse({'status': 'success'})
+
+
+@require_POST
+@login_required
+def delete_member(request, team_id, member_id):
+    team = get_object_or_404(Team, id=team_id, captain=request.user)
+    member = get_object_or_404(team.members, id=member_id)
+
+    if member == request.user:
+        return JsonResponse({'status': 'error', 'message': 'Kapten tidak dapat menghapus diri sendiri.'}, status=400)
+
+    team.members.remove(member)
+    return JsonResponse({'status': 'success', 'removed_member': member.username})
 
 def show_json(request):
-    team_list = Team.objects.all()
-
-    data = [
-        {
+    teams = Team.objects.all()
+    data = []
+    for team in teams:
+        data.append({
+            'id': team.id,
             'name': team.name,
-            'logo' : team.logo.url if team.logo else None,
+            'logo': team.logo.url if team.logo else None,
             'captain': team.captain.username if team.captain else None,
             'members': [member.username for member in team.members.all()],
-        } 
-        for team in team_list
-        ]
-
+        })
     return JsonResponse(data, safe=False)
 
-
+def team_detail_json(request, team_id):
+    """Mengambil detail satu tim berdasarkan ID untuk modal detail"""
+    team = get_object_or_404(Team, id=team_id)
+    
+    data = {
+        'id': team.id,
+        'name': team.name,
+        # Pastikan `.url` diakses dengan benar
+        'logo': team.logo.url if team.logo else None,
+        'captain': team.captain.username if team.captain else None,
+        # Mengambil daftar username anggota
+        'members': [member.username for member in team.members.all()],
+        'members_count': team.members.count(),
+    }
+    return JsonResponse(data)
