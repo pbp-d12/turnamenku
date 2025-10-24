@@ -1,230 +1,207 @@
-from django.test import TestCase, RequestFactory
-from django.contrib.admin.sites import AdminSite
+from django.test import TestCase, Client
 from django.contrib.auth.models import User
-from teams.models import Team
-from teams.admin import TeamAdmin
-from teams.views import *
-from django.contrib.auth.models import AnonymousUser
+from django.urls import reverse
+from .models import Team
 
-class MockRequest:
-    def __init__(self, user):
-        self.user = user
-
-class TeamViewsTests(TestCase):
+class TeamsViewsTestCase(TestCase):
     def setUp(self):
-        self.factory = RequestFactory()
-        self.user = User.objects.create_user(username='testuser', password='12345')
-        self.team = Team.objects.create(name='Test Team', captain=self.user)
-        self.team.members.add(self.user)
-    def test_delete_member_as_captain(self):
-        request = self.factory.post(f'/teams/{self.team.id}/member/{self.user.username}/delete/')
-        request.user = self.user
-        response = delete_member(request, team_id=self.team.id, member_username=self.user.username)
-        self.assertEqual(response.status_code, 400)
-        self.assertJSONEqual(
-            str(response.content, encoding='utf8'),
-            {'status': 'error', 'message': 'Kapten tidak dapat menghapus diri sendiri.'}
-        )
+        # Setup data test reusable
+        self.client = Client()
         
-    def test_leave_team_as_captain(self):
-        request = self.factory.post(f'/teams/{self.team.id}/leave/')
-        request.user = self.user
-        response = leave_team(request, team_id=self.team.id)
-        self.assertEqual(response.status_code, 200)
-        self.assertJSONEqual(
-            str(response.content, encoding='utf8'),
-            {'status': 'success'}
-        )
-        with self.assertRaises(Team.DoesNotExist):
-            Team.objects.get(id=self.team.id)
-
-    def test_leave_team_as_member(self):
-        member_user = User.objects.create_user(username='memberuser', password='12345')
-        self.team.members.add(member_user)
-        request = self.factory.post(f'/teams/{self.team.id}/leave/')
-        request.user = member_user
-        response = leave_team(request, team_id=self.team.id)
-        self.assertEqual(response.status_code, 200)
-        self.assertJSONEqual(
-            str(response.content, encoding='utf8'),
-            {'status': 'success'}
-        )
-        self.assertIn(member_user, self.team.members.all())
+        # Buat users
+        self.user = User.objects.create_user(username='user', password='pass123')
+        self.captain = User.objects.create_user(username='captain', password='pass123')
+        self.superuser = User.objects.create_superuser(username='superuser', password='pass123')
+        self.other_user = User.objects.create_user(username='other', password='pass123')
+        
+        # Buat teams
+        self.team1 = Team.objects.create(name='Team 1', captain=self.captain)
+        self.team1.members.add(self.captain, self.user)
+        self.team2 = Team.objects.create(name='Team 2', captain=self.superuser)
+        self.team2.members.add(self.superuser)
     
-    def test_join_team(self):
-        new_user = User.objects.create_user(username='newuser', password='12345')
-        request = self.factory.post(f'/teams/{self.team.id}/join/')
-        request.user = new_user
-        response = join_team(request, team_id=self.team.id)
+    # Test untuk show_main_teams
+    def test_show_main_teams_authenticated(self):
+        self.client.login(username='user', password='pass123')
+        response = self.client.get(reverse('teams:show_main_teams'))
         self.assertEqual(response.status_code, 200)
-        self.assertJSONEqual(
-            str(response.content, encoding='utf8'),
-            {'status': 'success'}
-        )
-        self.assertIn(new_user, self.team.members.all())    
+        self.assertTemplateUsed(response, 'teams.html')
+        self.assertIn('teams', response.context)
+    
+    def test_show_main_teams_unauthenticated(self):
+        response = self.client.get(reverse('teams:show_main_teams'))
+        self.assertEqual(response.status_code, 200)
+        self.assertIsNone(response.context['user'])
+    
+    # Test untuk search_teams
+    def test_search_teams_join_mode_authenticated(self):
+        self.client.login(username='user', password='pass123')
+        response = self.client.get(reverse('teams:search_teams') + '?mode=join&q=Team')
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertEqual(data['status'], 'success')
+        self.assertGreater(len(data['results']), 0)
+    
+    def test_search_teams_meet_mode_authenticated(self):
+        self.client.login(username='user', password='pass123')
+        response = self.client.get(reverse('teams:search_teams') + '?mode=meet')
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertEqual(data['status'], 'success')
+    
+    def test_search_teams_manage_mode_captain(self):
+        self.client.login(username='captain', password='pass123')
+        response = self.client.get(reverse('teams:search_teams') + '?mode=manage')
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertEqual(data['status'], 'success')
+    
+    def test_search_teams_manage_mode_superuser(self):
+        self.client.login(username='superuser', password='pass123')
+        response = self.client.get(reverse('teams:search_teams') + '?mode=manage')
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertEqual(data['status'], 'success')
+        # Superuser harus lihat semua teams
+    
+    def test_search_teams_invalid_mode(self):
+        self.client.login(username='user', password='pass123')
+        response = self.client.get(reverse('teams:search_teams') + '?mode=invalid')
+        self.assertEqual(response.status_code, 400)
+        data = response.json()
+        self.assertEqual(data['status'], 'error')
+    
+    def test_search_teams_unauthenticated_non_join(self):
+        response = self.client.get(reverse('teams:search_teams') + '?mode=meet')
+        self.assertEqual(response.status_code, 401)
+        data = response.json()
+        self.assertEqual(data['status'], 'error')
+    
+    # Test untuk create_team
+    def test_create_team_success(self):
+        self.client.login(username='user', password='pass123')
+        response = self.client.post(reverse('teams:create_team'), {'name': 'New Team'})
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertEqual(data['status'], 'success')
+        self.assertTrue(Team.objects.filter(name='New Team').exists())
+    
+    def test_create_team_no_name(self):
+        self.client.login(username='user', password='pass123')
+        response = self.client.post(reverse('teams:create_team'), {})
+        self.assertEqual(response.status_code, 400)
+        data = response.json()
+        self.assertEqual(data['status'], 'error')
+    
+    def test_create_team_unauthenticated(self):
+        response = self.client.post(reverse('teams:create_team'), {'name': 'New Team'})
+        self.assertEqual(response.status_code, 302)  # Redirect to login
+    
+    # Test untuk join_team
+    def test_join_team_success(self):
+        self.client.login(username='other', password='pass123')
+        response = self.client.post(reverse('teams:join_team', kwargs={'team_id': self.team1.id}))
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertEqual(data['status'], 'success')
+        self.team1.refresh_from_db()
+        self.assertIn(self.other_user, self.team1.members.all())
     
     def test_join_team_already_member(self):
-        request = self.factory.post(f'/teams/{self.team.id}/join/')
-        request.user = self.user
-        response = join_team(request, team_id=self.team.id)
+        self.client.login(username='user', password='pass123')
+        response = self.client.post(reverse('teams:join_team', kwargs={'team_id': self.team1.id}))
         self.assertEqual(response.status_code, 400)
-        self.assertJSONEqual(
-            str(response.content, encoding='utf8'),
-            {'status': 'error', 'message': 'Anda sudah menjadi anggota tim ini.'}
-        )
+        data = response.json()
+        self.assertEqual(data['status'], 'error')
     
-    def test_edit_team_as_non_captain(self):
-        non_captain_user = User.objects.create_user(username='noncaptain', password='12345')
-        request = self.factory.post(f'/teams/{self.team.id}/edit/', {'name': 'Updated Team'})
-        request.user = non_captain_user
-        response = edit_team(request, team_id=self.team.id)
+    def test_join_team_invalid_id(self):
+        self.client.login(username='user', password='pass123')
+        response = self.client.post(reverse('teams:join_team', kwargs={'team_id': 999}))
         self.assertEqual(response.status_code, 404)
-
-    def test_edit_team_as_captain(self):
-        request = self.factory.post(f'/teams/{self.team.id}/edit/', {'name': 'Updated Team'})
-        request.user = self.user
-        response = edit_team(request, team_id=self.team.id)
-        self.assertEqual(response.status_code, 200)
-        self.assertJSONEqual(
-            str(response.content, encoding='utf8'),
-            {'status': 'success'}
-        )
-        self.team.refresh_from_db()
-        self.assertEqual(self.team.name, 'Updated Team')
-
-    def test_delete_team_as_captain(self):
-        request = self.factory.post(f'/teams/{self.team.id}/delete/')
-        request.user = self.user
-        response = delete_team(request, team_id=self.team.id)
-        self.assertEqual(response.status_code, 200)
-        self.assertJSONEqual(
-            str(response.content, encoding='utf8'),
-            {'status': 'success'}
-        )
-        with self.assertRaises(Team.DoesNotExist):
-            Team.objects.get(id=self.team.id)
-
-    def test_create_team(self):
-        request = self.factory.post('/teams/create/', {'name': 'New Team'})
-        request.user = self.user
-        response = create_team(request)
-        self.assertEqual(response.status_code, 200)
-        response_data = {
-            'status': 'success',
-            'team_id': Team.objects.get(name='New Team').id
-        }
-        self.assertJSONEqual(
-            str(response.content, encoding='utf8'),
-            response_data
-        )
-        new_team = Team.objects.get(name='New Team')
-        self.assertEqual(new_team.captain, self.user)
-        self.assertIn(self.user, new_team.members.all())
-
-    def test_create_team_without_name(self):
-        request = self.factory.post('/teams/create/', {})
-        request.user = self.user
-        response = create_team(request)
-        self.assertEqual(response.status_code, 400)
-        self.assertJSONEqual(
-            str(response.content, encoding='utf8'),
-            {'status': 'error', 'message': 'Nama tim diperlukan.'}
-        )
     
-    def test_search_teams(self):
-        request = self.factory.post('/teams/search/', {'query': 'Test'})
-        request.user = self.user
-        response = search_teams(request)
+    # Test untuk edit_team
+    def test_edit_team_success_captain(self):
+        self.client.login(username='captain', password='pass123')
+        response = self.client.post(reverse('teams:edit_team', kwargs={'team_id': self.team1.id}), {'name': 'Edited Team'})
         self.assertEqual(response.status_code, 200)
-        response_data = {
-            'status': 'success',
-            'teams': [
-                {
-                    'id': self.team.id,
-                    'name': self.team.name,
-                    'captain': self.team.captain.username,
-                    'members_count': self.team.members.count(),
-                }
-            ]
-        }
-        self.assertJSONEqual(
-            str(response.content, encoding='utf8'),
-            response_data
-        )
-
-    def test_search_teams_no_query(self):
-        request = self.factory.post('/teams/search/', {})
-        request.user = self.user
-        response = search_teams(request)
+        data = response.json()
+        self.assertEqual(data['status'], 'success')
+        self.team1.refresh_from_db()
+        self.assertEqual(self.team1.name, 'Edited Team')
+    
+    def test_edit_team_not_captain(self):
+        self.client.login(username='user', password='pass123')
+        response = self.client.post(reverse('teams:edit_team', kwargs={'team_id': self.team1.id}), {'name': 'Edited Team'})
+        self.assertEqual(response.status_code, 404)  # get_object_or_404 gagal
+    
+    def test_edit_team_superuser(self):
+        self.client.login(username='superuser', password='pass123')
+        response = self.client.post(reverse('teams:edit_team', kwargs={'team_id': self.team1.id}), {'name': 'Edited by Super'})
+        self.assertEqual(response.status_code, 404)  # Karena superuser bukan captain, tapi bisa kita modifikasi view jika perlu
+    
+    # Test untuk delete_team
+    def test_delete_team_success_captain(self):
+        self.client.login(username='captain', password='pass123')
+        response = self.client.post(reverse('teams:delete_team', kwargs={'team_id': self.team1.id}))
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertEqual(data['status'], 'success')
+        self.assertFalse(Team.objects.filter(id=self.team1.id).exists())
+    
+    def test_delete_team_not_captain(self):
+        self.client.login(username='user', password='pass123')
+        response = self.client.post(reverse('teams:delete_team', kwargs={'team_id': self.team1.id}))
+        self.assertEqual(response.status_code, 404)
+    
+    # Test untuk leave_team
+    def test_leave_team_member(self):
+        self.client.login(username='user', password='pass123')
+        response = self.client.post(reverse('teams:leave_team', kwargs={'team_id': self.team1.id}))
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertEqual(data['status'], 'success')
+        self.team1.refresh_from_db()
+        self.assertNotIn(self.user, self.team1.members.all())
+    
+    def test_leave_team_captain(self):
+        self.client.login(username='captain', password='pass123')
+        response = self.client.post(reverse('teams:leave_team', kwargs={'team_id': self.team1.id}))
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(Team.objects.filter(id=self.team1.id).exists())  # Team dihapus jika captain leave
+    
+    # Test untuk delete_member (sudah lengkap dari sebelumnya, tapi tambah edge cases)
+    def test_delete_member_captain_success(self):
+        self.client.login(username='captain', password='pass123')
+        response = self.client.post(reverse('teams:delete_member', kwargs={'team_id': self.team1.id, 'member_username': self.user.username}))
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertEqual(data['status'], 'success')
+        self.team1.refresh_from_db()
+        self.assertNotIn(self.user, self.team1.members.all())
+    
+    def test_delete_member_superuser_success(self):
+        self.client.login(username='superuser', password='pass123')
+        response = self.client.post(reverse('teams:delete_member', kwargs={'team_id': self.team1.id, 'member_username': self.user.username}))
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertEqual(data['status'], 'success')
+    
+    def test_delete_member_captain_self(self):
+        self.client.login(username='captain', password='pass123')
+        response = self.client.post(reverse('teams:delete_member', kwargs={'team_id': self.team1.id, 'member_username': self.captain.username}))
         self.assertEqual(response.status_code, 400)
-        self.assertJSONEqual(
-            str(response.content, encoding='utf8'),
-            {'status': 'error', 'message': 'Query pencarian diperlukan.'}
-        )
-
+        data = response.json()
+        self.assertEqual(data['status'], 'error')
+    
+    def test_delete_member_not_captain(self):
+        self.client.login(username='other', password='pass123')
+        response = self.client.post(reverse('teams:delete_member', kwargs={'team_id': self.team1.id, 'member_username': self.user.username}))
+        self.assertEqual(response.status_code, 404)
+    
+    # Test untuk show_json
     def test_show_json(self):
-        request = self.factory.get('/teams/json/')
-        response = show_json(request)
+        response = self.client.get(reverse('teams:show_json'))
         self.assertEqual(response.status_code, 200)
-        response_data = {
-            'status': 'success',
-            'teams': [
-                {
-                    'id': self.team.id,
-                    'name': self.team.name,
-                    'captain': self.team.captain.username,
-                    'members_count': self.team.members.count(),
-                }
-            ]
-        }
-        self.assertJSONEqual(
-            str(response.content, encoding='utf8'),
-            response_data
-        )
-
-    def test_team_detail_json(self):
-        request = self.factory.get(f'/teams/json/{self.team.id}/')
-        response = team_detail_json(request, team_id=self.team.id)
-        self.assertEqual(response.status_code, 200)
-        response_data = {
-            'status': 'success',
-            'team': {
-                'id': self.team.id,
-                'name': self.team.name,
-                'captain': self.team.captain.username,
-                'members': list(self.team.members.values('id', 'username')),
-            }
-        }
-        self.assertJSONEqual(
-            str(response.content, encoding='utf8'),
-            response_data
-        )
-    
-    def test_team_detail_json_not_found(self):
-        request = self.factory.get('/teams/json/9999/')
-        response = team_detail_json(request, team_id=9999)
-        self.assertEqual(response.status_code, 404)
-    
-        self.assertJSONEqual(
-            str(response.content, encoding='utf8'),
-            {'status': 'error', 'message': 'Tim tidak ditemukan.'}
-        )
-    
-    def test_show_main_teams_anonymous(self):
-        request = self.factory.get('/teams/')
-        request.user = AnonymousUser()
-        response = show_main_teams(request)
-        self.assertEqual(response.status_code, 200)
-        self.assertIn('teams', response.context_data)
-
-    def test_show_main_teams_authenticated(self):
-        request = self.factory.get('/teams/')
-        request.user = self.user
-        response = show_main_teams(request)
-        self.assertEqual(response.status_code, 200)
-        self.assertIn('teams', response.context_data)
-        self.assertIn('user', response.context_data)
-        self.assertEqual(response.context_data['user'], self.user)
-
-
-        
+        data = response.json()
+        self.assertIsInstance(data, list)
+        self.assertGreater(len(data), 0)
