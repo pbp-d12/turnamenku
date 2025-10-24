@@ -12,7 +12,7 @@
           type="text"
           id="search-input"
           placeholder="Search team name or captain..."
-          onkeyup="searchJoinTeams(1, 'join')"
+          onkeyup="searchJoinTeams(1)"
         />
       </div>
 
@@ -54,8 +54,8 @@ async function searchJoinTeams(page = 1) {
           <div class="team-info">
             ${
               team.logo
-                ? `<img src="${team.logo}" alt="${team.name}" class="team-avatar">`
-                : `<div class="team-avatar"></div>`
+                ? `<img src="${team.logo || "https://img.icons8.com/?size=100&id=uMMzE4KzgxCO&format=png&color=000000"}" alt="${team.name}" class="team-avatar">`
+                : `<img src="https://img.icons8.com/?size=100&id=uMMzE4KzgxCO&format=png&color=000000" alt="${team.name}" class="team-avatar">`
             }
             <div class="team-text">
               <h3>${team.name}</h3>
@@ -151,6 +151,8 @@ async function joinTeam(teamId) {
       });
 
       const data = await response.json();
+
+      console.log("Join response:", data);
       if (data.status === "success") {
         showToast("Selamat anda sudah join!", "success");
         modal.innerHTML = ""; 
@@ -163,7 +165,7 @@ async function joinTeam(teamId) {
       showToast("Error occurred while joining the team.", "error");
     } finally {
       confirmBtn.disabled = false;
-      confirmBtn.textContent = "Yes";
+      confirmBtn.textContent = "Yoi";
     }
   };
 }
@@ -233,7 +235,7 @@ async function showTeamDetail(teamId) {
       ">&times;</button>
 
       <!-- Logo -->
-      <img src="${team.logo || '/static/images/default_logo.png'}" 
+      <img src="${team.logo || 'https://img.icons8.com/?size=100&id=uMMzE4KzgxCO&format=png&color=000000'}" 
         alt="Team Logo" 
         style="width: 120px; height: 120px; border-radius: 50%; object-fit: cover; margin-bottom: 15px;" />
 
