@@ -32,13 +32,13 @@
         "pk":1,
         "fields":{
             "name":"Bonaire",
-            "logo":"https:\/\/upload.wikimedia.org\/wikipedia\/en\/7\/7e\/Bonaire_Football_Federation_logo.png",
+            "logo":null,
             "captain":null,
             "members":[
 
             ]
         },
-        "original_image_url":"https:\/\/upload.wikimedia.org\/wikipedia\/en\/7\/7e\/Bonaire_Football_Federation_logo.png",
+        "original_image_url":null,
         "new_image_url":null
     },
     {

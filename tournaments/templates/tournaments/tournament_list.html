@@ -123,9 +123,7 @@
         const statusFilter = document.getElementById('status-filter');
         let searchTimeout;
 
-        // --- Helper: Membuat HTML Kartu Turnamen ---
         function createTournamentCardHtml(tournament) {
-            // DIUBAH: Logika banner sekarang hanya mengecek jika tournament.banner_url ada (truthy)
             const bannerHtml = tournament.banner_url
                 ? `<img src="${tournament.banner_url}" alt="${tournament.name}" class="w-full h-40 object-cover" onerror="this.replaceWith(this.ownerDocument.createRange().createContextualFragment(defaultBannerSvg))">` // Tambah onerror fallback
                 : defaultBannerSvg;
@@ -143,7 +141,6 @@
             `;
         }
 
-        // --- Fungsi Utama: Fetch dan Tampilkan Turnamen (dengan filter) ---
         async function fetchTournaments() {
             loadingIndicator.classList.remove('hidden');
             tournamentContainer.classList.add('hidden');
@@ -185,14 +182,12 @@
             }
         }
 
-        // --- Event Listener untuk Filter ---
         searchInput.addEventListener('input', () => {
             clearTimeout(searchTimeout);
             searchTimeout = setTimeout(fetchTournaments, 300);
         });
         statusFilter.addEventListener('change', fetchTournaments);
 
-        // --- Logika Modal (Hanya jika elemen modal ada) ---
         {% if user.is_authenticated and user.profile.role in "PENYELENGGARA,ADMIN" %}
         const createModal = document.getElementById('create-tournament-modal');
         const openModalBtn = document.getElementById('open-create-modal-btn');
@@ -230,9 +225,7 @@
         if (closeModalBtn) closeModalBtn.addEventListener('click', closeModal);
         if (createModal) createModal.addEventListener('click', (event) => { if (event.target === createModal) closeModal(); });
 
-        // Terapkan styling ke form di dalam modal
         if (createForm) {
-            // DIUBAH: Tambahkan 'input[type="url"]'
             createForm.querySelectorAll('input[type="text"], input[type="date"], input[type="url"], textarea, select').forEach(el => {
                 el.classList.add(
                     'block', 'w-full', 'px-3', 'py-2', 'mt-1',
@@ -244,7 +237,6 @@
             });
         }
 
-        // Handle submit AJAX
         if (createForm) {
             createForm.addEventListener('submit', async function(e) {
                 e.preventDefault();
@@ -257,7 +249,6 @@
                     el.classList.add('border-gray-300', 'focus:border-custom-blue-300', 'focus:ring-custom-blue-300');
                 });
 
-                // DIUBAH: Kita tidak lagi meng-upload file, jadi FormData OK
                 const formData = new FormData(createForm);
                 const csrfToken = formData.get('csrfmiddlewaretoken');
 
@@ -311,7 +302,6 @@
         }
         {% endif %}
 
-        // --- Fetch data awal saat halaman dimuat ---
         fetchTournaments();
     });
 </script>

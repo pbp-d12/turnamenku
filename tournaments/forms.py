@@ -1,11 +1,19 @@
 from django import forms
 from .models import Tournament
+from teams.models import Team 
 
 class TournamentForm(forms.ModelForm):
+    participants = forms.ModelMultipleChoiceField(
+        queryset=Team.objects.all().order_by('name'), 
+        widget=forms.CheckboxSelectMultiple(attrs={'class': 'space-y-1'}), #
+        required=False, # Buat opsional, turnamen bisa dibuat tanpa peserta awal
+        label="Tim Peserta"
+    )
+
     class Meta:
         model = Tournament
-        # Exclude 'organizer' (set in view) and 'participants' (managed separately)
-        fields = ['name', 'description', 'banner', 'start_date', 'end_date']
+        fields = ['name', 'description', 'banner', 'start_date', 'end_date', 'participants']
+        # ----------------------------------------------------
         widgets = {
             'name': forms.TextInput(attrs={'placeholder': 'Nama Turnamen'}),
             'description': forms.Textarea(attrs={'rows': 3, 'placeholder': 'Deskripsi singkat turnamen...'}),
@@ -13,7 +21,7 @@ class TournamentForm(forms.ModelForm):
             'end_date': forms.DateInput(attrs={'type': 'date'}),
             'banner': forms.URLInput(attrs={'placeholder': 'https://example.com/banner.jpg'}),
         }
-        labels = { # Optional: Prettier labels
+        labels = {
             'name': 'Nama Turnamen',
             'description': 'Deskripsi',
             'banner': 'URL Banner (Opsional)',

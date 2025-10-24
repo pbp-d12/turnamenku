@@ -21,8 +21,6 @@ def create_user_with_profile(username, password, role):
 
 
 
-
-
 #testcases
 class TournamentModelTest(TestCase):
     """Pengujian untuk model Tournament."""
@@ -133,13 +131,11 @@ class TournamentViewsTest(TestCase):
 
     @classmethod
     def setUpTestData(cls):
-        # Buat user dengan role berbeda
         cls.admin_user = create_user_with_profile("admin_user", "password123", "ADMIN")
         cls.organizer_user = create_user_with_profile("org_user", "password123", "PENYELENGGARA")
         cls.organizer_user2 = create_user_with_profile("org_user2", "password123", "PENYELENGGARA")
         cls.player_user = create_user_with_profile("player_user", "password123", "PEMAIN")
 
-        # Buat beberapa turnamen untuk testing
         cls.t1 = Tournament.objects.create(
             name="Tournament 1 Ongoing", organizer=cls.organizer_user,
             start_date=timezone.now().date() - datetime.timedelta(days=1),
@@ -156,7 +152,6 @@ class TournamentViewsTest(TestCase):
             end_date=timezone.now().date() - datetime.timedelta(days=2)
         )
 
-        # Buat match untuk detail view
         cls.team_a = Team.objects.create(name="Team A Test")
         cls.team_b = Team.objects.create(name="Team B Test")
         cls.match1 = Match.objects.create(
@@ -165,7 +160,6 @@ class TournamentViewsTest(TestCase):
         )
 
     def setUp(self):
-        # Setup client di setiap test method
         self.client = Client()
         self.client_admin = Client()
         self.client_organizer = Client()
@@ -178,17 +172,14 @@ class TournamentViewsTest(TestCase):
         self.client_player.login(username="player_user", password="password123")
 
 
-    # --- Test tournament_home (HTML Page) ---
     def test_tournament_home_view_loads(self):
         """Test halaman daftar turnamen (HTML) bisa diakses."""
         response = self.client.get(reverse('tournaments:tournament_home'))
         self.assertEqual(response.status_code, 200)
         self.assertTemplateUsed(response, 'tournaments/tournament_list.html')
-        # Cek context berisi form create (karena view ini juga render modal)
         self.assertIsInstance(response.context['create_form'], TournamentForm)
 
 
-    # --- Test get_tournaments_json (AJAX Endpoint) ---
     def test_get_tournaments_json_format_and_content(self):
         """Test endpoint JSON daftar turnamen mengembalikan format yang benar."""
         response = self.client.get(reverse('tournaments:get_tournaments_json'))
@@ -197,7 +188,6 @@ class TournamentViewsTest(TestCase):
         data = json.loads(response.content)
         self.assertIsInstance(data, list)
         self.assertEqual(len(data), 3) # Ada 3 turnamen
-        # Cek data turnamen pertama (diurut berdasarkan start_date desc)
         self.assertEqual(data[0]['name'], "Tournament 2 Upcoming")
         self.assertEqual(data[0]['organizer'], "org_user2")
         self.assertIn('detail_page_url', data[0])
@@ -235,7 +225,6 @@ class TournamentViewsTest(TestCase):
         self.assertEqual(data[0]['name'], "Tournament 3 Past")
 
 
-    # --- Test create_tournament (AJAX Endpoint) ---
     def test_create_tournament_by_organizer(self):
         """Test organizer bisa membuat turnamen via AJAX POST."""
         post_data = {
@@ -279,7 +268,6 @@ class TournamentViewsTest(TestCase):
         """Test user anonim tidak bisa membuat turnamen."""
         post_data = {'name': 'Anon Tourn', 'start_date': timezone.now().date(), 'end_date': timezone.now().date()}
         response = self.client.post(reverse('tournaments:create_tournament'), post_data)
-        # Akan redirect ke login karena @login_required
         self.assertEqual(response.status_code, 302)
         self.assertIn('/login/', response.url)
         self.assertFalse(Tournament.objects.filter(name='Anon Tourn').exists())
@@ -298,7 +286,6 @@ class TournamentViewsTest(TestCase):
         self.assertIn('__all__', data['errors']) # Error end date < start date
         self.assertIn('Tanggal selesai tidak boleh sebelum tanggal mulai.', data['errors']['__all__'][0]['message'])
 
-    # --- Test tournament_detail_page (HTML Shell) ---
     def test_tournament_detail_page_loads(self):
         """Test halaman detail (HTML) bisa diakses."""
         response = self.client.get(reverse('tournaments:tournament_detail_page', args=[self.t1.pk]))
@@ -314,7 +301,6 @@ class TournamentViewsTest(TestCase):
         self.assertEqual(response.status_code, 404)
 
 
-    # --- Test get_tournament_detail_json (AJAX Endpoint) ---
     def test_get_tournament_detail_json_format_content(self):
         """Test endpoint JSON detail mengembalikan format dan data yang benar."""
         response = self.client.get(reverse('tournaments:get_tournament_detail_json', args=[self.t1.pk]))
@@ -368,7 +354,6 @@ class TournamentViewsTest(TestCase):
         self.assertEqual(data['error'], 'Tournament not found')
 
 
-    # --- Test edit_tournament (AJAX Endpoint) ---
     def test_edit_tournament_by_organizer(self):
         """Test organizer bisa mengedit turnamennya via AJAX POST."""
         post_data = {
@@ -423,7 +408,7 @@ class TournamentViewsTest(TestCase):
         """Test user anonim tidak bisa mengedit turnamen."""
         post_data = {'name': 'Anon Edit Attempt'}
         response = self.client.post(reverse('tournaments:edit_tournament', args=[self.t1.pk]), post_data)
-        self.assertEqual(response.status_code, 302) # Redirect ke login
+        self.assertEqual(response.status_code, 302) 
         self.assertIn('/login/', response.url)
 
     def test_edit_tournament_invalid_data(self):
@@ -443,7 +428,6 @@ class TournamentViewsTest(TestCase):
         self.assertNotEqual(self.t1.name, 'Invalid Edit') # Pastikan nama tidak berubah
 
 
-    # --- Test delete_tournament (AJAX Endpoint) ---
     def test_delete_tournament_by_organizer(self):
         """Test organizer bisa menghapus turnamennya via AJAX DELETE."""
         # Buat turnamen baru khusus untuk tes delete ini
@@ -502,5 +486,4 @@ class TournamentViewsTest(TestCase):
         # Coba PUT
         response_put = self.client_organizer.put(reverse('tournaments:delete_tournament', args=[self.t1.pk]))
         self.assertEqual(response_put.status_code, 405)
-        # Pastikan tidak terhapus
         self.assertTrue(Tournament.objects.filter(pk=self.t1.pk).exists())
