@@ -10,53 +10,115 @@
 
     <div class="mb-6">
         <a href="{% url 'forums:forum_index' %}" class="text-custom-blue-300 hover:underline">
-            &larr; Kembali ke Forum
+            &larr; Kembali ke Halaman Forum
         </a>
         <h1 class="text-4xl font-bold text-custom-blue-400 mt-2">{{ tournament.name }}</h1>
-        <p class="text-xl text-custom-blue-300">Selamat datang di forum diskusi.</p>
+        <p class="text-xl text-custom-blue-300 mt-1">Selamat datang di forum diskusi</p>
+         {% if user.is_authenticated and user == tournament.organizer or user.is_superuser %}
+         <div class="mt-4 flex space-x-3"></div>
+         {% endif %}
     </div>
 
-    <div class="mb-6 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-        {% if user.is_authenticated %}
-            <a href="{% url 'forums:create_thread' tournament.id %}"
-            class="bg-custom-blue-400 text-white font-bold py-3 px-6 rounded-lg shadow-md hover:bg-custom-blue-300 transition-colors duration-300 whitespace-nowrap">
-                + Buat Thread Baru
-            </a>
-        
-        {% else %}
-            <p class="text-custom-blue-300">
-                Silakan <a href="{% url 'main:login' %}" class="underline">login</a> untuk membuat thread baru.
-            </p>
-        {% endif %}
-        
-        <div class="w-full md:w-1/2">
-            <input type="text" 
-                   id="search-threads" 
-                   placeholder="Cari thread..." 
-                   class="w-full px-4 py-3 border border-custom-blue-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-custom-blue-300 focus:border-transparent transition-all duration-300 text-custom-blue-400 placeholder-custom-blue-200">
-        </div>
+    <div class="mb-6 flex flex-col md:flex-row md:items-end md:justify-between gap-4 p-4 bg-gray-50 rounded-lg border border-custom-blue-100">
+         <div class="flex-grow space-y-3">
+             {% if user.is_authenticated %}
+                 <a href="{% url 'forums:create_thread' tournament.id %}"
+                 class="inline-block bg-custom-blue-400 text-white font-bold py-2 px-5 rounded-lg shadow-md hover:bg-custom-blue-300 transition-colors duration-300 whitespace-nowrap">
+                     + Buat Thread Baru
+                 </a>
+             {% else %}
+                 <p class="text-sm text-custom-blue-300">
+                     Silakan <a href="{% url 'main:login' %}" class="underline font-medium">login</a> untuk membuat thread baru.
+                 </p>
+             {% endif %}
+             <div>
+                  <label for="search-threads" class="sr-only">Cari Thread</label>
+                  <input type="text" 
+                         id="search-threads" 
+                         placeholder="Cari judul thread..." 
+                         class="filter-input w-full md:max-w-xs px-3 py-2 border border-custom-blue-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-custom-blue-300 text-sm">
+             </div>
+         </div>
+         
+         <div class="flex flex-col sm:flex-row gap-4 items-end">
+             <div>
+                  <label for="filter-author" class="block text-sm font-medium text-custom-blue-300 mb-1">Filter Penulis</label>
+                  <input type="text" id="filter-author" placeholder="Username..." class="filter-input w-full px-3 py-2 border border-custom-blue-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-custom-blue-300 text-sm">
+             </div>
+              <div>
+                  <label for="sort-threads-by" class="block text-sm font-medium text-custom-blue-300 mb-1">Urutkan</label>
+                  <select id="sort-threads-by" class="filter-input w-full px-3 py-2 border border-custom-blue-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-custom-blue-300 text-sm bg-white appearance-none pr-8">
+                      <option value="-created_at">Terbaru</option>
+                      <option value="created_at">Terlama</option>
+                      <option value="popularity">Kurang Populer (Replies)</option>
+                      <option value="-popularity">Populer </option>
+                      <option value="title">Judul (A-Z)</option>
+                      <option value="-title">Judul (Z-A)</option>
+                  </select>
+             </div>
+         </div>
     </div>
-
     <div class="bg-white rounded-lg shadow-xl overflow-hidden">
-        
-        <div class="flex bg-custom-blue-50 text-custom-blue-300 font-bold p-4">
+        <div class="flex bg-custom-blue-50 text-custom-blue-300 font-bold p-4 text-sm">
             <div class="w-6/12">Topik</div>
             <div class="w-2/12 text-left">Penulis</div>
             <div class="w-2/12 text-left">Dibuat</div>
             <div class="w-2/12 text-center">Balasan</div>
         </div>
+        
         <div class="p-8 text-center text-custom-blue-300" id="loading-state">
             <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-custom-blue-400 mx-auto"></div>
             <p class="text-custom-blue-300 mt-4">Memuat thread...</p>
         </div>
 
-        <div class="divide-y divide-custom-blue-50" id="threads-container">
-            </div>
-
+        <div class="divide-y divide-custom-blue-50" id="threads-container"></div>
     </div>
     
-    <nav id="pagination-container" class="mt-6 flex justify-center items-center space-x-1 hidden">
-        </nav>
+    <nav id="pagination-container" class="mt-6 flex justify-center items-center space-x-1 hidden"></nav>
+
+
+    <div id="edit-thread-modal" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50 hidden">
+        <div class="relative top-20 mx-auto p-5 border w-11/12 md:max-w-xl shadow-lg rounded-md bg-white">
+            <div class="mt-3">
+                <h3 class="text-lg font-medium text-custom-blue-400 mb-4">Edit Judul Thread</h3>
+                <form id="edit-thread-form">
+                    <div class="mb-4">
+                        <label for="edit-thread-title-input" class="block text-sm font-medium text-custom-blue-300 mb-1">Judul Thread</F>label>
+                        <input type="text" id="edit-thread-title-input" name="title" class="w-full p-3 border border-custom-blue-100 rounded-lg text-custom-blue-400 focus:outline-none focus:ring-2 focus:ring-custom-blue-300" required>
+                        <div id="edit-thread-form-errors" class="text-red-500 text-sm mt-2"></div>
+                    </div>
+                    <div class="flex justify-end space-x-3 mt-6">
+                        <button type="button" id="cancel-edit-thread" class="px-4 py-2 border border-custom-blue-300 text-custom-blue-400 rounded-lg hover:bg-custom-blue-50">Batal</button>
+                        <button type="submit" id="submit-edit-thread" class="px-4 py-2 bg-custom-blue-400 text-white rounded-lg hover:bg-custom-blue-300">Simpan Perubahan</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div id="delete-thread-modal" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50 hidden">
+        <div class="relative top-20 mx-auto p-5 border w-11/12 md:max-w-md shadow-lg rounded-md bg-white">
+            <div class="mt-3 text-center">
+                <div class="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-red-100">
+                    <svg class="h-6 w-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
+                    </svg>
+                </div>
+                <h3 class="text-lg font-medium text-custom-blue-400 mt-4">Hapus Thread</h3>
+                <div class="mt-2 px-7 py-3">
+                    <p class="text-sm text-custom-blue-300">
+                        Apakah Anda yakin ingin menghapus thread ini? <br>
+                        Semua postingan di dalamnya akan ikut terhapus. <br>
+                        <strong class="text-red-500">Tindakan ini tidak dapat dibatalkan.</strong>
+                    </p>
+                </div>
+                <div class="flex justify-center space-x-3 mt-4">
+                    <button type="button" id="cancel-delete-thread" class="px-4 py-2 border border-custom-blue-300 text-custom-blue-400 rounded-lg hover:bg-custom-blue-50">Batal</button>
+                    <button type="button" id="confirm-delete-thread" class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700">Ya, Hapus Thread</button>
+                </div>
+            </div>
+        </div>
+    </div>
 
 </div>
 {% endtimezone %}
@@ -66,50 +128,87 @@
 {{ block.super }}
 <script>
     document.addEventListener('DOMContentLoaded', function () {
-    const container = document.getElementById('threads-container');
-    const loadingState = document.getElementById('loading-state');
-    const searchInput = document.getElementById('search-threads');
-    const paginationContainer = document.getElementById('pagination-container');
-
+    
+    // --- STATE & CONFIG ---
+    const csrfToken = '{{ csrf_token }}';
     let currentPage = 1;
     let currentQuery = '';
+    let currentAuthor = '';
+    let currentSort = '-created_at';
     let isLoading = false;
     let totalPages = 1;
+    let fetchTimeout;
 
-    function showLoading() {
-        if (loadingState) loadingState.style.display = 'block';
+    // --- THREAD LIST ELEMENTS ---
+    const container = document.getElementById('threads-container');
+    const loadingState = document.getElementById('loading-state');
+    const paginationContainer = document.getElementById('pagination-container');
+    const searchInput = document.getElementById('search-threads');
+    const authorInput = document.getElementById('filter-author');
+    const sortBySelect = document.getElementById('sort-threads-by');
+
+    // --- EDIT THREAD MODAL ELEMENTS ---
+    const editThreadModal = document.getElementById('edit-thread-modal');
+    const editThreadForm = document.getElementById('edit-thread-form');
+    const editThreadTitleInput = document.getElementById('edit-thread-title-input');
+    const cancelEditThread = document.getElementById('cancel-edit-thread');
+    const submitEditThread = document.getElementById('submit-edit-thread');
+    const editThreadFormErrors = document.getElementById('edit-thread-form-errors');
+
+    // --- DELETE THREAD MODAL ELEMENTS ---
+    const deleteThreadModal = document.getElementById('delete-thread-modal');
+    const cancelDeleteThread = document.getElementById('cancel-delete-thread');
+    const confirmDeleteThread = document.getElementById('confirm-delete-thread');
+
+
+    function showLoading() { if (loadingState) loadingState.style.display = 'block'; }
+    function hideLoading() { if (loadingState) loadingState.style.display = 'none'; }
+    
+    function clearFormErrors(form) {
+        const errorContainer = form.querySelector('#edit-thread-form-errors');
+        if (errorContainer) errorContainer.textContent = '';
     }
 
-    function hideLoading() {
-        if (loadingState) loadingState.style.display = 'none';
+    function displayFormErrors(form, errors) {
+        const errorContainer = form.querySelector('#edit-thread-form-errors');
+        if (!errorContainer) return;
+
+        if (typeof errors === 'object' && errors !== null) {
+            let errorMsg = '';
+            for (const key in errors) {
+                errorMsg += `${errors[key].join(' ')} `;
+            }
+            errorContainer.textContent = errorMsg.trim();
+        } else if (typeof errors === 'string') {
+            errorContainer.textContent = errors;
+        }
+        if (typeof showToast === 'function') showToast('Harap perbaiki error pada form.', 'error');
     }
 
-    async function fetchThreads(page = 1, query = '', isNewSearch = false) {
+
+    async function fetchThreads(page = 1, isNewFilterOrSort = false) {
         if (isLoading) return;
         isLoading = true;
-
         showLoading();
-        container.innerHTML = '';
+        if (isNewFilterOrSort || page === 1) { container.innerHTML = ''; }
         paginationContainer.classList.add('hidden'); 
+        currentQuery = searchInput.value.trim();
+        currentAuthor = authorInput.value.trim();
+        currentSort = sortBySelect.value;
+        currentPage = page;
 
         try {
-            let apiUrl = `{% url 'forums:get_tournament_threads' tournament.id %}?page=${page}`;
-            if (query) {
-                apiUrl += `&q=${encodeURIComponent(query)}`;
-            }
+            const params = new URLSearchParams({ page: currentPage, sort: currentSort });
+            if (currentQuery) params.append('q', currentQuery);
+            if (currentAuthor) params.append('author', currentAuthor);
+            let apiUrl = `{% url 'forums:get_tournament_threads' tournament.id %}?${params.toString()}`;
 
-            const response = await fetch(apiUrl, {
-                headers: {
-                    'X-Requested-With': 'XMLHttpRequest'
-                }
-            });
-
-            if (!response.ok) throw new Error('Gagal memuat data');
+            const response = await fetch(apiUrl, { headers: { 'X-Requested-With': 'XMLHttpRequest' } });
+            if (!response.ok) throw new Error(`Gagal memuat data (${response.status})`);
 
             const data = await response.json();
             const threads = data.threads; 
             const pagination = data.pagination;
-
             hideLoading();
 
             if (threads && threads.length > 0) {
@@ -117,136 +216,258 @@
                     const threadHtml = createThreadRow(thread); 
                     container.insertAdjacentHTML('beforeend', threadHtml);
                 });
-
-                currentPage = pagination.current_page;
                 totalPages = pagination.total_pages;
-                
-                renderPagination(currentPage, totalPages);
+                renderPagination(pagination.current_page, totalPages);
                 paginationContainer.classList.remove('hidden');
-
             } else if (page === 1) {
-                container.innerHTML = `
-                <div class="p-6 text-center text-custom-blue-300">
-                    <p class="text-lg">${query ? 'Tidak ada thread yang sesuai dengan pencarian.' : 'Belum ada thread di forum ini.'}</p>
-                    ${query ? '' : '<p>Jadilah yang pertama untuk memulai diskusi!</p>'}
-                </div>
-                `;
+                container.innerHTML = `<div class="p-6 text-center text-custom-blue-300"><p class="text-lg">${currentQuery || currentAuthor ? 'Tidak ada thread yang sesuai dengan filter.' : 'Belum ada thread di forum ini.'}</p>${currentQuery || currentAuthor ? '' : '<p>Jadilah yang pertama untuk memulai diskusi!</p>'}</div>`;
                 paginationContainer.classList.add('hidden');
+            } else {
+                 paginationContainer.classList.add('hidden');
             }
 
         } catch (error) {
-            console.error('Error:', error);
+            console.error('Error fetching threads:', error);
             hideLoading();
-            
             if (page === 1) {
-                container.innerHTML = `
-                <div class="p-6 text-center text-red-500">
-                    <p class="text-lg">Terjadi kesalahan saat memuat data.</p>
-                    <button onclick="location.reload()" class="mt-4 bg-custom-blue-400 text-white px-4 py-2 rounded hover:bg-custom-blue-300">
-                        Muat Ulang Halaman
-                    </button>
-                </div>
-                `;
+                container.innerHTML = `<div class="p-6 text-center text-red-500"><p class="text-lg">Terjadi kesalahan: ${error.message}. Coba muat ulang.</p><button onclick="location.reload()" class="mt-4 bg-custom-blue-400 text-white px-4 py-2 rounded hover:bg-custom-blue-300">Muat Ulang</button></div>`;
+            } else {
+                if (typeof showToast === 'function') showToast(`Gagal memuat halaman ${page}.`, 'error');
+                renderPagination(currentPage, totalPages); 
+                paginationContainer.classList.remove('hidden');
             }
-            paginationContainer.classList.add('hidden');
         } finally {
             isLoading = false;
         }
     }
     
     function createThreadRow(thread) {
+        // actionButtons are defined but not wrapped in the main link,
+        // so e.preventDefault() in the click handler is essential.
+        const actionButtons = thread.can_edit || thread.can_delete ? `
+            <div class="thread-actions mt-2 flex space-x-2">
+                ${thread.can_edit ? `<button class="edit-thread-btn text-xs text-custom-blue-400 hover:text-custom-blue-300" data-thread-id="${thread.id}">Edit</button>` : ''}
+                ${thread.can_delete ? `<button class="delete-thread-btn text-xs text-red-500 hover:text-red-400" data-thread-id="${thread.id}">Hapus</button>` : ''}
+            </div>
+        ` : '';
+
         return `
-        <a href="${thread.url}" class="flex p-4 items-center hover:bg-custom-blue-50 transition-colors duration-150">
-            <div class="w-6/12">
-                <span class="font-semibold text-lg text-custom-blue-400 hover:underline">${thread.title}</span>
-            </div>
-            <div class="w-2/12 text-left text-custom-blue-300">
-                ${thread.author_username}
-            </div>
-            <div class="w-2/12 text-left text-sm text-custom-blue-200">
-                <div>${thread.created_date}</div>
-                <div class="text-xs">${thread.created_time}</div>
-            </div>
-            <div class="w-2/12 text-center">
-                <span class="bg-custom-blue-400 text-white text-xs font-bold rounded-full px-3 py-1">
-                    ${thread.reply_count}
-                </span>
-            </div>
-        </a>
-        `;
+        <div class="thread-item">
+            <a href="${thread.url}" class="flex p-4 items-center hover:bg-custom-blue-50 transition-colors duration-150 text-sm">
+                <div class="w-6/12 pr-4">
+                    <span class="font-semibold text-base text-custom-blue-400 hover:underline line-clamp-2">${thread.title}</span>
+                    ${actionButtons}
+                </div>
+                <div class="w-2/12 text-left text-custom-blue-300 truncate pr-2">
+                    ${thread.author_username}
+                </div>
+                <div class="w-2/12 text-left text-custom-blue-200 pr-2">
+                    <div>${thread.created_date}</div>
+                    <div class="text-xs">${thread.created_time}</div>
+                </div>
+                <div class="w-2/12 text-center">
+                    <span class="bg-custom-blue-400 text-white text-xs font-bold rounded-full px-3 py-1 tabular-nums">
+                        ${thread.reply_count}
+                    </span>
+                </div>
+            </a>
+        </div>`;
     }
 
+    // --- PAGINATION ---
     function createPageButton(page, text, isDisabled = false, isActive = false) {
         let classes = 'px-4 py-2 mx-0.5 rounded-lg transition-colors duration-150 text-sm font-medium ';
-        if (isDisabled) {
-            return `<span class="${classes} text-custom-blue-200 cursor-not-allowed">${text}</span>`;
-        }
-        if (isActive) {
-            classes += 'bg-custom-blue-400 text-white cursor-default';
-            return `<span class="${classes}">${text}</span>`;
-        }
+        if (isDisabled) return `<span class="${classes} text-custom-blue-200 cursor-not-allowed">${text}</span>`;
+        if (isActive) { classes += 'bg-custom-blue-400 text-white cursor-default'; return `<span class="${classes}">${text}</span>`; }
         classes += 'bg-white text-custom-blue-400 border border-custom-blue-200 hover:bg-custom-blue-50';
         return `<button data-page="${page}" class="${classes}">${text}</button>`;
     }
-
-    function renderPagination(currentPage, totalPages) {
+    function renderPagination(page, total) {
         paginationContainer.innerHTML = ''; 
-        if (totalPages <= 1) {
-            paginationContainer.classList.add('hidden');
-            return;
-        }
+        if (total <= 1) { paginationContainer.classList.add('hidden'); return; }
         let html = '';
-        html += createPageButton(currentPage - 1, '&laquo; Prev', currentPage === 1);
-        let pagesToShow = new Set();
-        pagesToShow.add(1); 
-        for (let i = -2; i <= 2; i++) {
-            const page = currentPage + i;
-            if (page > 1 && page < totalPages) {
-                pagesToShow.add(page);
-            }
-        }
-        pagesToShow.add(currentPage);
-        pagesToShow.add(totalPages); 
+        html += createPageButton(page - 1, '&laquo; Prev', page === 1);
+        let pagesToShow = new Set([1, total, page]);
+        for (let i = -2; i <= 2; i++) { const p = page + i; if (p > 1 && p < total) pagesToShow.add(p); }
         const sortedPages = Array.from(pagesToShow).sort((a, b) => a - b);
         let lastPage = 0;
-        for (const page of sortedPages) {
-            if (lastPage !== 0 && page > lastPage + 1) {
-                html += `<span class="px-2 py-2 text-custom-blue-300">...</span>`;
-            }
-            html += createPageButton(page, page, false, page === currentPage);
-            lastPage = page;
+        for (const p of sortedPages) {
+            if (lastPage !== 0 && p > lastPage + 1) html += `<span class="px-2 py-2 text-custom-blue-300">...</span>`;
+            html += createPageButton(p, p, false, p === page);
+            lastPage = p;
         }
-        html += createPageButton(currentPage + 1, 'Next &raquo;', currentPage === totalPages);
+        html += createPageButton(page + 1, 'Next &raquo;', page === total);
         paginationContainer.innerHTML = html;
         paginationContainer.classList.remove('hidden'); 
     }
-
     function handlePaginationClick(e) {
         const target = e.target.closest('button[data-page]');
         if (!target) return;
         target.disabled = true;
         const page = parseInt(target.dataset.page);
         if (page !== currentPage) {
-            fetchThreads(page, currentQuery); 
+            fetchThreads(page, false); 
             window.scrollTo({ top: 0, behavior: 'smooth' });
+        } else {
+             target.disabled = false;
         }
     }
 
-    if (searchInput) {
-        let searchTimeout;
-        searchInput.addEventListener('input', function(e) {
-            clearTimeout(searchTimeout);
-            searchTimeout = setTimeout(() => {
-                currentQuery = e.target.value.trim();
-                currentPage = 1;
-                fetchThreads(1, currentQuery, true); 
-            }, 500);
+    // --- FILTER/SORT ---
+    function triggerFetchWithDebounce(isNewSearch = true) {
+         clearTimeout(fetchTimeout);
+         fetchTimeout = setTimeout(() => {
+              fetchThreads(1, isNewSearch); 
+         }, 300); 
+    }
+    [searchInput, authorInput, sortBySelect].forEach(element => {
+         if(element) {
+              const eventType = element.tagName === 'SELECT' ? 'change' : 'input';
+              element.addEventListener(eventType, () => triggerFetchWithDebounce());
+         }
+    });
+
+    // --- THREAD ACTIONS ---
+    async function handleEditThread(threadId) {
+        try {
+            // 1. Get current title from server
+            const response = await fetch(`/forums/thread/${threadId}/edit/`, {
+                method: 'GET',
+                headers: { 'X-Requested-With': 'XMLHttpRequest' }
+            });
+            
+            if (!response.ok) throw new Error('Gagal memuat data thread.');
+
+            const data = await response.json();
+            if (data.success) {
+                // 2. Populate and show modal
+                editThreadTitleInput.value = data.form_data.title;
+                editThreadForm.dataset.threadId = threadId; // Store ID on form
+                clearFormErrors(editThreadForm);
+                editThreadModal.classList.remove('hidden');
+            } else {
+                throw new Error(data.error || 'Gagal memuat data.');
+            }
+        } catch (error) {
+            console.error('Error loading thread for edit:', error);
+            if (typeof showToast === 'function') showToast(error.message, 'error');
+        }
+    }
+
+    function handleDeleteThread(threadId) {
+        // 1. Store ID and show modal
+        deleteThreadModal.dataset.threadId = threadId;
+        deleteThreadModal.classList.remove('hidden');
+    }
+
+    // --- EVENT LISTENERS ---
+
+    // Main container for thread action delegation
+    container.addEventListener('click', function(e) {
+        const editBtn = e.target.closest('.edit-thread-btn');
+        const deleteBtn = e.target.closest('.delete-thread-btn');
+        
+        if (editBtn) {
+            e.preventDefault(); // Stop the <a> tag navigation
+            const threadId = editBtn.dataset.threadId;
+            handleEditThread(threadId);
+        }
+        
+        if (deleteBtn) {
+            e.preventDefault(); // Stop the <a> tag navigation
+            const threadId = deleteBtn.dataset.threadId;
+            handleDeleteThread(threadId);
+        }
+    });
+
+    // Edit Thread Modal Listeners
+    if (editThreadModal) {
+        cancelEditThread.addEventListener('click', () => editThreadModal.classList.add('hidden'));
+
+        editThreadForm.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const threadId = editThreadForm.dataset.threadId;
+            if (!threadId) return;
+
+            const formData = new FormData(editThreadForm);
+            formData.append('csrfmiddlewaretoken', csrfToken);
+            
+            submitEditThread.disabled = true;
+            submitEditThread.textContent = 'Menyimpan...';
+            clearFormErrors(editThreadForm);
+
+            try {
+                const response = await fetch(`/forums/thread/${threadId}/edit/`, {
+                    method: 'POST',
+                    headers: { 'X-Requested-With': 'XMLHttpRequest' },
+                    body: formData
+                });
+                
+                const data = await response.json();
+
+                if (response.ok && data.success) {
+                    if (typeof showToast === 'function') showToast('Thread berhasil diedit!', 'success');
+                    editThreadModal.classList.add('hidden');
+                    fetchThreads(currentPage, false); // Refresh list
+                } else if (data.errors) {
+                    displayFormErrors(editThreadForm, data.errors);
+                } else {
+                    throw new Error(data.error || 'Gagal mengedit thread.');
+                }
+            } catch (error) {
+                console.error('Error editing thread:', error);
+                displayFormErrors(editThreadForm, error.message);
+            } finally {
+                submitEditThread.disabled = false;
+                submitEditThread.textContent = 'Simpan Perubahan';
+            }
         });
     }
-    
+
+    // Delete Thread Modal Listeners
+    if (deleteThreadModal) {
+        cancelDeleteThread.addEventListener('click', () => deleteThreadModal.classList.add('hidden'));
+
+        confirmDeleteThread.addEventListener('click', async function() {
+            const threadId = deleteThreadModal.dataset.threadId;
+            if (!threadId) return;
+
+            const formData = new FormData();
+            formData.append('csrfmiddlewaretoken', csrfToken);
+            
+            confirmDeleteThread.disabled = true;
+            confirmDeleteThread.textContent = 'Menghapus...';
+
+            try {
+                const response = await fetch(`/forums/thread/${threadId}/delete/`, {
+                    method: 'POST',
+                    headers: { 'X-Requested-With': 'XMLHttpRequest' },
+                    body: formData
+                });
+                
+                const data = await response.json();
+
+                if (response.ok && data.success) {
+                    if (typeof showToast === 'function') showToast('Thread berhasil dihapus!', 'success');
+                    deleteThreadModal.classList.add('hidden');
+                    fetchThreads(1, true); // Refresh and go to page 1
+                } else {
+                    throw new Error(data.error || 'Gagal menghapus thread.');
+                }
+            } catch (error) {
+                console.error('Error deleting thread:', error);
+                if (typeof showToast === 'function') showToast(error.message, 'error');
+            } finally {
+                confirmDeleteThread.disabled = false;
+                confirmDeleteThread.textContent = 'Ya, Hapus Thread';
+                deleteThreadModal.classList.add('hidden');
+            }
+        });
+    }
+
     paginationContainer.addEventListener('click', handlePaginationClick);
-    
-    fetchThreads(1, ''); 
+
+    fetchThreads(1, true); 
 });
 </script>
 {% endblock javascript %}

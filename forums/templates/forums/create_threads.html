@@ -1,66 +1,41 @@
 {% extends 'base.html' %}
 {% load static %}
-
 {% block title %}Buat Thread Baru - {{ tournament.name }}{% endblock title %}
 
 {% block content %}
 <div class="container mx-auto p-4 md:p-8 max-w-2xl">
-    <!-- Header -->
     <div class="mb-8">
         <a href="{% url 'forums:forum_threads' tournament.id %}" class="inline-flex items-center text-custom-blue-300 hover:text-custom-blue-400 transition-colors duration-300">
-            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
-            </svg>
-            Kembali ke Forum
+            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>
+            Kembali ke Forum {{ tournament.name }}
         </a>
         <h1 class="text-3xl font-bold text-custom-blue-400 mt-4">Buat Thread Baru</h1>
-        <p class="text-lg text-custom-blue-300 mt-2">di {{ tournament.name }}</p>
     </div>
 
-    <!-- Form Container -->
     <div class="bg-white rounded-2xl shadow-xl p-6 md:p-8 border border-custom-blue-100">
-        <!-- Error display -->
+        
         <div id="ajax-error-container" class="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg hidden">
             <div class="flex items-center">
-                <svg class="w-5 h-5 text-red-500 mr-3" fill="currentColor" viewBox="0 0 20 20">
-                    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"></path>
-                </svg>
-                <span id="ajax-error-message" class="text-red-700 font-medium"></span>
+                <svg class="w-5 h-5 text-red-500 mr-3" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"></path></svg>
+                <span id="ajax-error-message" class="text-red-700 font-medium">Harap perbaiki error di bawah:</span>
             </div>
+             <ul id="form-error-list" class="list-disc list-inside text-red-600 text-sm mt-2 ml-8"></ul>
         </div>
 
-        <form id="create-thread-form" method="POST" action="{% url 'forums:create_thread' tournament.id %}" class="space-y-6">
+        <form id="create-thread-form" method="POST" action="{% url 'forums:create_thread' tournament.id %}" enctype="multipart/form-data" class="space-y-6" novalidate>
             {% csrf_token %}
             
-            <!-- Title Field -->
-            <div>
-                <label for="title" class="block text-sm font-semibold text-custom-blue-400 mb-2">
-                    Judul Thread
-                </label>
-                <input type="text" 
-                       id="title" 
-                       name="title" 
-                       required 
-                       placeholder="Masukkan judul thread yang menarik..."
-                       class="w-full px-4 py-3 border border-custom-blue-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-custom-blue-300 focus:border-transparent transition-all duration-300 text-custom-blue-400 placeholder-custom-blue-200">
-                <p class="text-sm text-custom-blue-300 mt-2">Buat judul yang jelas dan deskriptif</p>
-            </div>
+            {% for field in form %}
+                <div>
+                    <label for="{{ field.id_for_label }}" class="block text-sm font-semibold text-custom-blue-400 mb-2">
+                       {{ field.label }} {% if field.field.required %}<span class="text-red-500">*</span>{% endif %}
+                    </label>
+                    {{ field }} 
+                    {% if field.help_text %}<p class="text-xs text-custom-blue-200 mt-1">{{ field.help_text }}</p>{% endif %}
+                    <p class="text-red-500 text-sm mt-1 hidden" data-form-error="{{ field.name }}"></p> {# Placeholder for JS errors #}
+                </div>
+            {% endfor %}
 
-            <!-- Body Field -->
-            <div>
-                <label for="body" class="block text-sm font-semibold text-custom-blue-400 mb-2">
-                    Isi Thread
-                </label>
-                <textarea id="body" 
-                          name="body" 
-                          rows="8" 
-                          required 
-                          placeholder="Tulis isi thread Anda di sini. Jelaskan topik dengan jelas dan detail..."
-                          class="w-full px-4 py-3 border border-custom-blue-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-custom-blue-300 focus:border-transparent transition-all duration-300 text-custom-blue-400 placeholder-custom-blue-200 resize-vertical"></textarea>
-                <p class="text-sm text-custom-blue-300 mt-2">Jelaskan topik diskusi dengan lengkap</p>
-            </div>
-
-            <!-- Action Buttons -->
             <div class="flex flex-col sm:flex-row gap-4 sm:gap-6 justify-end pt-4 border-t border-custom-blue-100">
                 <a href="{% url 'forums:forum_threads' tournament.id %}" 
                    class="px-6 py-3 border border-custom-blue-300 text-custom-blue-400 font-semibold rounded-xl hover:bg-custom-blue-50 transition-all duration-300 text-center">
@@ -68,17 +43,13 @@
                 </a>
                 <button type="submit"
                         id="submit-button"
-                        class="px-8 py-3 bg-custom-blue-400 text-white font-semibold rounded-xl shadow-md hover:bg-custom-blue-300 hover:shadow-lg transform hover:-translate-y-0.5 transition-all duration-300 disabled:bg-custom-blue-200 disabled:cursor-not-allowed">
-                    <div class="flex items-center justify-center">
-                        <svg id="submit-icon" class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
-                        </svg>
-                        <svg id="loading-spinner" class="animate-spin -ml-1 mr-3 h-5 w-5 text-white hidden" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                        </svg>
-                        <span id="submit-text">Buat Thread</span>
-                    </div>
+                        class="px-8 py-3 bg-custom-blue-400 text-white font-semibold rounded-xl shadow-md hover:bg-custom-blue-300 hover:shadow-lg transform hover:-translate-y-0.5 transition-all duration-300 flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed">
+                     <svg id="submit-icon" class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path></svg>
+                     <svg id="loading-spinner" class="animate-spin -ml-1 mr-3 h-5 w-5 text-white hidden" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                     </svg>
+                     <span id="submit-text">Buat Thread</span>
                 </button>
             </div>
         </form>
@@ -87,6 +58,7 @@
 {% endblock content %}
 
 {% block javascript %}
+{{ block.super }}
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     const form = document.getElementById('create-thread-form');
@@ -95,57 +67,76 @@ document.addEventListener('DOMContentLoaded', function() {
     const submitIcon = document.getElementById('submit-icon');
     const loadingSpinner = document.getElementById('loading-spinner');
     const errorContainer = document.getElementById('ajax-error-container');
-    const errorMessage = document.getElementById('ajax-error-message');
+    const errorMessage = document.getElementById('ajax-error-message'); 
+    const errorList = document.getElementById('form-error-list'); 
 
     if (form) {
         form.addEventListener('submit', async function(e) {
             e.preventDefault();
 
             errorContainer.classList.add('hidden');
+            errorMessage.textContent = 'Harap perbaiki error di bawah:'; 
+            errorList.innerHTML = '';
+            form.querySelectorAll('[data-form-error]').forEach(el => {
+                 el.textContent = '';
+                 el.classList.add('hidden');
+            });
 
             submitButton.disabled = true;
             submitText.textContent = 'Membuat...';
             submitIcon.classList.add('hidden');
             loadingSpinner.classList.remove('hidden');
 
-            const title = document.getElementById('title').value;
-            const body = document.getElementById('body').value;
-            const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+            const formData = new FormData(form); 
+            const csrfToken = formData.get('csrfmiddlewaretoken');
 
             try {
                 const response = await fetch(form.action, {
                     method: 'POST',
                     headers: {
-                        'Content-Type': 'application/json',
                         'X-CSRFToken': csrfToken,
                         'X-Requested-With': 'XMLHttpRequest' 
                     },
-                    body: JSON.stringify({
-                        'title': title,
-                        'body': body
-                    })
+                    body: formData 
                 });
 
                 const data = await response.json();
 
-                if (response.ok) {
-                    window.location.href = data.thread_url;
+                if (response.ok && data.success) {
+                    if(typeof showToast === 'function') showToast('Thread berhasil dibuat!', 'success');
+                    setTimeout(() => { window.location.href = data.thread_url; }, 500); 
                 } else {
-                    errorMessage.textContent = data.error || 'Terjadi kesalahan.';
+                    if (data.errors) {
+                        errorMessage.textContent = data.error || 'Validation failed';
+                        Object.keys(data.errors).forEach(fieldName => {
+                            const fieldErrorElement = form.querySelector(`[data-form-error="${fieldName}"]`);
+                            if (fieldErrorElement) {
+                                fieldErrorElement.textContent = data.errors[fieldName];
+                                fieldErrorElement.classList.remove('hidden');
+                            } else {
+                                const li = document.createElement('li');
+                                li.textContent = `${fieldName}: ${data.errors[fieldName]}`;
+                                errorList.appendChild(li);
+                            }
+                        });
+                    } else {
+                         errorMessage.textContent = data.error || 'Terjadi kesalahan server.';
+                         errorList.innerHTML = ''; 
+                    }
                     errorContainer.classList.remove('hidden');
-                    submitButton.disabled = false;
-                    submitText.textContent = 'Buat Thread';
-                    submitIcon.classList.remove('hidden');
-                    loadingSpinner.classList.add('hidden');
                 }
             } catch (error) {
-                console.error('Network error:', error);
-                errorMessage.textContent = 'Tidak dapat terhubung ke server. Silakan coba lagi.';
+                console.error('Network or unexpected error:', error);
+                errorMessage.textContent = 'Tidak dapat terhubung ke server atau terjadi kesalahan tak terduga. Silakan coba lagi.';
+                errorList.innerHTML = '';
                 errorContainer.classList.remove('hidden');
-                submitButton.disabled = false;
-                submitText.textContent = 'Buat Thread';
-                submitIcon.classList.remove('hidden');
-                loadingSpinner.classList.add('hidden');
+            } finally {
+                 if (! (response?.ok && data?.success)) {
+                     submitButton.disabled = false;
+                     submitText.textContent = 'Buat Thread';
+                     submitIcon.classList.remove('hidden');
+                     loadingSpinner.classList.add('hidden');
+                 }
             }
         });
     }

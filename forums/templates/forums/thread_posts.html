@@ -9,89 +9,204 @@
 <div class="container mx-auto p-4 md:p-8 max-w-3xl">
 
     <div class="mb-6">
-        <a href="{% url 'forums:forum_threads' thread.tournament.pk %}" class="text-custom-blue-300 hover:underline">&larr; Kembali ke Daftar Forum</a>
-        <h1 class="text-4xl font-bold text-custom-blue-400 mt-2">{{ thread.title }}</h1>
-        <p class="text-lg text-custom-blue-300">
-            Dimulai oleh <span class="font-semibold">{{ thread.author.username }}</span> pada {{ thread.created_at|date:"d M Y" }}
-            
-            &bull; <span id="post-count" class="font-semibold">{{ posts.count|add:"-1" }}</span> Balasan
-        </p>
+        <a href="{% url 'forums:forum_threads' thread.tournament.pk %}" class="text-custom-blue-300 hover:underline">&larr; Kembali ke Forum {{ thread.tournament.name }}</a>
+        <div class="flex justify-between items-start mt-2">
+            <div class="flex-grow">
+                <h1 class="text-4xl font-bold text-custom-blue-400 break-words" id="thread-title">{{ thread.title }}</h1>
+                <p class="text-lg text-custom-blue-300">
+                    Dimulai oleh <span class="font-semibold">{{ thread.author.username }}</span> pada {{ thread.created_at|date:"d M Y" }}
+                    &bull; <span id="post-count" class="font-semibold">{{ reply_count }}</span> Balasan 
+                </p>
+            </div>
+            {% if can_edit_thread or can_delete_thread %}
+            <div class="flex-shrink-0 flex space-x-2 ml-4">
+                {% if can_edit_thread %}
+                <button id="edit-thread-btn" class="text-custom-blue-400 hover:text-custom-blue-300 p-2 rounded-lg hover:bg-custom-blue-50" title="Edit Thread">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
+                    </svg>
+                </button>
+                {% endif %}
+                {% if can_delete_thread %}
+                <button id="delete-thread-btn" class="text-red-500 hover:text-red-400 p-2 rounded-lg hover:bg-red-50" title="Hapus Thread">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                    </svg>
+                </button>
+                {% endif %}
+            </div>
+            {% endif %}
+        </div>
     </div>
 
-    <div id="posts-list" class="space-y-4 mb-8">
-        {% for post in posts %}
-        <div class="{% if not forloop.first %}ml-12{% endif %}">
-            <div class="bg-white p-5 rounded-lg shadow-lg {% if forloop.first %}border-l-4 border-custom-blue-400{% endif %} relative">
-                <!-- Thread starter line for replies -->
-                {% if not forloop.first %}
-                <div class="absolute -left-12 top-0 bottom-0 w-12 border-l-2 border-b-2 border-custom-blue-100 rounded-bl-2xl"></div>
-                {% endif %}
-                
-                <div class="flex items-start space-x-3">
-                    <div class="flex-shrink-0">
-                        <img src="https://placehold.co/40x40/D1DBE4/194A7A?text={{ post.author.username|slice:':1'|upper }}" alt="Avatar" class="rounded-full w-10 h-10">
-                    </div>
-                    <div class="flex-1 min-w-0">
-                        <div class="flex items-center justify-between mb-1">
-                            <div class="flex items-center space-x-2">
-                                <span class="font-bold text-custom-blue-400 text-base">{{ post.author.username }}</span>
-                                {% if forloop.first %}
-                                <span class="text-custom-blue-300 text-sm">•</span>
-                                <span class="text-custom-blue-300 text-sm">{{ post.created_at|date:"d M Y, H:i" }}</span>
-                                {% endif %}
-                            </div>
-                            {% if forloop.first %}
-                            <span class="bg-custom-blue-400 text-white text-xs font-semibold px-3 py-1 rounded-full">
-                                Pembuat Thread
-                            </span>
-                            {% endif %}
-                        </div>
-                        
-                        {% if not forloop.first %}
-                        <p class="text-xs text-custom-blue-300 mb-2">{{ post.created_at|date:"d M Y, H:i" }}</p>
-                        {% endif %}
-                        
-                        <p class="text-custom-blue-400 whitespace-pre-wrap text-base {% if forloop.first %}mb-3{% endif %}">{{ post.body }}</p>
-                    </div>
-                </div>
-            </div>
+    <div id="posts-list" class="space-y-3 mb-8"> 
+        <script id="posts-data" type="application/json">{{ posts_json|safe }}</script>
+        <div id="posts-loading" class="text-center p-6 text-custom-blue-300">
+             <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-custom-blue-400 mx-auto mb-2"></div>
+             Memuat postingan...
         </div>
-        {% endfor %}
     </div>
 
     {% if user.is_authenticated %}
-    <div class="bg-white p-5 rounded-lg shadow-xl">
-        <h3 class="text-2xl font-bold text-custom-blue-400 mb-4">Tinggalkan Balasan</h3>
-        <form id="new-post-form" method="POST" action="{% url 'forums:thread_posts' thread.id %}">
+    <div id="main-reply-form-container" class="bg-white p-5 rounded-lg shadow-xl mb-8 border-t-4 border-custom-blue-400">
+        <h3 class="text-xl font-bold text-custom-blue-400 mb-4">Tinggalkan Balasan untuk Thread</h3>
+        <form id="new-post-form" method="POST" action="{% url 'forums:thread_posts' thread.id %}" enctype="multipart/form-data">
             {% csrf_token %}
-            <div class="mb-4">
-                <label for="post-content" class="sr-only">Komentar kamu</label>
-                <textarea id="post-content" name="body" rows="5" 
-                          class="w-full p-3 border border-custom-blue-100 rounded-lg text-custom-blue-400 focus:outline-none focus:ring-2 focus:ring-custom-blue-300 transition-all duration-300"
-                          placeholder="Tulis balasan kamu di sini..."
-                          required></textarea>
-                <div id="post-error" class="text-red-500 text-sm mt-2 hidden">
-                    Balasan tidak boleh kosong!
-                </div>
+            <input type="hidden" name="parent_id" id="parent_id_input" value=""> 
+            <div class="space-y-4">
+                 {% for field in reply_form %}
+                 <div>
+                      <label for="{{ field.id_for_label }}" class="{% if field.name == 'body' %}sr-only{% else %}block text-sm font-medium text-custom-blue-300 mb-1{% endif %}">
+                           {{ field.label }} {% if field.field.required %}<span class="text-red-500">*</span>{% endif %}
+                      </label>
+                      {{ field }} 
+                      <div class="text-red-500 text-sm mt-1" data-form-error="{{ field.name }}"></div> 
+                 </div>
+                 {% endfor %}
             </div>
-            <div>
+            <div class="mt-4">
                 <button type="submit" 
                         id="submit-button"
-                        class="bg-custom-blue-400 text-white font-bold py-2 px-5 rounded-lg shadow-md hover:bg-custom-blue-300 transition-colors duration-300 disabled:bg-custom-blue-200 disabled:cursor-not-allowed">
+                        class="bg-custom-blue-400 text-white font-bold py-2 px-5 rounded-lg shadow-md hover:bg-custom-blue-300 transition-colors duration-300 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center">
                     <span id="submit-text">Kirim Balasan</span>
-                    <svg id="loading-spinner" class="animate-spin -ml-1 mr-3 h-5 w-5 text-white hidden" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" style="display: none;">
+                    <svg id="loading-spinner" class="animate-spin ml-2 h-5 w-5 text-white hidden" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                         <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                         <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                     </svg>
                 </button>
+                 <div id="form-errors" class="text-red-500 text-sm mt-2"></div>
             </div>
         </form>
     </div>
     {% else %}
     <div class="text-center p-6 bg-white rounded-lg shadow-lg">
-        <p class="text-custom-blue-300">Silakan <a href="{% url 'login' %}" class="font-bold text-custom-blue-400 hover:underline">login</a> untuk membalas thread ini.</p>
+        <p class="text-custom-blue-300">Silakan <a href="{% url 'main:login' %}" class="font-bold text-custom-blue-400 hover:underline">login</a> untuk membalas thread ini.</p>
     </div>
     {% endif %}
+
+    <div id="edit-post-modal" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50 hidden">
+        <div class="relative top-20 mx-auto p-5 border w-11/12 md:max-w-2xl shadow-lg rounded-md bg-white">
+            <div class="mt-3">
+                <h3 class="text-lg font-medium text-custom-blue-400 mb-4">Edit Post</h3>
+                <form id="edit-post-form" enctype="multipart/form-data">
+                    <input type="hidden" id="edit-post-id" name="post_id">
+                    <div class="mb-4">
+                        <textarea id="edit-post-body" name="body" rows="6" class="w-full p-3 border border-custom-blue-100 rounded-lg text-custom-blue-400 focus:outline-none focus:ring-2 focus:ring-custom-blue-300" placeholder="Tulis isi postingan..."></textarea>
+                        <div class="text-red-500 text-sm mt-1" data-form-error="body"></div>
+                    </div>
+                    <div class="mb-4">
+                        <label class="block text-sm font-medium text-custom-blue-300 mb-1">Gambar (Opsional)</label>
+                        <input type="file" id="edit-post-image" name="image" class="w-full p-3 border border-custom-blue-100 rounded-lg text-custom-blue-400 focus:outline-none focus:ring-2 focus:ring-custom-blue-300 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-custom-blue-50 file:text-custom-blue-400 hover:file:bg-custom-blue-100">
+                        <div id="edit-current-image" class="mt-2"></div>
+                        <div class="text-red-500 text-sm mt-1" data-form-error="image"></div>
+                    </div>
+                    <div id="edit-post-form-errors" class="text-red-500 text-sm mt-2"></div>
+                    <div class="flex justify-end space-x-3 mt-6">
+                        <button type="button" id="cancel-edit-post" class="px-4 py-2 border border-custom-blue-300 text-custom-blue-400 rounded-lg hover:bg-custom-blue-50">Batal</button>
+                        <button type="submit" id="submit-edit-post" class="px-4 py-2 bg-custom-blue-400 text-white rounded-lg hover:bg-custom-blue-300">Simpan Perubahan</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div id="edit-thread-modal" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50 hidden">
+        <div class="relative top-20 mx-auto p-5 border w-11/12 md:max-w-xl shadow-lg rounded-md bg-white">
+            <div class="mt-3">
+                <h3 class="text-lg font-medium text-custom-blue-400 mb-4">Edit Judul Thread</h3>
+                <form id="edit-thread-form">
+                    <div class="mb-4">
+                        <label for="edit-thread-title-input" class="block text-sm font-medium text-custom-blue-300 mb-1">Judul Thread</label>
+                        <input type="text" id="edit-thread-title-input" name="title" class="w-full p-3 border border-custom-blue-100 rounded-lg text-custom-blue-400 focus:outline-none focus:ring-2 focus:ring-custom-blue-300" required>
+                        <div id="edit-thread-form-errors" class="text-red-500 text-sm mt-2"></div>
+                    </div>
+                    <div class="flex justify-end space-x-3 mt-6">
+                        <button type="button" id="cancel-edit-thread" class="px-4 py-2 border border-custom-blue-300 text-custom-blue-400 rounded-lg hover:bg-custom-blue-50">Batal</button>
+                        <button type="submit" id="submit-edit-thread" class="px-4 py-2 bg-custom-blue-400 text-white rounded-lg hover:bg-custom-blue-300">Simpan Perubahan</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div id="delete-thread-modal" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50 hidden">
+        <div class="relative top-20 mx-auto p-5 border w-11/12 md:max-w-md shadow-lg rounded-md bg-white">
+            <div class="mt-3 text-center">
+                <div class="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-red-100">
+                    <svg class="h-6 w-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
+                    </svg>
+                </div>
+                <h3 class="text-lg font-medium text-custom-blue-400 mt-4">Hapus Thread</h3>
+                <div class="mt-2 px-7 py-3">
+                    <p class="text-sm text-custom-blue-300">
+                        Apakah Anda yakin ingin menghapus thread ini? <br>
+                        Semua postingan di dalamnya akan ikut terhapus. <br>
+                        <strong class="text-red-500">Tindakan ini tidak dapat dibatalkan.</strong>
+                    </p>
+                </div>
+                <div class="flex justify-center space-x-3 mt-4">
+                    <button type="button" id="cancel-delete-thread" class="px-4 py-2 border border-custom-blue-300 text-custom-blue-400 rounded-lg hover:bg-custom-blue-50">Batal</button>
+                    <button type="button" id="confirm-delete-thread" class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700">Ya, Hapus Thread</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="delete-post-modal" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50 hidden">
+        <div class="relative top-20 mx-auto p-5 border w-11/12 md:max-w-md shadow-lg rounded-md bg-white">
+            <div class="mt-3 text-center">
+                <div class="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-red-100">
+                    <svg class="h-6 w-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
+                    </svg>
+                </div>
+                <h3 class="text-lg font-medium text-custom-blue-400 mt-4">Hapus Post</h3>
+                <div class="mt-2 px-7 py-3">
+                    <p class="text-sm text-custom-blue-300">
+                        Apakah Anda yakin ingin menghapus post ini? <br>
+                        <strong class="text-red-500">Tindakan ini tidak dapat dibatalkan.</strong>
+                    </p>
+                </div>
+                <div class="flex justify-center space-x-3 mt-4">
+                    <button type="button" id="cancel-delete-post" class="px-4 py-2 border border-custom-blue-300 text-custom-blue-400 rounded-lg hover:bg-custom-blue-50">Batal</button>
+                    <button type="button" id="confirm-delete-post" class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700">Ya, Hapus Post</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <template id="reply-form-template">
+        <div class="mt-4 ml-5 bg-custom-blue-50 p-4 rounded-lg border border-custom-blue-100 reply-form-instance" data-parent-id="">
+             <form method="POST" action="{% url 'forums:thread_posts' thread.id %}" enctype="multipart/form-data">
+                 <input type="hidden" name="parent_id" class="parent_id_input" value=""> 
+                 <div class="space-y-3">
+                     <div>
+                         <label for="id_body_reply_dyn_{{ forloop.counter }}" class="sr-only">Balasan Anda</label> 
+                         <textarea name="body" rows="3" required class="w-full p-2 border border-custom-blue-100 rounded-lg text-custom-blue-400 focus:outline-none focus:ring-1 focus:ring-custom-blue-300" placeholder="Tulis balasan..."></textarea>
+                         <div class="text-red-500 text-sm mt-1" data-form-error="body"></div>
+                    </div>
+                     <div>
+                         <label for="id_image_reply_dyn_{{ forloop.counter }}" class="block text-xs font-medium text-custom-blue-300 mb-1">Gambar (Opsional)</label>
+                         <input type="file" name="image" class="w-full text-sm text-custom-blue-400 file:mr-3 file:py-1 file:px-3 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-custom-blue-100 file:text-custom-blue-400 hover:file:bg-custom-blue-200">
+                         <div class="text-red-500 text-sm mt-1" data-form-error="image"></div>
+                     </div>
+                 </div>
+                 <div class="mt-3 flex items-center justify-end space-x-2">
+                     <button type="button" class="cancel-reply-button px-3 py-1 text-sm text-custom-blue-300 hover:underline focus:outline-none">Batal</button>
+                     <button type="submit" 
+                             class="submit-reply-button bg-custom-blue-400 text-white font-semibold py-1 px-4 rounded-lg text-sm hover:bg-custom-blue-300 flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed">
+                         <span class="submit-reply-text">Kirim</span>
+                         <svg class="loading-reply-spinner animate-spin ml-1 h-4 w-4 text-white hidden" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                             <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                             <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                         </svg>
+                     </button>
+                     <div class="form-reply-errors text-red-500 text-sm mt-1"></div>
+                 </div>
+             </form>
+        </div>
+    </template>
 
 </div>
 {% endtimezone %}
@@ -100,140 +215,697 @@
 {% block javascript %}
 {{ block.super }} 
 <script>
-    document.addEventListener('DOMContentLoaded', function () {
-        const postForm = document.getElementById('new-post-form');
-        const contentInput = document.getElementById('post-content');
-        const submitButton = document.getElementById('submit-button');
-        const submitText = document.getElementById('submit-text');
-        const loadingSpinner = document.getElementById('loading-spinner');
-        const errorDiv = document.getElementById('post-error');
-        
-        if (postForm) {
-            contentInput.addEventListener('input', function() {
-                const content = contentInput.value.trim();
-                const isEmpty = content.length === 0;
-                
-                submitButton.disabled = isEmpty;
-                
-                if (isEmpty) {
-                    errorDiv.classList.remove('hidden');
-                    contentInput.classList.add('border-red-300');
-                    contentInput.classList.remove('border-custom-blue-100');
-                } else {
-                    errorDiv.classList.add('hidden');
-                    contentInput.classList.remove('border-red-300');
-                    contentInput.classList.add('border-custom-blue-100');
-                }
-            });
+document.addEventListener('DOMContentLoaded', function () {
+
+    // --- UTILITY & STATE ---
+    const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]')?.value;
+    const threadAuthor = "{{ thread.author.username|escapejs }}";
+    const currentUser = "{{ user.username|escapejs }}"; 
+    const isUserAuthenticated = currentUser && currentUser !== "AnonymousUser";
+    const loginUrl = "{% url 'main:login' %}?next=" + window.location.pathname;
+    let postsData = []; 
+    let postMap = new Map();
+
+    // --- GLOBAL ELEMENTS ---
+    const postsListContainer = document.getElementById('posts-list');
+    const postsLoading = document.getElementById('posts-loading');
+    const postsDataElem = document.getElementById('posts-data');
+    const replyFormTemplate = document.getElementById('reply-form-template');
+    const postCountElement = document.getElementById('post-count');
+    const threadTitle = document.getElementById('thread-title');
+
+    // --- Main Reply Form ---
+    const mainReplyForm = document.getElementById('new-post-form');
+    const mainReplyParentInput = document.getElementById('parent_id_input'); 
+
+    // --- Thread Action Elements ---
+    const editThreadBtn = document.getElementById('edit-thread-btn');
+    const deleteThreadBtn = document.getElementById('delete-thread-btn');
+
+    // --- Edit Thread Modal ---
+    const editThreadModal = document.getElementById('edit-thread-modal');
+    const editThreadForm = document.getElementById('edit-thread-form');
+    const editThreadTitleInput = document.getElementById('edit-thread-title-input');
+    const cancelEditThread = document.getElementById('cancel-edit-thread');
+    const submitEditThread = document.getElementById('submit-edit-thread');
+    const editThreadFormErrors = document.getElementById('edit-thread-form-errors');
+
+    // --- Delete Thread Modal ---
+    const deleteThreadModal = document.getElementById('delete-thread-modal');
+    const cancelDeleteThread = document.getElementById('cancel-delete-thread');
+    const confirmDeleteThread = document.getElementById('confirm-delete-thread');
+
+    // --- Edit Post Modal ---
+    const editPostModal = document.getElementById('edit-post-modal');
+    const editPostForm = document.getElementById('edit-post-form');
+    const editPostIdInput = document.getElementById('edit-post-id');
+    const editPostBody = document.getElementById('edit-post-body');
+    const editPostImage = document.getElementById('edit-post-image');
+    const editCurrentImage = document.getElementById('edit-current-image');
+    const cancelEditPost = document.getElementById('cancel-edit-post');
+    const submitEditPost = document.getElementById('submit-edit-post');
+    const editPostFormErrors = document.getElementById('edit-post-form-errors');
+
+    // --- Delete Post Modal ---
+    const deletePostModal = document.getElementById('delete-post-modal');
+    const cancelDeletePost = document.getElementById('cancel-delete-post');
+    const confirmDeletePost = document.getElementById('confirm-delete-post');
+
     
-            postForm.addEventListener('submit', async function (e) {
-                e.preventDefault();
-                console.log('AJAX submission started'); 
-
-                const content = contentInput.value.trim();
-                const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
-
-                if (!content) {
-                    errorDiv.classList.remove('hidden');
-                    contentInput.classList.add('border-red-300');
-                    contentInput.focus();
-                    
-                    if (typeof showToast === 'function') {
-                        showToast('Balasan tidak boleh kosong!', 'error');
-                    } else {
-                        console.error('Balasan tidak boleh kosong!');
-                    }
-                    return false; 
-                }
-
-                submitButton.disabled = true;
-                submitText.textContent = 'Mengirim...';
-                loadingSpinner.style.display = 'inline-block';
-
-                try {
-
-                    const response = await fetch(postForm.action, {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'X-CSRFToken': csrfToken,
-                            'X-Requested-With': 'XMLHttpRequest'
-                        },
-                        body: JSON.stringify({'body': content})
-                    });
-
-                    if (response.ok) {
-                        const data = await response.json();
-                        
-                        appendNewPost(data);
-                        
-                        contentInput.value = '';
-                        errorDiv.classList.add('hidden');
-                        contentInput.classList.remove('border-red-300');
-                        contentInput.classList.add('border-custom-blue-100');
-                        submitButton.disabled = true; 
-
-                        if (typeof showToast === 'function') {
-                            showToast('Balasan berhasil dikirim!', 'success');
-                        }
-
-                    } else {
-                        const errorData = await response.json();
-                        throw new Error(errorData.error || 'Gagal mengirim balasan.');
-                    }
-                } catch (error) {
-                    console.error('Error:', error);
-                    if (typeof showToast === 'function') {
-                        showToast(error.message || 'Terjadi kesalahan jaringan.', 'error');
-                    }
-                } finally {
-                    submitButton.disabled = false;
-                    submitText.textContent = 'Kirim Balasan';
-                    loadingSpinner.style.display = 'none';
-                }
-
-                return false; 
-            });
+    // --- INITIALIZE POSTS ---
+    
+    if (postsDataElem) {
+        try {
+            postsData = JSON.parse(postsDataElem.textContent);
+            postsData.forEach(p => postMap.set(p.id, p)); 
+        } catch (e) {
+            console.error("Error parsing posts data:", e);
+            if(postsLoading) postsLoading.remove();
+            postsListContainer.innerHTML = '<div class="text-center p-6 text-red-500">Gagal memuat data postingan.</div>';
+            return;
         }
+    }
 
-        function appendNewPost(data) {
-            const postsList = document.getElementById('posts-list');
-            if (!postsList) return;
+    function createPostHtml(post, level = 0) {
+        const indentClass = level > 0 ? `ml-${Math.min(level, 10) * 2}` : ''; 
 
-            const newPostHtml = `
-            <div class="ml-12">
-                <div class="bg-white p-5 rounded-lg shadow-lg relative">
-                    <div class="absolute -left-12 top-0 bottom-0 w-12 border-l-2 border-b-2 border-custom-blue-100 rounded-bl-2xl"></div>
-                    
-                    <div class="flex items-start space-x-3">
-                        <div class="flex-shrink-0">
-                            <img src="https://placehold.co/40x40/D1DBE4/194A7A?text=${data.username.charAt(0).toUpperCase()}" alt="Avatar" class="rounded-full w-10 h-10">
-                        </div>
-                        <div class="flex-1 min-w-0">  
-                            <div class="flex items-center space-x-2 mb-1">
-                                <span class="font-bold text-custom-blue-400 text-base">${data.username}</span>
-                                <span class="text-custom-blue-300 text-sm">•</span>
-                                <span class="text-custom-blue-300 text-sm">${data.created_at}</span>
+        const isFirstPost = level === 0 && !post.parent_id && postMap.size > 0 && post.id === postsData.find(p=>!p.parent_id)?.id; 
+        const bgColor = level === 0 ? 'bg-white' : 'bg-gray-50'; 
+        const borderClass = isFirstPost ? 'border-l-4 border-custom-blue-400' : '';
+        const paddingClass = 'p-4';
+        
+        const authorBadge = post.is_thread_author ? 
+            `<span class="ml-2 bg-custom-blue-100 text-custom-blue-400 text-xs font-semibold px-2 py-0.5 rounded-full">Pembuat Thread</span>` : '';
+        
+        const firstPostBadge = isFirstPost ? 
+            `<span class="ml-2 bg-green-100 text-green-600 text-xs font-semibold px-2 py-0.5 rounded-full">Postingan Pertama</span>` : '';
+
+        const editedBadge = post.is_edited ? 
+            `<span class="ml-2 bg-gray-100 text-gray-600 text-xs font-semibold px-2 py-0.5 rounded-full" id="edited-badge-${post.id}">Diedit</span>` : 
+            `<span class="ml-2 bg-gray-100 text-gray-600 text-xs font-semibold px-2 py-0.5 rounded-full hidden" id="edited-badge-${post.id}">Diedit</span>`;
+
+        const actionButtonsHtml = isUserAuthenticated ? `
+            <button class="reply-button text-xs font-medium text-custom-blue-300 hover:underline focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:no-underline" data-post-id="${post.id}" title="Balas post ini">Balas</button>
+            ${post.can_edit || post.can_delete ? '<span class="text-custom-blue-100 mx-1">•</span>' : ''}
+            ${post.can_edit ? `<button class="edit-post-button text-xs font-medium text-custom-blue-300 hover:underline focus:outline-none" data-post-id="${post.id}" title="Edit post ini">Edit</button>` : ''}
+            ${post.can_edit && post.can_delete ? `<span class="text-custom-blue-100 mx-1">•</span>` : ''}
+            ${post.can_delete ? `<button class="delete-post-button text-xs font-medium text-red-500 hover:text-red-400 focus:outline-none" data-post-id="${post.id}" title="Hapus post ini">Hapus</button>` : ''}
+        ` : `
+            <span class="text-xs text-custom-blue-200">${post.reply_count} Balasan</span> 
+        `;
+        const connectorColorClass = level % 2 === 0 ? 'border-custom-blue-100' : 'border-custom-blue-300';
+
+        return `
+        <div class="post-item ${indentClass}" data-post-id="${post.id}" data-level="${level}">
+            <div class="${bgColor} ${paddingClass} rounded-lg shadow-md ${borderClass} relative group">
+                
+                ${level > 0 ? `<div class="absolute -left-2 top-0 bottom-0 w-2 border-l-2 ${level > 1 ? 'border-b-2' : ''} ${connectorColorClass} group-hover:border-custom-blue-400 transition-colors duration-200 ${level > 1 ? 'rounded-bl-lg' : ''} connector-line"></div>` : ''}
+                <div class="flex items-start space-x-3">
+                    <div class="flex-shrink-0 pt-1">
+                        <img src="https://placehold.co/40x40/D1DBE4/194A7A?text=${post.author_username.charAt(0).toUpperCase()}" alt="${post.author_username} Avatar" class="rounded-full w-8 h-8 md:w-10 md:h-10">
+                    </div>
+                    <div class="flex-1 min-w-0">
+                        <div class="flex items-center justify-between mb-1 flex-wrap gap-x-2">
+                            <div class="flex items-center space-x-2">
+                                <span class="font-bold text-custom-blue-400 text-sm md:text-base">${post.author_username}</span>
+                                ${authorBadge}
+                                ${firstPostBadge}
+                                ${editedBadge}
                             </div>
-                            <p class="text-custom-blue-400 whitespace-pre-wrap text-base mb-3">${data.body}</p>
+                            <span class="text-xs text-custom-blue-300 whitespace-nowrap">${post.created_at}</span>
                         </div>
+                        
+                        <div id="image-container-${post.id}">
+                        ${post.image_url ? `<img src="${post.image_url}" alt="Lampiran gambar" class="my-3 max-w-full h-auto rounded-lg max-h-80 object-contain border border-custom-blue-100 cursor-pointer" onclick="this.requestFullscreen ? this.requestFullscreen() : null;" title="Klik untuk zoom">` : ''}
+                        </div>
+
+                        <p class="text-custom-blue-400 whitespace-pre-wrap text-sm md:text-base mb-2 prose max-w-none prose-sm md:prose-base" id="body-text-${post.id}">${post.body}</p>
+
+                        <div class="flex items-center space-x-2 text-xs mt-2">
+                           ${actionButtonsHtml}
+                        </div>
+                        
+                        <div class="replies-container mt-3 space-y-3" data-replies-for="${post.id}"></div>
+                        <div class="reply-form-container mt-2" data-reply-form-for="${post.id}"></div>
                     </div>
                 </div>
             </div>
-            `;
-            
-            postsList.insertAdjacentHTML('beforeend', newPostHtml);
+        </div>
+        `;
+    }
 
-            postsList.lastElementChild.scrollIntoView({ behavior: 'smooth' });
+    function buildPostTree() {
+        const postMapLocal = new Map();
+        postsData.forEach(p => {
+            p.children = []; 
+            postMapLocal.set(p.id, p);
+        });
+        const rootPosts = [];
+        postsData.forEach(p => {
+            if (p.parent_id && postMapLocal.has(p.parent_id)) {
+                postMapLocal.get(p.parent_id).children.push(p);
+            } else if (!p.parent_id) { 
+                rootPosts.push(p); 
+            }
+        });
+        rootPosts.sort((a, b) => postDataToSortKey(a) - postDataToSortKey(b)); 
+        if(postsLoading) postsLoading.remove(); 
+        postsListContainer.innerHTML = ''; 
+        if (rootPosts.length === 0 && postsData.length > 0) {
+             console.warn("No root posts found, but post data exists. Check parent_id values.");
+             postsData.forEach(p => renderSinglePostAndChildren(p, postsListContainer, 0));
+        } else if (rootPosts.length === 0) {
+             postsListContainer.innerHTML = '<div class="text-center p-6 text-custom-blue-300">Belum ada postingan di thread ini.</div>';
+        } else {
+             rootPosts.forEach(rootPost => {
+                renderSinglePostAndChildren(rootPost, postsListContainer, 0);
+             });
+        }
+    }
+    
+    function postDataToSortKey(post) {
+         try {
+             const parts = post.created_at.match(/(\d{2}) (\w{3}) (\d{4}), (\d{2}):(\d{2})/);
+             if (parts) {
+                const months = {Jan:0, Feb:1, Mar:2, Apr:3, May:4, Jun:5, Jul:6, Aug:7, Sep:8, Oct:9, Nov:10, Dec:11};
+                return new Date(Date.UTC(parts[3], months[parts[2]], parts[1], parts[4], parts[5])).getTime();
+             } else {
+                 const parsedDate = Date.parse(post.created_at);
+                 if (!isNaN(parsedDate)) return parsedDate;
+             }
+         } catch (e) { console.error("Date parse error for post", post.id, e); }
+         return post.id || 0;
+    }
 
-            const countElement = document.getElementById('post-count');
-            if (countElement) {
-                let currentCount = parseInt(countElement.textContent, 10);
-                if (!isNaN(currentCount)) {
-                    countElement.textContent = currentCount + 1;
-                }
+    function renderSinglePostAndChildren(post, parentContainer, level) {
+        if (level > 4) { return; }
+
+        const tempDiv = document.createElement('div');
+        tempDiv.innerHTML = createPostHtml(post, level).trim(); 
+        const postElement = tempDiv.firstChild; 
+        if (!postElement) { console.error("Failed to create post element for:", post); return; }
+        parentContainer.appendChild(postElement);
+        
+        if (level >= 4) {
+            const replyButton = postElement.querySelector('.reply-button');
+            if (replyButton) {
+                replyButton.disabled = true;
+                replyButton.classList.add('opacity-50', 'cursor-not-allowed');
+                replyButton.title = 'Balasan sudah mencapai batas maksimum';
+                replyButton.removeEventListener('click', handleReplyClick); 
             }
         }
+        
+        const repliesContainer = postElement.querySelector(`[data-replies-for="${post.id}"]`);
+        if (repliesContainer) {
+            const children = postsData.filter(p => p.parent_id === post.id);
+            if (children.length > 0) {
+                children.sort((a, b) => postDataToSortKey(a) - postDataToSortKey(b)); 
+                children.slice(0, 4).forEach(child => {
+                    renderSinglePostAndChildren(child, repliesContainer, level + 1);
+                });
+            }
+        }
+    }
+    
+    function clearFormErrors(form) {
+        form.querySelectorAll('[data-form-error]').forEach(el => {
+            el.textContent = '';
+        });
+        const globalError = form.querySelector('#form-errors, #form-reply-errors, #edit-post-form-errors, #edit-thread-form-errors');
+        if (globalError) globalError.textContent = '';
+    }
+
+    function displayFormErrors(form, errors) {
+        let firstErrorField = null;
+        Object.keys(errors).forEach(fieldName => {
+            const errorField = form.querySelector(`[data-form-error="${fieldName}"]`);
+            if (errorField) {
+                errorField.textContent = errors[fieldName];
+                if (!firstErrorField) firstErrorField = fieldName;
+            } else {
+                const globalError = form.querySelector('#form-errors, #form-reply-errors, #edit-post-form-errors, #edit-thread-form-errors');
+                if(globalError) {
+                    globalError.textContent += `${fieldName}: ${errors[fieldName]} `;
+                }
+            }
+        });
+        const firstInputWithError = form.querySelector(`[name="${firstErrorField}"]`);
+        firstInputWithError?.focus();
+        if (typeof showToast === 'function') showToast('Harap perbaiki error pada form.', 'error');
+    }
+
+    // --- THREAD ACTIONS ---
+
+    function handleEditThread() {
+        if (!editThreadModal || !editThreadTitleInput) return;
+        editThreadTitleInput.value = threadTitle.textContent.trim();
+        clearFormErrors(editThreadForm);
+        editThreadModal.classList.remove('hidden');
+    }
+
+    function handleDeleteThread() {
+        if (!deleteThreadModal) return;
+        deleteThreadModal.classList.remove('hidden');
+    }
+
+    // --- POST ACTIONS ---
+    
+    function showEditPostModal(postId) {
+        const post = postMap.get(parseInt(postId));
+        if (!post) {
+            console.error("Could not find post data for ID:", postId);
+            if (typeof showToast === 'function') showToast('Gagal memuat data post.', 'error');
+            return;
+        }
+        
+        editPostIdInput.value = post.id;
+        editPostBody.value = post.body_raw || post.body; // Prefer raw body for editing
+        editPostImage.value = ''; // Clear file input
+        clearFormErrors(editPostForm);
+
+        if (post.image_url) {
+            editCurrentImage.innerHTML = `
+                <p class="text-sm text-custom-blue-300 mb-1">Gambar saat ini:</p>
+                <img src="${post.image_url}" alt="Current image" class="max-w-xs rounded-lg border">
+                <label class="mt-2 flex items-center text-sm text-red-500 hover:text-red-400 cursor-pointer">
+                    <input type="checkbox" id="remove-image-checkbox" name="remove_image" class="mr-1"> Hapus gambar
+                </label>
+            `;
+        } else {
+            editCurrentImage.innerHTML = '';
+        }
+        
+        editPostModal.classList.remove('hidden');
+    }
+
+    function showDeletePostModal(postId) {
+        if (!deletePostModal) return;
+        deletePostModal.dataset.postId = postId; 
+        deletePostModal.classList.remove('hidden');
+    }
+
+    // --- REPLY ACTIONS ---
+
+    function handleReplyClick(postId) {
+        const targetPostElement = postsListContainer.querySelector(`.post-item[data-post-id="${postId}"]`);
+        if (targetPostElement) {
+            const level = parseInt(targetPostElement.dataset.level || 0);
+            if (level >= 4) {
+                if (typeof showToast === 'function') {
+                    showToast('Balasan sudah melebihi kapasitas maksimum!', 'error');
+                } else {
+                    alert('Balasan sudah melebihi kapasitas maksimum!');
+                }
+                return;
+            }
+        }
+        
+        closeAllReplyForms();
+        const formContainer = postsListContainer.querySelector(`.reply-form-container[data-reply-form-for="${postId}"]`);
+        if (!formContainer || !replyFormTemplate) return;
+        const formClone = replyFormTemplate.content.cloneNode(true);
+        const formElement = formClone.querySelector('form');
+        const parentIdInput = formClone.querySelector('.parent_id_input');
+        parentIdInput.value = postId;
+        formElement.dataset.parentId = postId; 
+        const cancelButton = formClone.querySelector('.cancel-reply-button');
+        cancelButton.addEventListener('click', (e) => { e.preventDefault(); formContainer.innerHTML = ''; });
+        
+        formElement.addEventListener('submit', (e) => {
+            e.preventDefault();
+            handleReplySubmit(formElement, false);
+        });
+
+        formContainer.appendChild(formClone);
+        const textarea = formContainer.querySelector('textarea');
+        if (textarea) textarea.focus();
+    }
+    
+    function closeAllReplyForms() {
+        const openForms = postsListContainer.querySelectorAll('.reply-form-instance');
+        openForms.forEach(formDiv => formDiv.remove());
+    }
+
+    async function handleReplySubmit(formElement, isMainForm = false) {
+        const parentId = formElement.dataset.parentId || '';
+        const formData = new FormData(formElement); 
+        
+        if (!isMainForm) {
+            formData.append('csrfmiddlewaretoken', csrfToken);
+        }
+
+        const submitButton = formElement.querySelector(isMainForm ? '#submit-button' : '.submit-reply-button');
+        const submitText = formElement.querySelector(isMainForm ? '#submit-text' : '.submit-reply-text');
+        const spinner = formElement.querySelector(isMainForm ? '#loading-spinner' : '.loading-reply-spinner');
+        
+        clearFormErrors(formElement);
+
+        submitButton.disabled = true;
+        if(submitText) submitText.classList.add('hidden');
+        spinner?.classList.remove('hidden');
+
+        try {
+            const response = await fetch(formElement.action, {
+                method: 'POST',
+                headers: { 'X-Requested-With': 'XMLHttpRequest' },
+                body: formData 
+            });
+            const data = await response.json();
+
+            if (response.ok && data.success) {
+                const newPostData = data.post;
+
+                if (!newPostData) {
+                    console.warn("Server did not return new post. Reloading page.");
+                    if (typeof showToast === 'function') showToast('Balasan berhasil dikirim!', 'success');
+                    window.location.reload(); 
+                    return; 
+                }
+
+                postsData.push(newPostData);
+                postMap.set(newPostData.id, newPostData);
+
+                let targetContainer;
+                let level = 0;
+                if (parentId) {
+                    targetContainer = postsListContainer.querySelector(`[data-replies-for="${parentId}"]`);
+                    const parentElement = postsListContainer.querySelector(`.post-item[data-post-id="${parentId}"]`);
+                    level = parentElement ? parseInt(parentElement.dataset.level || 0) + 1 : 1;
+                } else {
+                    targetContainer = postsListContainer;
+                }
+
+                if (targetContainer) {
+                    renderSinglePostAndChildren(newPostData, targetContainer, level); 
+                    const newElement = targetContainer.querySelector(`.post-item[data-post-id="${newPostData.id}"]`);
+                    newElement?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                } else {
+                    console.error("Could not find container for parent ID:", parentId);
+                    buildPostTree(); 
+                }
+                
+                if (postCountElement) {
+                    let currentCount = parseInt(postCountElement.textContent, 10);
+                    if (!isNaN(currentCount)) postCountElement.textContent = currentCount + 1;
+                }
+                
+                if (isMainForm) {
+                    formElement.reset(); 
+                    submitButton.disabled = true;
+                } else {
+                    formElement.closest('.reply-form-instance')?.remove();
+                }
+                if (typeof showToast === 'function') showToast('Balasan berhasil dikirim!', 'success');
+
+            } else {
+                 if (data.errors) {
+                    displayFormErrors(formElement, data.errors);
+                 } else {
+                    throw new Error(data.error || 'Gagal mengirim balasan.');
+                 }
+            }
+        } catch (error) {
+            console.error('Reply submission error:', error);
+            const errorContainer = formElement.querySelector(isMainForm ? '#form-errors' : '.form-reply-errors');
+            if(errorContainer){
+                 errorContainer.textContent = error.message || 'Terjadi kesalahan jaringan.';
+            }
+             if (typeof showToast === 'function') showToast(error.message || 'Terjadi kesalahan jaringan.', 'error');
+        } finally {
+             if (!isMainForm) {
+                 submitButton.disabled = false;
+             } else {
+                 const mainBodyInput = mainReplyForm.querySelector('textarea[name="body"]');
+                 submitButton.disabled = !mainBodyInput.value.trim();
+             }
+            if(submitText) submitText.classList.remove('hidden');
+            spinner?.classList.add('hidden');
+        }
+    }
+
+    // --- EVENT LISTENERS ---
+
+    // Thread Actions
+    if (editThreadBtn) {
+        editThreadBtn.addEventListener('click', handleEditThread);
+    }
+    if (deleteThreadBtn) {
+        deleteThreadBtn.addEventListener('click', handleDeleteThread);
+    }
+
+    // Edit Thread Modal
+    if (editThreadModal) {
+        cancelEditThread.addEventListener('click', () => editThreadModal.classList.add('hidden'));
+        editThreadForm.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const newTitle = editThreadTitleInput.value;
+            const formData = new FormData();
+            formData.append('title', newTitle);
+            formData.append('csrfmiddlewaretoken', csrfToken);
+            
+            submitEditThread.disabled = true;
+            submitEditThread.textContent = 'Menyimpan...';
+            clearFormErrors(editThreadForm);
+
+            try {
+                const response = await fetch(`/forums/thread/{{ thread.id }}/edit/`, {
+                    method: 'POST',
+                    headers: { 'X-Requested-With': 'XMLHttpRequest' },
+                    body: formData
+                });
+                const data = await response.json();
+                
+                if (response.ok && data.success) {
+                    threadTitle.textContent = newTitle;
+                    if (typeof showToast === 'function') showToast('Thread berhasil diedit!', 'success');
+                    editThreadModal.classList.add('hidden');
+                } else if (data.errors) {
+                    displayFormErrors(editThreadForm, data.errors);
+                } else {
+                    throw new Error(data.error || 'Gagal menyimpan.');
+                }
+            } catch (error) {
+                console.error('Error editing thread:', error);
+                if(editThreadFormErrors) editThreadFormErrors.textContent = error.message;
+                if (typeof showToast === 'function') showToast('Gagal mengedit thread.', 'error');
+            } finally {
+                submitEditThread.disabled = false;
+                submitEditThread.textContent = 'Simpan Perubahan';
+            }
+        });
+    }
+
+    if (deleteThreadModal) {
+        cancelDeleteThread.addEventListener('click', () => deleteThreadModal.classList.add('hidden'));
+        confirmDeleteThread.addEventListener('click', async function() {
+            const formData = new FormData();
+            formData.append('csrfmiddlewaretoken', csrfToken);
+            
+            confirmDeleteThread.disabled = true;
+            confirmDeleteThread.textContent = 'Menghapus...';
+            
+            try {
+                const response = await fetch(`/forums/thread/{{ thread.id }}/delete/`, {
+                    method: 'POST',
+                    headers: { 'X-Requested-With': 'XMLHttpRequest' },
+                    body: formData
+                });
+                const data = await response.json();
+
+                if (response.ok && data.success) {
+                    if (typeof showToast === 'function') showToast('Thread berhasil dihapus!', 'success');
+                    window.location.href = data.redirect_url;
+                } else {
+                    throw new Error(data.error || 'Gagal menghapus thread.');
+                }
+            } catch (error) {
+                console.error('Error deleting thread:', error);
+                if (typeof showToast === 'function') showToast(error.message, 'error');
+                confirmDeleteThread.disabled = false;
+                confirmDeleteThread.textContent = 'Ya, Hapus Thread';
+                deleteThreadModal.classList.add('hidden');
+            }
+        });
+    }
+
+    if (editPostModal) {
+        cancelEditPost.addEventListener('click', () => editPostModal.classList.add('hidden'));
+        editPostForm.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const postId = editPostIdInput.value;
+            const formData = new FormData(editPostForm);
+            
+            // --- FIX FOR CSRF TOKEN ---
+            // Add the CSRF token to the FormData. Sending it in the header
+            // with FormData is unreliable and likely failing.
+            formData.append('csrfmiddlewaretoken', csrfToken);
+            // --- END FIX FOR CSRF TOKEN ---
+            
+            submitEditPost.disabled = true;
+            submitEditPost.textContent = 'Menyimpan...';
+            clearFormErrors(editPostForm);
+            
+            try {
+                const response = await fetch(`/forums/post/${postId}/edit/`, {
+                    method: 'POST',
+                    headers: { 'X-Requested-With': 'XMLHttpRequest' }, 
+                    body: formData
+                });
+                
+                const data = await response.json();
+
+                if (response.ok && data.success) {
+                    if (typeof showToast === 'function') showToast('Post berhasil diedit!', 'success');
+                    
+                    const updatedPost = data.post; 
+                    
+                    if (updatedPost) {
+                        postMap.set(updatedPost.id, updatedPost);
+                        
+                        const postElement = document.querySelector(`.post-item[data-post-id="${postId}"]`);
+                        const bodyText = postElement.querySelector(`#body-text-${postId}`);
+                        const imageContainer = postElement.querySelector(`#image-container-${postId}`);
+                        const editedBadge = postElement.querySelector(`#edited-badge-${postId}`);
+
+                        if (bodyText) bodyText.textContent = updatedPost.body;
+                        if (imageContainer) {
+                            if (updatedPost.image_url) {
+                                imageContainer.innerHTML = `<img src="${updatedPost.image_url}" alt="Lampiran gambar" class="my-3 max-w-full h-auto rounded-lg max-h-80 object-contain border border-custom-blue-100 cursor-pointer" onclick="this.requestFullscreen ? this.requestFullscreen() : null;" title="Klik untuk zoom">`;
+                            } else {
+                                imageContainer.innerHTML = '';
+                            }
+                        }
+                        if (editedBadge) editedBadge.classList.remove('hidden');
+
+                        editPostModal.classList.add('hidden');
+                    } else {
+                        console.warn("Server did not return updated post. Reloading page.");
+                        window.location.reload();
+                    }
+
+                } else if (data.errors) {
+                    displayFormErrors(editPostForm, data.errors);
+                } else {
+                    throw new Error(data.error || 'Gagal mengedit post.');
+                }
+            } catch (error) {
+                console.error('Error updating post:', error);
+                if(editPostFormErrors) editPostFormErrors.textContent = error.message;
+                if (typeof showToast === 'function') showToast('Gagal mengedit post.', 'error');
+            } finally {
+                submitEditPost.disabled = false;
+                submitEditPost.textContent = 'Simpan Perubahan';
+            }
+        });
+    }
+
+    if (deletePostModal) {
+        cancelDeletePost.addEventListener('click', () => deletePostModal.classList.add('hidden'));
+        confirmDeletePost.addEventListener('click', async function() {
+            const postId = deletePostModal.dataset.postId;
+            if (!postId) return;
+
+            const formData = new FormData();
+            formData.append('csrfmiddlewaretoken', csrfToken);
+            
+            confirmDeletePost.disabled = true;
+            confirmDeletePost.textContent = 'Menghapus...';
+            
+            try {
+                const response = await fetch(`/forums/post/${postId}/delete/`, {
+                    method: 'POST',
+                    headers: { 'X-Requested-With': 'XMLHttpRequest' },
+                    body: formData
+                });
+                
+                const data = await response.json();
+
+                if (response.ok && data.success) {
+                    if (typeof showToast === 'function') showToast('Post berhasil dihapus!', 'success');
+                    
+                    const postElement = document.querySelector(`.post-item[data-post-id="${postId}"]`);
+                    postElement?.remove();
+                    
+                    if (postCountElement) {
+                        let currentCount = parseInt(postCountElement.textContent, 10);
+                        if (!isNaN(currentCount) && currentCount > 0) {
+                            postCountElement.textContent = currentCount - 1;
+                        }
+                    }
+
+                    postMap.delete(parseInt(postId));
+                    postsData = postsData.filter(p => p.id !== parseInt(postId));
+                    
+                    deletePostModal.classList.add('hidden');
+                } else {
+                    throw new Error(data.error || 'Gagal menghapus post.');
+                }
+            } catch (error) {
+                console.error('Error deleting post:', error);
+                if (typeof showToast === 'function') showToast(error.message, 'error');
+            } finally {
+                confirmDeletePost.disabled = false;
+                confirmDeletePost.textContent = 'Ya, Hapus Post';
+                deletePostModal.classList.add('hidden');
+            }
+        });
+    }
+
+    postsListContainer.addEventListener('click', function(e) {
+        const replyButton = e.target.closest('.reply-button');
+        const editPostButton = e.target.closest('.edit-post-button');
+        const deletePostButton = e.target.closest('.delete-post-button');
+        
+        if (replyButton) {
+             e.preventDefault();
+             if (!isUserAuthenticated) {
+                 if(typeof showToast === 'function') showToast('Anda harus login untuk membalas.', 'error');
+                 setTimeout(() => { window.location.href = loginUrl; }, 1500); 
+                 return;
+             }
+             const postId = replyButton.dataset.postId;
+             handleReplyClick(postId);
+             return; 
+        }
+
+        if (editPostButton) {
+            e.preventDefault();
+            const postId = editPostButton.dataset.postId;
+            showEditPostModal(postId);
+        }
+        
+        if (deletePostButton) {
+            e.preventDefault();
+            const postId = deletePostButton.dataset.postId;
+            showDeletePostModal(postId);
+        }
     });
+
+    if (mainReplyForm) {
+        const mainBodyInput = mainReplyForm.querySelector('textarea[name="body"]');
+        const mainSubmitButton = mainReplyForm.querySelector('#submit-button');
+        if (mainBodyInput && mainSubmitButton) {
+            mainBodyInput.addEventListener('input', () => {
+                mainSubmitButton.disabled = !mainBodyInput.value.trim();
+            });
+            mainSubmitButton.disabled = !mainBodyInput.value.trim();
+        }
+        mainReplyForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            mainReplyParentInput.value = ''; 
+            handleReplySubmit(mainReplyForm, true);
+        });
+    }
+
+    if (postsData.length > 0) {
+        buildPostTree(); 
+    } else {
+        if(postsLoading) postsLoading.remove();
+        postsListContainer.innerHTML = '<div class="text-center p-6 text-custom-blue-300">Belum ada postingan di thread ini.</div>';
+    }
+
+});
 </script>
 {% endblock javascript %}
