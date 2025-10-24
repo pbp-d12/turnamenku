@@ -13,7 +13,7 @@
     </div>
 
     <div class="bg-white rounded-2xl shadow-xl p-6 md:p-8 border border-custom-blue-100">
-        
+
         <div id="ajax-error-container" class="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg hidden">
             <div class="flex items-center">
                 <svg class="w-5 h-5 text-red-500 mr-3" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"></path></svg>
@@ -22,28 +22,29 @@
              <ul id="form-error-list" class="list-disc list-inside text-red-600 text-sm mt-2 ml-8"></ul>
         </div>
 
-        <form id="create-thread-form" method="POST" action="{% url 'forums:create_thread' tournament.id %}" enctype="multipart/form-data" class="space-y-6" novalidate>
+        <form id="create-thread-form" method="POST" action="{% url 'forums:create_thread' tournament.id %}" class="space-y-6" novalidate>
             {% csrf_token %}
-            
+
             {% for field in form %}
                 <div>
                     <label for="{{ field.id_for_label }}" class="block text-sm font-semibold text-custom-blue-400 mb-2">
                        {{ field.label }} {% if field.field.required %}<span class="text-red-500">*</span>{% endif %}
                     </label>
-                    {{ field }} 
+                    {{ field }}
                     {% if field.help_text %}<p class="text-xs text-custom-blue-200 mt-1">{{ field.help_text }}</p>{% endif %}
-                    <p class="text-red-500 text-sm mt-1 hidden" data-form-error="{{ field.name }}"></p> {# Placeholder for JS errors #}
+                    <p class="text-red-500 text-sm mt-1 hidden" data-form-error="{{ field.name }}"></p>
                 </div>
             {% endfor %}
 
             <div class="flex flex-col sm:flex-row gap-4 sm:gap-6 justify-end pt-4 border-t border-custom-blue-100">
-                <a href="{% url 'forums:forum_threads' tournament.id %}" 
+                <a href="{% url 'forums:forum_threads' tournament.id %}"
                    class="px-6 py-3 border border-custom-blue-300 text-custom-blue-400 font-semibold rounded-xl hover:bg-custom-blue-50 transition-all duration-300 text-center">
                     Batal
                 </a>
                 <button type="submit"
                         id="submit-button"
-                        class="px-8 py-3 bg-custom-blue-400 text-white font-semibold rounded-xl shadow-md hover:bg-custom-blue-300 hover:shadow-lg transform hover:-translate-y-0.5 transition-all duration-300 flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed">
+                        class="px-8 py-3 bg-custom-blue-400 text-white font-semibold rounded-xl shadow-md hover:bg-custom-blue-300 hover:shadow-lg transform hover:-translate-y-0.5 transition-all duration-300 flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed"
+                        disabled>
                      <svg id="submit-icon" class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path></svg>
                      <svg id="loading-spinner" class="animate-spin -ml-1 mr-3 h-5 w-5 text-white hidden" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                         <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
@@ -67,15 +68,46 @@ document.addEventListener('DOMContentLoaded', function() {
     const submitIcon = document.getElementById('submit-icon');
     const loadingSpinner = document.getElementById('loading-spinner');
     const errorContainer = document.getElementById('ajax-error-container');
-    const errorMessage = document.getElementById('ajax-error-message'); 
-    const errorList = document.getElementById('form-error-list'); 
+    const errorMessage = document.getElementById('ajax-error-message');
+    const errorList = document.getElementById('form-error-list');
+
+    function checkFormValidity() {
+        let isValid = true;
+        
+        const requiredFields = form.querySelectorAll('input[required], textarea[required], select[required]');
+        requiredFields.forEach(field => {
+            if (!field.value.trim()) {
+                isValid = false;
+            }
+        });
+        
+        const titleField = form.querySelector('input[name="title"]');
+        const bodyField = form.querySelector('textarea[name="body"]');
+        
+        if (titleField && !titleField.value.trim()) {
+            isValid = false;
+        }
+        if (bodyField && !bodyField.value.trim()) {
+            isValid = false;
+        }
+        
+        submitButton.disabled = !isValid;
+    }
 
     if (form) {
+        const formInputs = form.querySelectorAll('input, textarea, select');
+        formInputs.forEach(input => {
+            input.addEventListener('input', checkFormValidity);
+            input.addEventListener('change', checkFormValidity);
+        });
+
+        checkFormValidity();
+
         form.addEventListener('submit', async function(e) {
             e.preventDefault();
 
             errorContainer.classList.add('hidden');
-            errorMessage.textContent = 'Harap perbaiki error di bawah:'; 
+            errorMessage.textContent = 'Harap perbaiki error di bawah:';
             errorList.innerHTML = '';
             form.querySelectorAll('[data-form-error]').forEach(el => {
                  el.textContent = '';
@@ -87,7 +119,7 @@ document.addEventListener('DOMContentLoaded', function() {
             submitIcon.classList.add('hidden');
             loadingSpinner.classList.remove('hidden');
 
-            const formData = new FormData(form); 
+            const formData = new FormData(form);
             const csrfToken = formData.get('csrfmiddlewaretoken');
 
             try {
@@ -95,33 +127,45 @@ document.addEventListener('DOMContentLoaded', function() {
                     method: 'POST',
                     headers: {
                         'X-CSRFToken': csrfToken,
-                        'X-Requested-With': 'XMLHttpRequest' 
+                        'X-Requested-With': 'XMLHttpRequest'
                     },
-                    body: formData 
+                    body: formData
                 });
 
                 const data = await response.json();
 
                 if (response.ok && data.success) {
                     if(typeof showToast === 'function') showToast('Thread berhasil dibuat!', 'success');
-                    setTimeout(() => { window.location.href = data.thread_url; }, 500); 
+                    setTimeout(() => { window.location.href = data.thread_url; }, 500);
                 } else {
                     if (data.errors) {
                         errorMessage.textContent = data.error || 'Validation failed';
-                        Object.keys(data.errors).forEach(fieldName => {
-                            const fieldErrorElement = form.querySelector(`[data-form-error="${fieldName}"]`);
-                            if (fieldErrorElement) {
-                                fieldErrorElement.textContent = data.errors[fieldName];
-                                fieldErrorElement.classList.remove('hidden');
-                            } else {
-                                const li = document.createElement('li');
-                                li.textContent = `${fieldName}: ${data.errors[fieldName]}`;
-                                errorList.appendChild(li);
-                            }
+
+                        errorList.innerHTML = '';
+                        form.querySelectorAll('[data-form-error]').forEach(el => {
+                            el.textContent = '';
+                            el.classList.add('hidden');
                         });
+                        
+                        Object.keys(data.errors).forEach(fieldName => {
+                            const errorText = data.errors[fieldName];
+                            const fieldErrorElement = form.querySelector(`[data-form-error="${fieldName}"]`);
+                            
+                            // Field-specific error
+                            if (fieldErrorElement) {
+                                fieldErrorElement.textContent = errorText;
+                                fieldErrorElement.classList.remove('hidden');
+                            }
+                            
+                            // Main error list (for the test)
+                            const li = document.createElement('li');
+                            li.textContent = `${fieldName.charAt(0).toUpperCase() + fieldName.slice(1).replace(/_/g, ' ')}: ${errorText}`;
+                            errorList.appendChild(li);
+                        });
+                        errorContainer.classList.remove('hidden');
                     } else {
                          errorMessage.textContent = data.error || 'Terjadi kesalahan server.';
-                         errorList.innerHTML = ''; 
+                         errorList.innerHTML = '';
                     }
                     errorContainer.classList.remove('hidden');
                 }
@@ -131,11 +175,12 @@ document.addEventListener('DOMContentLoaded', function() {
                 errorList.innerHTML = '';
                 errorContainer.classList.remove('hidden');
             } finally {
-                 if (! (response?.ok && data?.success)) {
+                 if (! (response && response.ok && data && data.success)) {
                      submitButton.disabled = false;
                      submitText.textContent = 'Buat Thread';
                      submitIcon.classList.remove('hidden');
                      loadingSpinner.classList.add('hidden');
+                     checkFormValidity();
                  }
             }
         });
