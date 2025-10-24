@@ -11,6 +11,61 @@ import datetime
 from django.db.models import Sum
 from teams.models import Team
 from predictions.models import Prediction
+from tournaments.models import Tournament, Match 
+from forums.models import Thread 
+from predictions.models import Prediction 
+from django.db.models import Count, F 
+from django.utils import timezone
+
+
+def home_view(request):
+    now_datetime = timezone.now()
+    now_date = now_datetime.date()
+
+    ongoing_tournaments = Tournament.objects.filter(
+        start_date__lte=now_date,
+        end_date__gte=now_date
+    ).order_by('-start_date')[:3]
+
+    upcoming_matches_for_prediction = Match.objects.filter(
+        match_date__gte=now_datetime, 
+        home_score__isnull=True,      
+        away_score__isnull=True
+    ).select_related('tournament', 'home_team', 'away_team').order_by('match_date')[:3]
+
+    recent_threads = Thread.objects.select_related('tournament', 'author')\
+        .annotate(post_count=Count('posts'))\
+        .order_by('-created_at')[:3]
+
+    top_predictors = Prediction.objects.values('user__username')\
+        .annotate(total_points=Sum('points_awarded'))\
+        .filter(total_points__gt=0)\
+        .order_by('-total_points')[:3]
+
+    user_rank = None
+    user_teams = None
+    if request.user.is_authenticated:
+        user_total_points = Prediction.objects.filter(user=request.user)\
+            .aggregate(total=Sum('points_awarded'))['total'] or 0
+
+        higher_ranked_users = Prediction.objects.values('user')\
+            .annotate(total_points=Sum('points_awarded'))\
+            .filter(total_points__gt=user_total_points)\
+            .count()
+        user_rank = higher_ranked_users + 1
+
+        user_teams = request.user.teams.all()[:2] 
+
+    context = {
+        'ongoing_tournaments': ongoing_tournaments,
+        'upcoming_matches': upcoming_matches_for_prediction,
+        'recent_threads': recent_threads,
+        'top_predictors': top_predictors,
+        'user_rank': user_rank, 
+        'user_total_points': user_total_points if request.user.is_authenticated else 0,
+        'user_teams': user_teams, 
+    }
+    return render(request, 'main/home.html', context)
 
 from .forms import (
     UserRegisterForm,
@@ -23,11 +78,6 @@ from .models import Profile
 
 
 def is_superuser(user): return user.is_superuser
-
-
-def home_view(request): context = {}; return render(
-    request, 'main/home.html', context)
-
 
 def register_view(request):
     if request.user.is_authenticated:
