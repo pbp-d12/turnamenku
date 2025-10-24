@@ -15,15 +15,15 @@ def show_main_teams(request):
 
 def manage_team(request):
     """Halaman manage team"""
-    return render(request, 'manage_team.html')
+    return render(request, 'manage_teams.html')
 
 def meet_team(request):
     """Halaman meet team"""
-    return render(request, 'meet_team.html')
+    return render(request, 'meet_teams.html')
 
 def join_team(request):
     """Halaman join team"""
-    return render(request, 'join_team.html')
+    return render(request, 'join_teams.html')
 
 # ======== SEARCH / VIEW ========
 @csrf_exempt
@@ -53,7 +53,6 @@ def search_teams(request):
         else:
             return JsonResponse({'status': 'error', 'message': 'Mode tidak valid.'}, status=400)
     else:
-        # Jika belum login, hanya bisa lihat mode join
         if mode != 'join':
             return JsonResponse({'status': 'error', 'message': 'Login diperlukan.'}, status=401)
 
@@ -104,8 +103,19 @@ def create_team(request):
         return JsonResponse({'status': 'error', 'message': 'Nama tim wajib diisi.'}, status=400)
 
     team = Team.objects.create(name=name, captain=request.user, logo=logo)
+    team.members.add(request.user)
     return JsonResponse({'status': 'success', 'team_id': team.id})
 
+@require_POST
+@login_required
+def join_team(request, team_id):
+    team = get_object_or_404(Team, id=team_id)
+
+    if request.user in team.members.all():
+        return JsonResponse({'status': 'error', 'message': 'Anda sudah menjadi anggota tim ini.'}, status=400)
+
+    team.members.add(request.user)
+    return JsonResponse({'status': 'success'})
 
 @require_POST
 @login_required
@@ -156,7 +166,9 @@ def leave_team(request, team_id):
     team = get_object_or_404(Team, id=team_id)
 
     if team.captain == request.user:
-        return JsonResponse({'status': 'error', 'message': 'Kapten tidak dapat keluar dari tim.'}, status=400)
+        team.members.remove(request.user)
+        team.delete()
+        return JsonResponse({'status': 'success'})
 
     team.members.remove(request.user)
     return JsonResponse({'status': 'success'})
