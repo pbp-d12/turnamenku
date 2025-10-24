@@ -8,10 +8,18 @@
 {% timezone "Asia/Jakarta" %} {# Sesuaikan timezone jika perlu #}
 
 {# Hero Section - Sedikit modifikasi #}
-<div class="relative bg-gradient-to-br from-custom-blue-400 to-custom-blue-300 text-white p-12 md:p-16 rounded-xl shadow-lg mb-12 overflow-hidden">
+<div
+    class="relative bg-gradient-to-br from-custom-blue-400 to-custom-blue-300 text-white p-12 md:p-16 rounded-xl shadow-lg mb-12 overflow-hidden">
     {# Pola Latar Belakang Halus (Opsional) #}
     <div class="absolute inset-0 opacity-10">
-        <svg width="100%" height="100%" xmlns="http://www.w3.org/2000/svg"><defs><pattern id="dotted-pattern" x="0" y="0" width="20" height="20" patternUnits="userSpaceOnUse"><circle cx="2" cy="2" r="1" fill="white"></circle></pattern></defs><rect width="100%" height="100%" fill="url(#dotted-pattern)"></rect></svg>
+        <svg width="100%" height="100%" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+                <pattern id="dotted-pattern" x="0" y="0" width="20" height="20" patternUnits="userSpaceOnUse">
+                    <circle cx="2" cy="2" r="1" fill="white"></circle>
+                </pattern>
+            </defs>
+            <rect width="100%" height="100%" fill="url(#dotted-pattern)"></rect>
+        </svg>
     </div>
     <div class="relative z-10 text-center">
         <h1 class="text-4xl md:text-5xl font-bold mb-4">
@@ -21,11 +29,13 @@
             Platform terpusat untuk mengelola, mengikuti, dan berdiskusi seputar turnamen olahraga favorit Anda. 🏆
         </p>
         <div class="flex flex-col sm:flex-row justify-center gap-4">
-            <a href="{% url 'tournaments:tournament_home' %}" class="bg-white text-custom-blue-400 font-bold py-3 px-8 rounded-lg shadow hover:bg-custom-blue-50 transition duration-300 transform hover:scale-105">
+            <a href="{% url 'tournaments:tournament_home' %}"
+                class="bg-white text-custom-blue-400 font-bold py-3 px-8 rounded-lg shadow hover:bg-custom-blue-50 transition duration-300 transform hover:scale-105">
                 Jelajahi Turnamen
             </a>
             {% if not user.is_authenticated %}
-            <a href="{% url 'main:register' %}" class="bg-custom-blue-100 text-custom-blue-400 font-bold py-3 px-8 rounded-lg shadow hover:bg-white transition duration-300 transform hover:scale-105">
+            <a href="{% url 'main:register' %}"
+                class="bg-custom-blue-100 text-custom-blue-400 font-bold py-3 px-8 rounded-lg shadow hover:bg-white transition duration-300 transform hover:scale-105">
                 Daftar Sekarang
             </a>
             {% endif %}
@@ -39,51 +49,68 @@
     {# Kolom 1: Turnamen Sedang Berlangsung #}
     <div class="bg-white p-6 rounded-xl shadow-lg border border-gray-200">
         <h2 class="text-2xl font-bold text-custom-blue-400 mb-4 flex items-center">
-            <svg class="w-6 h-6 mr-2 text-red-500 animate-pulse" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-8.707l-3-3a1 1 0 00-1.414 0l-3 3a1 1 0 001.414 1.414L9 9.414V13a1 1 0 102 0V9.414l1.293 1.293a1 1 0 001.414-1.414z" clip-rule="evenodd"></path></svg>
+            <svg class="w-6 h-6 mr-2 text-red-500 animate-pulse" fill="currentColor" viewBox="0 0 20 20">
+                <path fill-rule="evenodd"
+                    d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-8.707l-3-3a1 1 0 00-1.414 0l-3 3a1 1 0 001.414 1.414L9 9.414V13a1 1 0 102 0V9.414l1.293 1.293a1 1 0 001.414-1.414z"
+                    clip-rule="evenodd"></path>
+            </svg>
             Live Turnamen
         </h2>
         {% if ongoing_tournaments %}
-            <ul class="space-y-3">
-                {% for tournament in ongoing_tournaments %}
-                <li>
-                    <a href="{% url 'tournaments:tournament_detail_page' tournament.pk %}" class="block p-3 bg-custom-blue-50 hover:bg-custom-blue-100 rounded-lg transition group">
-                        <h3 class="font-semibold text-custom-blue-400 group-hover:text-custom-blue-300 truncate">{{ tournament.name }}</h3>
-                        <p class="text-xs text-custom-blue-300">Berakhir: {{ tournament.end_date|date:"d M Y" }}</p>
-                    </a>
-                </li>
-                {% endfor %}
-            </ul>
+        <ul class="space-y-3">
+            {% for tournament in ongoing_tournaments %}
+            <li>
+                <a href="{% url 'tournaments:tournament_detail_page' tournament.pk %}"
+                    class="block p-3 bg-custom-blue-50 hover:bg-custom-blue-100 rounded-lg transition group">
+                    <h3 class="font-semibold text-custom-blue-400 group-hover:text-custom-blue-300 truncate">{{
+                        tournament.name }}</h3>
+                    <p class="text-xs text-custom-blue-300">Berakhir: {{ tournament.end_date|date:"d M Y" }}</p>
+                </a>
+            </li>
+            {% endfor %}
+        </ul>
         {% else %}
-            <p class="text-sm text-custom-blue-300 italic">Tidak ada turnamen yang sedang berlangsung saat ini.</p>
+        <p class="text-sm text-custom-blue-300 italic">Tidak ada turnamen yang sedang berlangsung saat ini.</p>
         {% endif %}
-        <a href="{% url 'tournaments:tournament_home' %}?status=ongoing" class="mt-4 inline-block text-sm text-custom-blue-400 hover:underline font-medium">Lihat Semua Live &rarr;</a>
+        <a href="{% url 'tournaments:tournament_home' %}?status=ongoing"
+            class="mt-4 inline-block text-sm text-custom-blue-400 hover:underline font-medium">Lihat Semua Live
+            &rarr;</a>
     </div>
 
     {# Kolom 2: Prediksi Berikutnya #}
     <div class="bg-white p-6 rounded-xl shadow-lg border border-gray-200">
         <h2 class="text-2xl font-bold text-custom-blue-400 mb-4 flex items-center">
-            <svg class="w-6 h-6 mr-2 text-custom-blue-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.196-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z"></path></svg>
+            <svg class="w-6 h-6 mr-2 text-custom-blue-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.196-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z">
+                </path>
+            </svg>
             Prediksi Berikutnya
         </h2>
         {% if upcoming_matches %}
-             <ul class="space-y-3">
-                {% for match in upcoming_matches %}
-                <li>
-                    <a href="{% url 'predictions:predictions_index' %}?tournament={{ match.tournament.pk }}" class="block p-3 bg-custom-blue-50 hover:bg-custom-blue-100 rounded-lg transition group">
-                        <div class="flex justify-between items-center text-sm font-semibold text-custom-blue-400 group-hover:text-custom-blue-300">
-                           <span>{{ match.home_team.name }}</span>
-                           <span class="text-custom-blue-200 text-xs">vs</span>
-                           <span>{{ match.away_team.name }}</span>
-                        </div>
-                        <p class="text-xs text-custom-blue-300 mt-1">{{ match.match_date|date:"d M, H:i" }} - {{match.tournament.name}}</p>
-                    </a>
-                </li>
-                {% endfor %}
-            </ul>
+        <ul class="space-y-3">
+            {% for match in upcoming_matches %}
+            <li>
+                <a href="{% url 'predictions:predictions_index' %}?tournament={{ match.tournament.pk }}"
+                    class="block p-3 bg-custom-blue-50 hover:bg-custom-blue-100 rounded-lg transition group">
+                    <div
+                        class="flex justify-between items-center text-sm font-semibold text-custom-blue-400 group-hover:text-custom-blue-300">
+                        <span>{{ match.home_team.name }}</span>
+                        <span class="text-custom-blue-200 text-xs">vs</span>
+                        <span>{{ match.away_team.name }}</span>
+                    </div>
+                    <p class="text-xs text-custom-blue-300 mt-1">{{ match.match_date|date:"d M, H:i" }} -
+                        {{match.tournament.name}}</p>
+                </a>
+            </li>
+            {% endfor %}
+        </ul>
         {% else %}
-             <p class="text-sm text-custom-blue-300 italic">Tidak ada pertandingan mendatang untuk diprediksi.</p>
+        <p class="text-sm text-custom-blue-300 italic">Tidak ada pertandingan mendatang untuk diprediksi.</p>
         {% endif %}
-         <a href="{% url 'predictions:predictions_index' %}" class="mt-4 inline-block text-sm text-custom-blue-400 hover:underline font-medium">Lihat Semua Prediksi &rarr;</a>
+        <a href="{% url 'predictions:predictions_index' %}"
+            class="mt-4 inline-block text-sm text-custom-blue-400 hover:underline font-medium">Lihat Semua Prediksi
+            &rarr;</a>
     </div>
 
     {# Kolom 3: Diskusi Terhangat & Top Predictors #}
@@ -91,44 +118,60 @@
         {# Diskusi Terhangat #}
         <div class="bg-white p-6 rounded-xl shadow-lg border border-gray-200">
             <h2 class="text-2xl font-bold text-custom-blue-400 mb-4 flex items-center">
-                <svg class="w-6 h-6 mr-2 text-custom-blue-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"></path></svg>
+                <svg class="w-6 h-6 mr-2 text-custom-blue-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z">
+                    </path>
+                </svg>
                 Diskusi Terbaru
             </h2>
             {% if recent_threads %}
-                <ul class="space-y-3">
-                    {% for thread in recent_threads %}
-                    <li>
-                        <a href="{% url 'forums:thread_posts' thread.pk %}" class="block p-3 bg-custom-blue-50 hover:bg-custom-blue-100 rounded-lg transition group">
-                        <h3 class="font-semibold text-custom-blue-400 group-hover:text-custom-blue-300 truncate text-sm">{{ thread.title }}</h3>
+            <ul class="space-y-3">
+                {% for thread in recent_threads %}
+                <li>
+                    <a href="{% url 'forums:thread_posts' thread.pk %}"
+                        class="block p-3 bg-custom-blue-50 hover:bg-custom-blue-100 rounded-lg transition group">
+                        <h3
+                            class="font-semibold text-custom-blue-400 group-hover:text-custom-blue-300 truncate text-sm">
+                            {{ thread.title }}</h3>
                         {# --- PERBAIKAN DI SINI --- #}
-                        <p class="text-xs text-custom-blue-300">oleh {{thread.author.username}} di {{thread.tournament.name}} ({{ thread.post_count|add:"-1" }} balasan)</p>
+                        <p class="text-xs text-custom-blue-300">oleh {{thread.author.username}} di
+                            {{thread.tournament.name}} ({{ thread.post_count|add:"-1" }} balasan)</p>
                         {# ------------------------- #}
-                        </a>
-                    </li>
-                    {% endfor %}
-                </ul>
+                    </a>
+                </li>
+                {% endfor %}
+            </ul>
             {% else %}
-                <p class="text-sm text-custom-blue-300 italic">Belum ada diskusi di forum.</p>
+            <p class="text-sm text-custom-blue-300 italic">Belum ada diskusi di forum.</p>
             {% endif %}
-            <a href="{% url 'forums:forum_index' %}" class="mt-4 inline-block text-sm text-custom-blue-400 hover:underline font-medium">Lihat Semua Forum &rarr;</a>
+            <a href="{% url 'forums:forum_index' %}"
+                class="mt-4 inline-block text-sm text-custom-blue-400 hover:underline font-medium">Lihat Semua Forum
+                &rarr;</a>
         </div>
 
         {# Top Predictors #}
         {% if top_predictors %}
         <div class="bg-white p-6 rounded-xl shadow-lg border border-gray-200">
-             <h2 class="text-2xl font-bold text-custom-blue-400 mb-4 flex items-center">
-                 <svg class="w-6 h-6 mr-2 text-yellow-500" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"></path></svg>
-                 Top Predictors
-             </h2>
-              <ol class="list-decimal list-inside space-y-2">
-                 {% for predictor in top_predictors %}
-                 <li class="text-sm">
-                     <span class="font-semibold text-custom-blue-400">{{ predictor.user__username }}</span>
-                     <span class="text-custom-blue-300">({{ predictor.total_points }} poin)</span>
-                 </li>
-                 {% endfor %}
-             </ol>
-             <a href="{% url 'predictions:leaderboard' %}" class="mt-4 inline-block text-sm text-custom-blue-400 hover:underline font-medium">Lihat Leaderboard &rarr;</a>
+            <h2 class="text-2xl font-bold text-custom-blue-400 mb-4 flex items-center">
+                <svg class="w-6 h-6 mr-2 text-yellow-500" fill="currentColor" viewBox="0 0 20 20">
+                    <path
+                        d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z">
+                    </path>
+                </svg>
+                Top Predictors
+            </h2>
+            <ol class="list-decimal list-inside space-y-2">
+                {% for predictor in top_predictors %}
+                <li class="text-sm">
+                    <span class="font-semibold text-custom-blue-400">{{ predictor.user__username }}</span>
+                    <span class="text-custom-blue-300">({{ predictor.total_points }} poin)</span>
+                </li>
+                {% endfor %}
+            </ol>
+            <a href="{% url 'predictions:leaderboard' %}"
+                class="mt-4 inline-block text-sm text-custom-blue-400 hover:underline font-medium">Lihat Leaderboard
+                &rarr;</a>
         </div>
         {% endif %}
     </div>
@@ -141,35 +184,42 @@
     <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
         {# Info Peringkat Prediksi #}
         <div class="bg-custom-blue-50 p-6 rounded-lg text-center">
-             <h3 class="text-xl font-semibold text-custom-blue-400 mb-2">Peringkat Prediksi Anda</h3>
-             <p class="text-4xl font-bold text-custom-blue-400">#{{ user_rank }}</p>
-             <p class="text-sm text-custom-blue-300">dengan {{ user_total_points }} total poin</p>
-             <a href="{% url 'predictions:leaderboard' %}" class="mt-4 inline-block text-sm text-white bg-custom-blue-400 px-4 py-2 rounded-lg hover:bg-custom-blue-300 font-medium">Lihat Leaderboard</a>
+            <h3 class="text-xl font-semibold text-custom-blue-400 mb-2">Peringkat Prediksi Anda</h3>
+            <p class="text-4xl font-bold text-custom-blue-400">#{{ user_rank }}</p>
+            <p class="text-sm text-custom-blue-300">dengan {{ user_total_points }} total poin</p>
+            <a href="{% url 'predictions:leaderboard' %}"
+                class="mt-4 inline-block text-sm text-white bg-custom-blue-400 px-4 py-2 rounded-lg hover:bg-custom-blue-300 font-medium">Lihat
+                Leaderboard</a>
         </div>
         {# Info Tim Anda #}
-         <div class="bg-custom-blue-50 p-6 rounded-lg">
-             <h3 class="text-xl font-semibold text-custom-blue-400 mb-4 text-center md:text-left">Tim Anda</h3>
-             {% if user_teams %}
-                <ul class="space-y-2">
-                    {% for team in user_teams %}
-                    <li class="flex items-center space-x-3">
-                         {% if team.logo %}
-                            <img src="{{ team.logo.url }}" alt="Logo {{ team.name }}" class="w-8 h-8 rounded-full object-cover border border-gray-200">
-                         {% else %}
-                            <span class="flex items-center justify-center w-8 h-8 rounded-full bg-gray-300 text-gray-600 font-semibold text-xs">{{ team.name|slice:":1"|upper }}</span>
-                         {% endif %}
-                        <span class="font-medium text-custom-blue-400 text-sm">{{ team.name }}</span>
-                        {# Tambahkan link ke detail tim jika ada #}
-                        {# <a href="#" class="text-xs text-custom-blue-300 hover:underline">Detail</a> #}
-                    </li>
-                    {% endfor %}
-                </ul>
-             {% else %}
-                <p class="text-sm text-custom-blue-300 italic text-center md:text-left">Anda belum bergabung dengan tim manapun.</p>
-             {% endif %}
-              <div class="text-center md:text-left mt-4">
-                <a href="{% url 'teams:show_main_teams' %}" class="inline-block text-sm text-white bg-custom-blue-400 px-4 py-2 rounded-lg hover:bg-custom-blue-300 font-medium">Kelola Tim</a>
-              </div>
+        <div class="bg-custom-blue-50 p-6 rounded-lg">
+            <h3 class="text-xl font-semibold text-custom-blue-400 mb-4 text-center md:text-left">Tim Anda</h3>
+            {% if user_teams %}
+            <ul class="space-y-2">
+                {% for team in user_teams %}
+                <li class="flex items-center space-x-3">
+                    {% if team.logo %}
+                    <img src="{{ team.logo }}" alt="Logo {{ team.name }}"
+                        class="w-8 h-8 rounded-full object-cover border border-gray-200">
+                    {% else %}
+                    <img src="https://img.icons8.com/?size=100&id=uMMzE4KzgxCO&format=png&color=000000"
+                        alt="Logo {{ team.name }}" class="w-10 h-10 rounded-full object-cover border border-gray-200">
+                    {% endif %}
+                    <span class="font-medium text-custom-blue-400 text-sm">{{ team.name }}</span>
+                    {# Tambahkan link ke detail tim jika ada #}
+                    {# <a href="#" class="text-xs text-custom-blue-300 hover:underline">Detail</a> #}
+                </li>
+                {% endfor %}
+            </ul>
+            {% else %}
+            <p class="text-sm text-custom-blue-300 italic text-center md:text-left">Anda belum bergabung dengan tim
+                manapun.</p>
+            {% endif %}
+            <div class="text-center md:text-left mt-4">
+                <a href="{% url 'teams:show_main_teams' %}"
+                    class="inline-block text-sm text-white bg-custom-blue-400 px-4 py-2 rounded-lg hover:bg-custom-blue-300 font-medium">Kelola
+                    Tim</a>
+            </div>
         </div>
     </div>
 </div>
