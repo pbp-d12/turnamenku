@@ -1,0 +1,364 @@
+/* === GLOBAL === */
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: "Poppins";
+}
+
+@keyframes popIn {
+  from {
+    transform: scale(0.9);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+/* === TEAMS SECTION === */
+.teams {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3rem;
+  padding: 6rem 2rem;
+}
+
+/* === FRAMES CONTAINER === */
+.frames-container {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 2rem;
+  width: 100%;
+  max-width: 1200px;
+}
+
+/* === FRAME (CARD) === */
+.frame {
+  flex: 1 1 300px; /* Responsive width */
+  max-width: 360px;
+  background: #ffffff;
+  border-radius: 32px;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.08);
+  padding: 2rem 1.5rem;
+  text-align: center;
+  transition: transform 0.25s ease, box-shadow 0.25s ease;
+}
+
+.frame:hover {
+  transform: translateY(-6px);
+  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.1);
+}
+
+/* === ICON === */
+.frame img {
+  width: 110px;
+  height: 110px;
+  object-fit: contain;
+  margin-bottom: 1rem;
+}
+
+
+/* === TITLE INSIDE CARD === */
+.text-wrapper-2 {
+  font-weight: 700;
+  font-size: 1.25rem;
+  margin-bottom: 0.5rem;
+}
+
+/* === PARAGRAPH === */
+.p {
+  font-size: 0.95rem;
+  line-height: 1.6;
+  color: #333;
+  margin-bottom: 1.5rem;
+  padding: 0 0.5rem;
+}
+
+/* === BUTTON === */
+.text-wrapper {
+  background-color: #7593af;
+  color: #fff;
+  font-size: 0.9rem;
+  font-weight: 500;
+  border-radius: 12px;
+  padding: 0.6rem 1.4rem;
+  transition: background-color 0.3s ease;
+  cursor: pointer;
+}
+
+.text-wrapper:hover {
+  background-color: #5f7c97;
+}
+
+/* Overlay for modal background */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background-color: rgba(31, 41, 55, 0.5); /* gray-800 opacity-50 */
+  display: none; /* hide by default */
+  justify-content: center;
+  align-items: center;
+  z-index: 50;
+}
+
+/* Modal box */
+.modal {
+  width: 90%;
+  max-width: 480px;
+  background: white;
+  border-radius: 12px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  max-height: 90vh;
+}
+
+/* Header */
+.modal-header {
+  background-color: #6b85a5;
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-radius: 12px;
+  padding: 1rem;
+}
+
+.modal-header h2 {
+  font-size: 1.2rem;
+  font-weight: 600;
+  margin: 0;
+}
+
+.modal-header button {
+  background: none;
+  border: none;
+  color: white;
+  font-size: 1.5rem;
+  cursor: pointer;
+}
+
+.modal-search {
+  background-color: #4b6584;
+  color: white;
+  padding: 0.4rem 1rem;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: background 0.2s;
+}
+
+.modal-search:hover {
+  background-color: #3a5570;
+}
+
+/* Scrollable list */
+.modal-body {
+  overflow-y: auto;
+  padding: 1rem;
+}
+
+.team-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background-color: #e1ecf7;
+  border-radius: 8px;
+  padding: 0.8rem 1rem;
+  margin-bottom: 1rem;
+}
+
+.team-info {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.team-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background-color: #7b9bbd;
+}
+
+.team-text {
+  display: flex;
+  flex-direction: column;
+}
+
+.team-text h3 {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.team-text p {
+  margin: 0;
+  font-size: 0.8rem;
+  color: #6b7280;
+}
+
+/* Action buttons */
+.action-btn {
+  background-color: #1e3a8a;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  padding: 0.4rem 1rem;
+  cursor: pointer;
+  font-weight: 500;
+}
+
+.action-btn:hover {
+  background-color: #1d4ed8;
+}
+
+/* show modal */
+.show {
+  display: flex;
+}
+
+.modal-overlay.show {
+  display: flex;
+}
+
+.search-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: #f5f7fa;
+  border: 1px solid #d0d7de;
+  border-radius: 10px;
+  padding: 8px 12px;
+  margin-bottom: 16px;
+  transition: all 0.2s ease-in-out;
+}
+
+.search-bar:focus-within {
+  border-color: #0066ff;
+  box-shadow: 0 0 0 3px rgba(0, 102, 255, 0.2);
+  background: #ffffff;
+}
+
+.search-bar input[type="text"] {
+  width: 100%;
+  border: none;
+  outline: none;
+  background: transparent;
+  font-size: 14px;
+  color: #333;
+}
+
+.search-bar input::placeholder {
+  color: #999;
+}
+
+.search-bar button {
+  background: #0066ff;
+  border: none;
+  color: white;
+  padding: 6px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.search-bar button:hover {
+  background: #0052cc;
+}
+
+.modal-overlay {
+  position: fixed;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0,0,0,0.4);
+  z-index: 1000;
+}
+
+.modal {
+  background: #fff;
+  border-radius: 16px;
+  padding: 20px;
+  width: 90%;
+  max-width: 700px;
+  max-height: 85vh;
+  overflow-y: auto;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+  animation: popIn 0.25s ease;
+}
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.modal-header h2 {
+  margin: 0;
+}
+.close-btn {
+  border: none;
+  background: none;
+  font-size: 24px;
+  cursor: pointer;
+}
+.search-bar {
+  margin: 15px 0;
+  text-align: center;
+}
+.search-bar input {
+  width: 80%;
+  padding: 10px 15px;
+  border-radius: 8px;
+  border: 1px solid #ccc;
+  font-size: 16px;
+}
+
+.pagination {
+  margin-top: 15px;
+  text-align: center;
+}
+.pagination button {
+  margin: 0 5px;
+  padding: 6px 10px;
+  border: none;
+  background: #007bff;
+  color: white;
+  border-radius: 6px;
+  cursor: pointer;
+}
+.pagination span {
+  margin: 0 10px;
+}
+
+
+/* === RESPONSIVE === */
+@media (max-width: 900px) {
+  .frames-container {
+    gap: 1.5rem;
+  }
+
+  .frame {
+    flex: 1 1 280px;
+  }
+}
+
+@media (max-width: 600px) {
+  .frames-container {
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .frame {
+    max-width: 90%;
+  }
+}
