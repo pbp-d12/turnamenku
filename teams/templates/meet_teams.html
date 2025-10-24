@@ -172,28 +172,6 @@
       if (typeof showToast === 'function') showToast("Gagal memuat detail tim.", "error");
     }
   }
-}
-
-async function leaveTeamConfirm(teamId, teamName) {
-  const modal = document.getElementById("team-detail-modal");
-  if (!modal) return;
-
-  modal.innerHTML += `
-    <div id="leave-confirm-overlay" style="
-      position:absolute; inset:0;
-      background:rgba(0,0,0,0.7);
-      display:flex; align-items:center; justify-content:center;
-      z-index:10000;
-    ">
-      <div style="background:white; padding:24px; border-radius:12px; text-align:center;">
-        <p>Are you sure you want to leave <strong>${teamName}</strong>?</p>
-        <div style="margin-top:16px;">
-          <button id="confirmLeaveYes" style="background:#f44336; color:white; border:none; padding:8px 16px; border-radius:6px; margin-right:8px; cursor:pointer;">Yes</button>
-          <button id="confirmLeaveNo" style="background:#ccc; border:none; padding:8px 16px; border-radius:6px; cursor:pointer;">Cancel</button>
-        </div>
-      </div>
-    </div>
-  `;
 
   document.addEventListener('DOMContentLoaded', () => {
     const modal = document.getElementById("modal-meet-detail");
