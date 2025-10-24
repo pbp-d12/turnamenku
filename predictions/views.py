@@ -13,8 +13,8 @@ from teams.models import Team
 
 def predictions_index(request):
     tournament_id = request.GET.get('tournament')
-    tournaments = Tournament.objects.all()
-    teams = Team.objects.all()
+    tournaments = Tournament.objects.all().order_by('name')
+    teams = Team.objects.all().order_by('name')
 
     matches = Match.objects.all()
     if tournament_id:
@@ -31,6 +31,15 @@ def predictions_index(request):
     }
     return render(request, 'predictions/predictions_index.html', context)
 
+@login_required
+def add_match_form(request):
+    if request.user.profile.role not in ('PENYELENGGARA', 'ADMIN'):
+        return JsonResponse({'success': False, 'message': 'Kamu tidak punya izin.'}, status=403)
+
+    tournaments = Tournament.objects.all().order_by('name')
+    teams = Team.objects.all().order_by('name')  # <-- diurutkan A-Z
+
+    return render(request, 'predictions/add_match.html', {'tournaments': tournaments, 'teams': teams})
 
 @login_required
 def add_match(request):
