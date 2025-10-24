@@ -69,7 +69,7 @@ class PredictionViewTests(TestCase):
             HTTP_X_REQUESTED_WITH='XMLHttpRequest'
         )
         self.assertEqual(response.status_code, 302)
-        self.assertIn('/accounts/login/', response.url)
+        self.assertIn('/login/?next=/predictions/submit/', response.url)
 
 
 class LeaderboardViewTest(TestCase):
