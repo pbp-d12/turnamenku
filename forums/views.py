@@ -18,35 +18,74 @@ from django.utils import timezone
 
 def can_edit_thread(user, thread):
     """Check if user can edit thread"""
-    return (user.is_authenticated and (user == thread.author or
-            (hasattr(user, 'profile') and user.profile.role == 'ADMIN') or
+    if not user.is_authenticated:
+        return False
+
+    user_role = None
+    try:
+        if hasattr(user, 'profile'):
+            user_role = user.profile.role
+    except:
+        pass
+    
+    return (user == thread.author or
+            user_role == 'ADMIN' or
             user == thread.tournament.organizer or
-            user.is_superuser))
+            user.is_superuser)
 
 def can_edit_post(user, post):
     """Check if user can edit post"""
-    return (user.is_authenticated and (user == post.author or
-            (hasattr(user, 'profile') and user.profile.role == 'ADMIN') or 
+    if not user.is_authenticated:
+        return False
+        
+    user_role = None
+    try:
+        if hasattr(user, 'profile'):
+            user_role = user.profile.role
+    except:
+        pass
+    
+    return (user == post.author or
+            user_role == 'ADMIN' or
             user == post.thread.tournament.organizer or
-            user.is_superuser))
+            user.is_superuser)
 
 def can_delete_thread(user, thread):
     """Check if user can delete thread"""
-    return (user.is_authenticated and (user == thread.author or
-            (hasattr(user, 'profile') and user.profile.role == 'ADMIN') or
+    if not user.is_authenticated:
+        return False
+        
+    user_role = None
+    try:
+        if hasattr(user, 'profile'):
+            user_role = user.profile.role
+    except:
+        pass
+    
+    return (user == thread.author or
+            user_role == 'ADMIN' or
             user == thread.tournament.organizer or
-            user.is_superuser))
+            user.is_superuser)
 
 def can_delete_post(user, post):
     """Check if user can delete post"""
-    return (user.is_authenticated and (user == post.author or
-            (hasattr(user, 'profile') and user.profile.role == 'ADMIN') or 
+    if not user.is_authenticated:
+        return False
+        
+    user_role = None
+    try:
+        if hasattr(user, 'profile'):
+            user_role = user.profile.role
+    except:
+        pass
+    
+    return (user == post.author or
+            user_role == 'ADMIN' or
             user == post.thread.tournament.organizer or
-            user.is_superuser))
+            user.is_superuser)
 
 
 @login_required
-@csrf_protect
 def create_thread(request, tournament_id):
     tournament = get_object_or_404(Tournament, pk=tournament_id)
     is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest'

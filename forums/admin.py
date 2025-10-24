@@ -6,13 +6,15 @@ class ThreadAdmin(admin.ModelAdmin):
     list_display = ['title', 'tournament', 'author', 'created_at', 'is_deleted']
     list_filter = ['tournament', 'created_at', 'is_deleted']
     search_fields = ['title', 'author__username']
+    raw_id_fields = ['author', 'tournament']
+    date_hierarchy = 'created_at'
     actions = ['hard_delete_threads']
 
     def hard_delete_threads(self, request, queryset):
         """Hard delete selected threads (admin only)"""
         count = queryset.count()
-        for thread in queryset:
-            thread.delete()  
+        # Use this for actual hard delete (bypasses model delete method)
+        queryset.delete()
         self.message_user(request, f'{count} threads permanently deleted.')
     hard_delete_threads.short_description = "Permanently delete selected threads"
 
@@ -21,6 +23,8 @@ class PostAdmin(admin.ModelAdmin):
     list_display = ['id', 'thread', 'author', 'created_at', 'is_edited', 'is_deleted']
     list_filter = ['thread__tournament', 'created_at', 'is_deleted']
     search_fields = ['body', 'author__username']
+    raw_id_fields = ['author', 'thread', 'parent']
+    date_hierarchy = 'created_at'
     actions = ['hard_delete_posts']
 
     def hard_delete_posts(self, request, queryset):
