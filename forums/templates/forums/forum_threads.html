@@ -242,8 +242,7 @@
     }
     
     function createThreadRow(thread) {
-        // actionButtons are defined but not wrapped in the main link,
-        // so e.preventDefault() in the click handler is essential.
+
         const actionButtons = thread.can_edit || thread.can_delete ? `
             <div class="thread-actions mt-2 flex space-x-2">
                 ${thread.can_edit ? `<button class="edit-thread-btn text-xs text-custom-blue-400 hover:text-custom-blue-300" data-thread-id="${thread.id}">Edit</button>` : ''}
@@ -330,7 +329,6 @@
     // --- THREAD ACTIONS ---
     async function handleEditThread(threadId) {
         try {
-            // 1. Get current title from server
             const response = await fetch(`/forums/thread/${threadId}/edit/`, {
                 method: 'GET',
                 headers: { 'X-Requested-With': 'XMLHttpRequest' }
@@ -340,9 +338,8 @@
 
             const data = await response.json();
             if (data.success) {
-                // 2. Populate and show modal
                 editThreadTitleInput.value = data.form_data.title;
-                editThreadForm.dataset.threadId = threadId; // Store ID on form
+                editThreadForm.dataset.threadId = threadId; 
                 clearFormErrors(editThreadForm);
                 editThreadModal.classList.remove('hidden');
             } else {
@@ -355,26 +352,24 @@
     }
 
     function handleDeleteThread(threadId) {
-        // 1. Store ID and show modal
         deleteThreadModal.dataset.threadId = threadId;
         deleteThreadModal.classList.remove('hidden');
     }
 
     // --- EVENT LISTENERS ---
 
-    // Main container for thread action delegation
     container.addEventListener('click', function(e) {
         const editBtn = e.target.closest('.edit-thread-btn');
         const deleteBtn = e.target.closest('.delete-thread-btn');
         
         if (editBtn) {
-            e.preventDefault(); // Stop the <a> tag navigation
+            e.preventDefault(); 
             const threadId = editBtn.dataset.threadId;
             handleEditThread(threadId);
         }
         
         if (deleteBtn) {
-            e.preventDefault(); // Stop the <a> tag navigation
+            e.preventDefault(); 
             const threadId = deleteBtn.dataset.threadId;
             handleDeleteThread(threadId);
         }
@@ -408,7 +403,7 @@
                 if (response.ok && data.success) {
                     if (typeof showToast === 'function') showToast('Thread berhasil diedit!', 'success');
                     editThreadModal.classList.add('hidden');
-                    fetchThreads(currentPage, false); // Refresh list
+                    fetchThreads(currentPage, false); 
                 } else if (data.errors) {
                     displayFormErrors(editThreadForm, data.errors);
                 } else {
@@ -424,7 +419,6 @@
         });
     }
 
-    // Delete Thread Modal Listeners
     if (deleteThreadModal) {
         cancelDeleteThread.addEventListener('click', () => deleteThreadModal.classList.add('hidden'));
 
@@ -450,7 +444,7 @@
                 if (response.ok && data.success) {
                     if (typeof showToast === 'function') showToast('Thread berhasil dihapus!', 'success');
                     deleteThreadModal.classList.add('hidden');
-                    fetchThreads(1, true); // Refresh and go to page 1
+                    fetchThreads(1, true); 
                 } else {
                     throw new Error(data.error || 'Gagal menghapus thread.');
                 }
