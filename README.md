@@ -162,6 +162,6 @@ Pembagian peran ini diimplementasikan langsung pada model `User` kustom di aplik
 
 
 ## Link PWS Deployment-Web Design
-- PWS: https://pbp.cs.ui.ac.id/gibran.tegar/turnamenku
+- PWS: [https://pbp.cs.ui.ac.id/gibran.tegar/turnamenku](https://gibran-tegar-turnamenku.pbp.cs.ui.ac.id)
 - Design: https://www.figma.com/design/YH1UAtsqAUqK75yXMdK64S/Turnamenku-Design?node-id=1-2&p=f&t=1R1eB2GkLPTcDFhc-0
 
