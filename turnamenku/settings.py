@@ -24,7 +24,7 @@ SECRET_KEY = os.getenv('SECRET_KEY', 'default-insecure-key-ganti-ini')
 DEBUG = os.getenv('DEBUG', 'True').lower() == 'true'
 
 # Sesuaikan ini dengan host production kamu nanti
-ALLOWED_HOSTS = ["localhost", "127.0.0.1"]
+ALLOWED_HOSTS = ["localhost", "127.0.0.1", "https://gibran-tegar-turnamenku.pbp.cs.ui.ac.id"]
 
 # TODO: Tambahkan host production kamu di sini saat deploy
 # if not DEBUG:
