@@ -11,4 +11,5 @@ urlpatterns = [
     path('evaluate/<int:match_id>/', views.evaluate_predictions, name='evaluate_predictions'),
     path('get_match_scores/<int:match_id>/', views.get_match_scores, name='get_match_scores'),
     path('edit_match_score/', views.edit_match_score, name='edit_match_score'),
+    path('delete_prediction/', views.delete_prediction, name='delete_prediction'),
 ]

@@ -43,7 +43,7 @@ class PredictionViewTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertJSONEqual(
             str(response.content, encoding='utf8'),
-            {'success': True, 'message': 'Prediksi Team A disimpan!', 'team': 'Team A'}
+            {'success': True, 'message': 'Berhasil voting untuk Team A!'}
         )
 
         prediction = Prediction.objects.get(user=self.user, match=self.match)
