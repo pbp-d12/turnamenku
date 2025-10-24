@@ -157,14 +157,14 @@ def delete_prediction(request):
     
     if request.method == 'POST':
         match_id = request.POST.get('match_id')
-        user_id = request.user.id
 
-        # Hapus prediksi user untuk match tersebut
-        prediction = Prediction.objects.filter(match_id=match_id, user_id=user_id).first()
-        if prediction:
-            prediction.delete()
+        # Hapus semua prediksi untuk match tersebut
+        deleted_count, _ = Prediction.objects.filter(match_id=match_id).delete()
+
+        if deleted_count:
             return JsonResponse({'success': True, 'message': 'Prediksi berhasil dihapus!'})
         else:
             return JsonResponse({'success': False, 'message': 'Prediksi tidak ditemukan.'})
     
     return JsonResponse({'success': False, 'message': 'Metode tidak valid.'}, status=400)
+

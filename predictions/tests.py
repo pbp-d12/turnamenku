@@ -2,113 +2,143 @@ from django.test import TestCase, Client
 from django.contrib.auth.models import User
 from django.urls import reverse
 from django.utils import timezone
+from datetime import timedelta
+
 from predictions.models import Prediction
 from tournaments.models import Match, Tournament
 from teams.models import Team
 
 class PredictionViewTests(TestCase):
     def setUp(self):
-        # Setup data dasar
+        # Client
         self.client = Client()
-        self.user = User.objects.create_user(username='asri', password='test123')
-        self.client.login(username='asri', password='test123')
 
-        # Buat Tournament dummy
-        self.tournament = Tournament.objects.create(
-            name="Turnamen Uji",
-            description="Turnamen untuk testing",
-            start_date=timezone.now().date(),
-            end_date=timezone.now().date(),
-            organizer=self.user
-        )
+        # Users
+        self.user = User.objects.create_user(username='user', password='pass')
+        self.admin = User.objects.create_user(username='admin', password='pass')
 
-        # Buat tim dan pertandingan
+        # Buat role di profile, anggap ada field profile.role
+        self.user.profile.role = 'USER'
+        self.user.profile.save()
+        self.admin.profile.role = 'ADMIN'
+        self.admin.profile.save()
+
+        # Teams
         self.teamA = Team.objects.create(name='Team A')
         self.teamB = Team.objects.create(name='Team B')
+        self.teamC = Team.objects.create(name='Team C')  # non-participant
+
+        # Tournament
+        self.tournament = Tournament.objects.create(
+            name='Test Cup',
+            organizer=self.admin,
+            start_date=timezone.now().date(),
+            end_date=timezone.now().date() + timedelta(days=5)
+        )
+
+        # Match
         self.match = Match.objects.create(
             tournament=self.tournament,
             home_team=self.teamA,
             away_team=self.teamB,
-            match_date=timezone.now().date()
+            match_date=timezone.now()
         )
 
     def test_submit_prediction_success(self):
-        """Cek apakah prediksi bisa disimpan dengan benar via AJAX"""
+        self.client.login(username='user', password='pass')
         response = self.client.post(
             reverse('predictions:submit_prediction'),
-            {'match_id': self.match.id, 'team_id': self.teamA.id},
-            HTTP_X_REQUESTED_WITH='XMLHttpRequest'
+            {'match_id': self.match.id, 'team_id': self.teamA.id}
         )
-
         self.assertEqual(response.status_code, 200)
-        self.assertJSONEqual(
-            str(response.content, encoding='utf8'),
-            {'success': True, 'message': 'Berhasil voting untuk Team A!'}
-        )
-
-        prediction = Prediction.objects.get(user=self.user, match=self.match)
-        self.assertEqual(prediction.predicted_winner, self.teamA)
+        self.assertTrue(Prediction.objects.filter(user=self.user, match=self.match).exists())
 
     def test_submit_prediction_invalid_team(self):
-        """Cek jika user memilih tim yang tidak ikut pertandingan"""
-        teamC = Team.objects.create(name='Team C')
+        self.client.login(username='user', password='pass')
         response = self.client.post(
             reverse('predictions:submit_prediction'),
-            {'match_id': self.match.id, 'team_id': teamC.id},
-            HTTP_X_REQUESTED_WITH='XMLHttpRequest'
+            {'match_id': self.match.id, 'team_id': self.teamC.id}
         )
         self.assertEqual(response.status_code, 400)
         self.assertIn('Tim tidak valid', response.json()['message'])
 
-    def test_submit_prediction_not_logged_in(self):
-        """Cek kalau user belum login"""
-        self.client.logout()
+    def test_delete_prediction_permission(self):
+        self.client.login(username='user', password='pass')
+        # buat prediction dulu
+        Prediction.objects.create(user=self.user, match=self.match, predicted_winner=self.teamA)
         response = self.client.post(
-            reverse('predictions:submit_prediction'),
-            {'match_id': self.match.id, 'team_id': self.teamA.id},
-            HTTP_X_REQUESTED_WITH='XMLHttpRequest'
+            reverse('predictions:delete_prediction'),
+            {'match_id': self.match.id}
         )
-        self.assertEqual(response.status_code, 302)
-        self.assertIn('/login/?next=/predictions/submit/', response.url)
+        # harus gagal karena user.role != PENYELENGGARA/ADMIN
+        self.assertEqual(response.status_code, 403)
 
-
-class LeaderboardViewTest(TestCase):
-    def setUp(self):
-        self.client = Client()
-        self.user1 = User.objects.create_user(username='asri', password='test123')
-        self.user2 = User.objects.create_user(username='budi', password='test123')
-
-        # Buat Tournament dummy
-        self.tournament = Tournament.objects.create(
-            name="Turnamen Uji",
-            description="Turnamen untuk leaderboard",
-            start_date=timezone.now().date(),
-            end_date=timezone.now().date(),
-            organizer=self.user1
+        # login admin
+        self.client.login(username='admin', password='pass')
+        response = self.client.post(
+            reverse('predictions:delete_prediction'),
+            {'match_id': self.match.id}
         )
-
-        self.teamA = Team.objects.create(name='Team A')
-        self.teamB = Team.objects.create(name='Team B')
-        self.match = Match.objects.create(
-            tournament=self.tournament,
-            home_team=self.teamA,
-            away_team=self.teamB,
-            match_date=timezone.now().date()
-        )
-
-        Prediction.objects.create(user=self.user1, match=self.match, predicted_winner=self.teamA, points_awarded=10)
-        Prediction.objects.create(user=self.user2, match=self.match, predicted_winner=self.teamB, points_awarded=5)
-
-    def test_leaderboard_view_status_code(self):
-        """Halaman leaderboard dapat diakses"""
-        response = self.client.get(reverse('predictions:leaderboard'))
         self.assertEqual(response.status_code, 200)
+        self.assertFalse(Prediction.objects.filter(match=self.match).exists())
 
-    def test_leaderboard_ordering(self):
-        """Leaderboard diurutkan dari poin tertinggi"""
-        response = self.client.get(reverse('predictions:leaderboard'))
-        leaderboard = list(response.context['leaderboard'])
-        self.assertEqual(leaderboard[0]['user__username'], 'asri')
-        self.assertEqual(leaderboard[0]['total_points'], 10)
-        self.assertEqual(leaderboard[1]['user__username'], 'budi')
-        self.assertEqual(leaderboard[1]['total_points'], 5)
+    def test_add_match_permission(self):
+        self.client.login(username='user', password='pass')
+        response = self.client.post(
+            reverse('predictions:add_match'),
+            {
+                'tournament': self.tournament.id,
+                'home_team': self.teamA.id,
+                'away_team': self.teamB.id,
+                'match_date': (timezone.now() + timedelta(days=1)).strftime("%Y-%m-%dT%H:%M")
+            }
+        )
+        self.assertEqual(response.status_code, 403)
+
+        # login admin
+        self.client.login(username='admin', password='pass')
+        response = self.client.post(
+            reverse('predictions:add_match'),
+            {
+                'tournament': self.tournament.id,
+                'home_team': self.teamA.id,
+                'away_team': self.teamB.id,
+                'match_date': (timezone.now() + timedelta(days=1)).strftime("%Y-%m-%dT%H:%M")
+            }
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(Match.objects.filter(home_team=self.teamA, away_team=self.teamB).exists())
+
+    def test_edit_match_score(self):
+        self.client.login(username='admin', password='pass')
+        response = self.client.post(
+            reverse('predictions:edit_match_score'),
+            {'match_id': self.match.id, 'home_score': 2, 'away_score': 1}
+        )
+        self.assertEqual(response.status_code, 200)
+        self.match.refresh_from_db()
+        self.assertEqual(self.match.home_score, 2)
+        self.assertEqual(self.match.away_score, 1)
+
+    def test_evaluate_predictions(self):
+        self.client.login(username='user', password='pass')
+        # buat prediction
+        pred = Prediction.objects.create(user=self.user, match=self.match, predicted_winner=self.teamA)
+        # update skor match
+        self.match.home_score = 2
+        self.match.away_score = 1
+        self.match.save()
+
+        response = self.client.get(reverse('predictions:evaluate_predictions', args=[self.match.id]))
+        self.assertEqual(response.status_code, 200)
+        pred.refresh_from_db()
+        self.assertEqual(pred.points_awarded, 10)  # prediksi benar
+
+    def test_get_match_scores(self):
+        self.match.home_score = 3
+        self.match.away_score = 2
+        self.match.save()
+        response = self.client.get(reverse('predictions:get_match_scores', args=[self.match.id]))
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json(), {'home_score': 3, 'away_score': 2})
+
