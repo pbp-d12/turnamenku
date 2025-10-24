@@ -97,9 +97,13 @@ class ProfileUpdateForm(forms.ModelForm):
             if user_being_edited.is_superuser:
                 self.fields['role'].disabled = True
                 self.fields['role'].help_text = "Peran Admin tidak dapat diubah."
-            else:
-                allowed_choices = Profile.REGISTRATION_ROLE_CHOICES
-                self.fields['role'].choices = allowed_choices
+            elif not request_user.is_superuser:
+                if request_user == user_being_edited:
+                    allowed_choices = Profile.REGISTRATION_ROLE_CHOICES
+                    self.fields['role'].choices = allowed_choices
+                else:
+                    # User biasa mencoba edit orang lain? Seharusnya dicegah view, tapi disable saja
+                    self.fields['role'].disabled = True
 
 
 class CustomPasswordChangeForm(PasswordChangeForm):
