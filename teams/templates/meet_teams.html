@@ -1,52 +1,85 @@
-<div id="modal-meet" class="modal-overlay">
-  <div class="modal">
-    <div class="modal-header">
-      <h2>Meet Your Teams</h2>
-      <button onclick="closeModal('modal-meet')">&times;</button>
+<div id="modal-meet" class="fixed inset-0 bg-gray-900 bg-opacity-70 z-50 flex justify-center items-center hidden">
+  <div class="bg-white w-full max-w-lg rounded-xl p-6 shadow-2xl relative">
+    <div class="flex justify-between items-center pb-3 border-b border-gray-200">
+      <h2 class="text-xl font-bold text-gray-800">Tim yang Kamu Ikuti</h2>
+      <button onclick="closeModal('modal-meet')"
+        class="text-gray-500 hover:text-gray-900 focus:outline-none text-2xl transition">&times;</button>
     </div>
-
-    <div class="modal-body">
-      <div class="search-bar">
-        <input
-          type="text"
-          id="meet-search-input"
-          placeholder="Search your teams..."
-          onkeyup="searchTeams(1, 'meet')"
-        />
+    <div class="py-4">
+      <div class="relative mb-4">
+        <input type="text" id="meet-search-input" placeholder="Cari timmu..."
+          class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-custom-blue-300 text-gray-900" />
       </div>
-
-      <div id="meet-teams-container"></div>
-
-      <div class="pagination" id="meet-pagination"></div>
+      <div id="meet-teams-container" class="min-h-[200px] max-h-[60vh] overflow-y-auto space-y-3">
+        <p class="text-gray-500 text-center py-5">Memuat tim...</p>
+      </div>
+      <div class="pagination flex justify-center space-x-3 pt-4" id="meet-pagination"></div>
     </div>
   </div>
 </div>
 
-<div id="modal-meet-detail" class="modal-overlay">
-  <div class="modal">
-    <div class="modal-header">
-      <h2 id="detail-team-name">Team Detail</h2>
-      <button onclick="closeModal('modal-meet-detail')">&times;</button>
+<div id="modal-meet-detail"
+  class="fixed inset-0 bg-gray-900 bg-opacity-70 z-50 flex justify-center items-center hidden">
+  <div class="bg-white w-full max-w-md rounded-xl p-6 shadow-2xl relative text-center">
+
+    <button id="close-meet-detail-btn"
+      class="absolute right-3 top-3 text-gray-500 hover:text-gray-900 focus:outline-none text-2xl transition">&times;</button>
+
+    <div id="meet-detail-content">
+      <h2 class="text-xl font-bold text-gray-800">Memuat Detail Tim...</h2>
     </div>
 
-    <div class="modal-body">
-      <div id="detail-team-logo"></div>
-      <p><strong>Captain:</strong> <span id="detail-captain"></span></p>
-      <p><strong>Members (<span id="detail-members-count"></span>):</strong></p>
-      <div id="detail-members-list"></div>
-      <br>
-      <button class="action-btn" style="background: #f44336;" onclick="leaveTeamConfirm()">Leave Team</button>
+    <button id="leave-team-btn"
+      class="mt-6 w-full bg-red-600 text-white font-bold py-2 rounded-lg hover:bg-red-700 transition hidden">
+      Keluar dari Tim
+    </button>
+
+    <div id="leave-confirm-overlay"
+      class="absolute inset-0 bg-white bg-opacity-95 flex items-center justify-center hidden">
+      <div class="bg-white p-6 rounded-lg shadow-xl text-gray-800 border border-gray-200">
+        <p class="mb-4 text-lg font-semibold">Yakin ingin keluar dari tim <strong
+            id="leave-confirm-team-name"></strong>?</p>
+        <div class="mt-4 flex justify-center gap-3">
+          <button id="confirmLeaveYes"
+            class="bg-red-600 text-white font-bold px-5 py-2 rounded-md hover:bg-red-700 transition">Ya, Keluar</button>
+          <button id="confirmLeaveNo"
+            class="bg-gray-300 text-gray-700 font-medium px-5 py-2 rounded-md hover:bg-gray-400 transition">Batal</button>
+        </div>
+      </div>
     </div>
   </div>
 </div>
 
 <script>
+  document.addEventListener('DOMContentLoaded', function () {
+    const meetSearchInput = document.getElementById("meet-search-input");
+    let meetSearchTimeout;
+    if (meetSearchInput) {
+      meetSearchInput.addEventListener('keyup', () => {
+        clearTimeout(meetSearchTimeout);
+        meetSearchTimeout = setTimeout(() => {
+          searchMeetTeams(1);
+        }, 300);
+      });
+    }
+
+    const modal = document.getElementById("modal-meet-detail");
+    const closeBtn = document.getElementById("close-meet-detail-btn");
+    if (modal && closeBtn) {
+      closeBtn.onclick = () => {
+        modal.classList.add('hidden');
+        modal.classList.remove('flex');
+      };
+    }
+  });
+
   async function searchMeetTeams(page = 1) {
-    const query = document.getElementById("meet-search-input").value.trim();
+    const query = document.getElementById("meet-search-input")?.value.trim() || "";
     const container = document.getElementById("meet-teams-container");
     const pagination = document.getElementById("meet-pagination");
 
-    container.innerHTML = `<p class="loading">Loading your teams...</p>`;
+    if (!container || !pagination) return;
+    container.innerHTML = `<p class="text-gray-500 text-center py-5">Memuat tim...</p>`;
     pagination.innerHTML = "";
 
     try {
@@ -54,123 +87,90 @@
       const data = await response.json();
 
       if (data.status !== "success" || !data.results || data.results.length === 0) {
-        container.innerHTML = `<p>You're not in any team yet.</p>`;
+        container.innerHTML = `<p class="text-gray-500 text-center py-5">Kamu belum bergabung di tim manapun.</p>`;
         return;
       }
 
-      // Render daftar tim
-      container.innerHTML = data.results
-        .map(
-          (team) => `
-          <div class="team-card" data-team-id="${team.id}">
-            <div class="team-info">
-              ${
-                team.logo
-                  ? `<img src=${team.logo || "https://img.icons8.com/?size=100&id=uMMzE4KzgxCO&format=png&color=000000"} alt="${team.name}" class="team-avatar">`
-                  : `<img src="https://img.icons8.com/?size=100&id=uMMzE4KzgxCO&format=png&color=000000" alt="${team.name}" class="team-avatar">`
-              }
-              <div class="team-text">
-                <h3>${team.name}</h3>
-                <p>Captain: ${team.captain || "-"}</p>
-              </div>
+      container.innerHTML = data.results.map((team) => `
+            <div class="flex items-center justify-between p-3 bg-gray-50 rounded-xl shadow-sm border border-gray-100" data-team-id="${team.id}">
+                <div class="flex items-center space-x-3 overflow-hidden">
+                    <img src="${team.logo || DEFAULT_TEAM_LOGO}" alt="${team.name}" class="flex-shrink-0 w-10 h-10 rounded-full object-cover border border-gray-200">
+                    <div class="text-sm overflow-hidden">
+                        <h3 class="font-semibold text-gray-800 truncate" title="${team.name}">${team.name}</h3>
+                        <p class="text-gray-600 truncate">Kapten: ${team.captain || "-"}</p>
+                    </div>
+                </div>
+                <button class="bg-custom-blue-400 text-white text-xs px-3 py-1 rounded-md hover:bg-custom-blue-300 transition" onclick="showMeetTeamDetail(${team.id})">Detail</button>
             </div>
-            <button class="action-btn" onclick="showMeetTeamDetail(${team.id})">Detail</button>
-          </div>
-        `
-        )
-        .join("");
+        `).join("");
 
       const p = data.pagination;
       let paginationHTML = "";
       if (p.has_previous)
-        paginationHTML += `<button onclick="searchMeetTeams(${p.current_page - 1})">&laquo; Prev</button>`;
-      paginationHTML += `<span> Page ${p.current_page} of ${p.total_pages} </span>`;
+        paginationHTML += `<button class="text-custom-blue-400 hover:text-custom-blue-300 font-semibold" onclick="searchMeetTeams(${p.current_page - 1})">&laquo; Prev</button>`;
+      paginationHTML += `<span class="text-gray-600 text-sm"> Halaman ${p.current_page} dari ${p.total_pages} </span>`;
       if (p.has_next)
-        paginationHTML += `<button onclick="searchMeetTeams(${p.current_page + 1})">Next &raquo;</button>`;
+        paginationHTML += `<button class="text-custom-blue-400 hover:text-custom-blue-300 font-semibold" onclick="searchMeetTeams(${p.current_page + 1})">Next &raquo;</button>`;
       pagination.innerHTML = paginationHTML;
+
     } catch (error) {
       console.error("Search error:", error);
-      container.innerHTML = `<p>Error loading your teams.</p>`;
+      container.innerHTML = `<p class="text-red-500 text-center py-5">Error memuat tim Anda.</p>`;
     }
   }
 
-async function showMeetTeamDetail(teamId) {
-  try {
-    const response = await fetch(`/teams/json/${teamId}/`);
-    const team = await response.json();
+  async function showMeetTeamDetail(teamId) {
+    const modal = document.getElementById("modal-meet-detail");
+    const content = document.getElementById("meet-detail-content");
+    const leaveBtn = document.getElementById("leave-team-btn");
 
-    console.log("Team detail:", team);
-    
-    if (!team || team.status === "error") {
-      alert("Team not found");
-      return;
+    if (!modal || !content || !leaveBtn) return;
+
+    content.innerHTML = `<h2 class="text-xl font-bold text-gray-500 mt-4">Memuat detail tim...</h2>`;
+    leaveBtn.classList.add('hidden');
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+
+    try {
+      const response = await fetch(`/teams/json/${teamId}/`);
+      const team = await response.json();
+
+      if (!team || team.status === "error" || !team.name) {
+        content.innerHTML = `<h2 class="text-xl font-bold text-red-500 mt-4">Tim tidak ditemukan atau error.</h2>`;
+        return;
+      }
+
+      const logoSrc = team.logo || DEFAULT_TEAM_LOGO;
+
+      content.innerHTML = `
+            <div class="flex justify-center mb-4">
+                <img src="${logoSrc}" alt="${team.name}" class="w-24 h-24 rounded-full object-cover border-4 border-gray-100">
+            </div>  
+            <h2 class="text-3xl font-extrabold text-gray-900 mb-2">${team.name}</h2>
+            <p class="text-gray-600 mb-4"><strong>Kapten:</strong> <span class="font-semibold">${team.captain || "-"}</span></p>
+            <h3 class="text-lg font-bold text-left text-custom-blue-400 mt-6 mb-2">Anggota (${team.members.length})</h3>
+            <div class="max-h-48 overflow-y-auto text-left border border-gray-200 p-3 rounded-lg">
+                <ul class="list-disc list-inside space-y-1 text-gray-800">
+                    ${team.members.map((m) => `<li class="border-b border-gray-100 last:border-b-0 py-1">${m}</li>`).join("") || '<li class="text-gray-500 italic">Belum ada anggota.</li>'}
+                </ul>
+            </div>
+        `;
+
+      leaveBtn.classList.remove('hidden');
+      // Pastikan fungsi leaveTeamConfirm ada di scope global (dari teams.html)
+      leaveBtn.onclick = () => {
+        if (typeof leaveTeamConfirm === 'function') {
+          leaveTeamConfirm(teamId, team.name);
+        } else {
+          console.error('Fungsi leaveTeamConfirm tidak ditemukan.');
+        }
+      };
+
+    } catch (error) {
+      console.error("Detail error:", error);
+      content.innerHTML = `<h2 class="text-xl font-bold text-red-500 mt-4">Gagal memuat detail tim.</h2>`;
+      if (typeof showToast === 'function') showToast("Gagal memuat detail tim.", "error");
     }
-
-    // Hapus modal lama kalau ada
-    const oldModal = document.getElementById("team-detail-modal");
-    if (oldModal) oldModal.remove();
-
-    // Buat elemen modal baru
-    const modal = document.createElement("div");
-    modal.id = "team-detail-modal";
-    modal.style = `
-      position: fixed;
-      inset: 0;
-      background: rgba(0,0,0,0.65);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      z-index: 9999;
-    `;
-
-    modal.innerHTML = `
-      <div style="
-        background: white;
-        padding: 32px;
-        border-radius: 16px;
-        width: 400px;
-        max-height: 85vh;
-        overflow-y: auto;
-        text-align: center;
-        position: relative;
-      ">
-        <button onclick="document.getElementById('team-detail-modal').remove()" 
-          style="position:absolute; top:10px; right:16px; background:none; border:none; font-size:20px; cursor:pointer;">&times;
-        </button>
-
-        <div style="item-align:center; justify-content:center; display:flex; margin-bottom:16px;">
-          <img src="${team.logo}" alt="${team.name}" style="width:100px; height:100px; border-radius:50%; object-fit:cover;">
-        </div>  
-      
-        <h2 style="margin-bottom:8px;">${team.name}</h2>
-        <p style="margin-bottom:16px;"><strong>Captain:</strong> ${team.captain || "-"}</p>
-
-        <h3 style="text-align:left; margin-top:8px;">Members (${team.members.length})</h3>
-        <div style="max-height:180px; overflow-y:auto; text-align:left; margin-top:6px; padding-left:10px;">
-          <ul style="margin:0; padding-left:16px;">
-            ${team.members.map((m) => `<li>${m}</li>`).join("")}
-          </ul>
-        </div>
-
-        <button onclick="leaveTeamConfirm(${teamId}, '${team.name.replace(/'/g, "\\'")}')" 
-          style="
-            background:#f44336;
-            color:white;
-            border:none;
-            padding:10px 20px;
-            margin-top:20px;
-            border-radius:8px;
-            cursor:pointer;
-          ">
-          Leave Team
-        </button>
-      </div>
-    `;
-
-    document.body.appendChild(modal);
-  } catch (error) {
-    console.error("Detail error:", error);
-    alert("Failed to load team details.");
   }
 }
 
@@ -195,38 +195,71 @@ async function leaveTeamConfirm(teamId, teamName) {
     </div>
   `;
 
-  document.getElementById("confirmLeaveNo").onclick = () => {
-    document.getElementById("leave-confirm-overlay").remove();
-  };
+  document.addEventListener('DOMContentLoaded', () => {
+    const modal = document.getElementById("modal-meet-detail");
+    const closeBtn = document.getElementById("close-meet-detail-btn");
 
-  document.getElementById("confirmLeaveYes").onclick = async () => {
-    try {
-      const response = await fetch(`/teams/${teamId}/leave/`, {
-        method: "POST",
-        headers: {
-          "X-CSRFToken": getCSRFToken(),
-          "X-Requested-With": "XMLHttpRequest",
-        },
-      });
-
-      const data = await response.json();
-      if (data.status === "success") {
-        showToast("Kamu berhasil kabur dari tim", "success");
-        document.getElementById("team-detail-modal").remove();
-        searchMeetTeams(1);
-      } else {
-        alert(data.message || "Failed to leave team");
-      }
-    } catch (error) {
-      console.error("Leave error:", error);
-      alert("Failed to leave team");
+    if (modal && closeBtn) {
+      closeBtn.onclick = () => {
+        modal.classList.add('hidden');
+        modal.classList.remove('flex');
+      };
     }
-  };
-}
 
-function getCSRFToken() {
-  return document.querySelector("[name=csrfmiddlewaretoken]")?.value || "";
-}
+    const confirmOverlay = document.getElementById("leave-confirm-overlay");
+    const confirmName = document.getElementById("leave-confirm-team-name");
+    const confirmYes = document.getElementById("confirmLeaveYes");
+    const confirmNo = document.getElementById("confirmLeaveNo");
 
+    // Fungsi global agar bisa dipanggil dari onclick
+    window.leaveTeamConfirm = (teamId, teamName) => {
+      if (!confirmOverlay || !confirmName || !confirmYes || !confirmNo) {
+        console.error('Elemen konfirmasi leave tidak ditemukan');
+        return;
+      }
 
+      confirmName.textContent = teamName;
+      confirmOverlay.classList.remove('hidden');
+      confirmOverlay.classList.add('flex'); // Tampilkan overlay
+
+      // Ganti listener agar tidak duplikat
+      const newConfirmYes = confirmYes.cloneNode(true);
+      confirmYes.parentNode.replaceChild(newConfirmYes, confirmYes);
+      const newConfirmNo = confirmNo.cloneNode(true);
+      confirmNo.parentNode.replaceChild(newConfirmNo, confirmNo);
+
+      newConfirmNo.onclick = () => {
+        confirmOverlay.classList.add('hidden');
+        confirmOverlay.classList.remove('flex');
+      };
+
+      newConfirmYes.onclick = async () => {
+        try {
+          const response = await fetch(`/teams/${teamId}/leave/`, {
+            method: "POST",
+            headers: { "X-CSRFToken": getCSRFToken(), "X-Requested-With": "XMLHttpRequest" },
+          });
+          const data = await response.json();
+          if (data.status === "success") {
+            if (typeof showToast === 'function') showToast("Kamu berhasil kabur dari tim", "success");
+            if (modal) {
+              modal.classList.add('hidden');
+              modal.classList.remove('flex');
+            }
+            confirmOverlay.classList.add('hidden');
+            confirmOverlay.classList.remove('flex');
+            if (typeof searchMeetTeams === 'function') searchMeetTeams(1);
+          } else {
+            if (typeof showToast === 'function') showToast(data.message || "Gagal keluar dari tim", "error");
+            confirmOverlay.classList.add('hidden');
+            confirmOverlay.classList.remove('flex');
+          }
+        } catch (error) {
+          if (typeof showToast === 'function') showToast("Terjadi kesalahan saat keluar tim", "error");
+          confirmOverlay.classList.add('hidden');
+          confirmOverlay.classList.remove('flex');
+        }
+      };
+    };
+  });
 </script>
