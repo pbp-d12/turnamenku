@@ -12,7 +12,7 @@
           type="text"
           id="search-input"
           placeholder="Search team name or captain..."
-          onkeyup="searchJoinTeams(1)"
+          onkeyup="searchJoinTeams(1, 'join')"
         />
       </div>
 
@@ -38,7 +38,6 @@ async function searchJoinTeams(page = 1) {
   pagination.innerHTML = "";
 
   try {
-    // Kirim query walau kosong, biar tetap dapat semua tim awal
     const response = await fetch(`${BASE_URL}?mode=join&q=${encodeURIComponent(query)}&page=${page}`);
     const data = await response.json();
 
@@ -88,11 +87,201 @@ async function searchJoinTeams(page = 1) {
   }
 }
 
-// contoh fungsi placeholder
-function joinTeam(id) {
-  alert("Joining team " + id);
+let selectedTeamId = null;
+
+async function joinTeam(teamId) {
+  let modal = document.getElementById("join-confirm-modal");
+  if (!modal) {
+    modal = document.createElement("div");
+    modal.id = "join-confirm-modal";
+    document.body.appendChild(modal);
+  }
+
+  modal.innerHTML = `
+    <div style="
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.45);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      z-index: 9999;
+    ">
+      <div style="
+        background: white;
+        padding: 28px 36px;
+        border-radius: 14px;
+        text-align: center;
+        box-shadow: 0 6px 20px rgba(0,0,0,0.3);
+        max-width: 320px;
+        width: 90%;
+      ">
+        <h3 id="join-modal-title" style="margin-bottom: 18px;">Join this team?</h3>
+        <div style="display: flex; justify-content: center; gap: 12px;">
+          <button id="join-confirm-btn" style="
+            background: #007bff; color: white; border: none;
+            padding: 8px 16px; border-radius: 6px; cursor: pointer;
+          ">Yoi</button>
+          <button id="join-cancel-btn" style="
+            background: #ddd; color: #333; border: none;
+            padding: 8px 16px; border-radius: 6px; cursor: pointer;
+          ">Ga</button>
+        </div>
+      </div>
+    </div>
+  `;
+
+  document.getElementById("join-cancel-btn").onclick = () => {
+    modal.innerHTML = ""; // hapus isi modal
+  };
+
+  document.getElementById("join-confirm-btn").onclick = async () => {
+    const title = document.getElementById("join-modal-title");
+    const confirmBtn = document.getElementById("join-confirm-btn");
+    confirmBtn.disabled = true;
+    confirmBtn.textContent = "Joining...";
+
+    try {
+      const response = await fetch(`${teamId}/join/`, {
+        method: "POST",
+        headers: {
+          "X-CSRFToken": getCSRFToken(),
+          "X-Requested-With": "XMLHttpRequest",
+        },
+      });
+
+      const data = await response.json();
+      if (data.status === "success") {
+        showToast("Selamat anda sudah join!", "success");
+        modal.innerHTML = ""; 
+        searchJoinTeams(1); 
+      } else {
+        showToast(data.message || "Gagal join le", "error");
+      }
+    } catch (err) {
+      console.error(err);
+      showToast("Error occurred while joining the team.", "error");
+    } finally {
+      confirmBtn.disabled = false;
+      confirmBtn.textContent = "Yes";
+    }
+  };
 }
-function showTeamDetail(id) {
-  alert("Showing details for team " + id);
+
+function getCSRFToken() {
+  const name = "csrftoken";
+  const cookies = document.cookie.split(";");
+  for (let cookie of cookies) {
+    const trimmed = cookie.trim();
+    if (trimmed.startsWith(name + "=")) {
+      return trimmed.substring(name.length + 1);
+    }
+  }
+  return "";
 }
+
+async function showTeamDetail(teamId) {
+  const oldModal = document.getElementById("team-detail-modal");
+  if (oldModal) oldModal.remove();
+
+  const response = await fetch(`/teams/json/?id=${teamId}`);
+  const data = await response.json();
+  const team = data.find(t => t.id === teamId);
+
+  if (!team) {
+    alert("Team not found");
+    return;
+  }
+  console.log("Hi, ", team.name);
+
+  const modal = document.createElement("div");
+  modal.id = "team-detail-modal";
+  modal.style.cssText = `
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.6);
+    z-index: 9999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  `;
+
+  modal.innerHTML = `
+    <div style="
+      width: 90%;
+      max-width: 700px;
+      background: #fff;
+      border-radius: 16px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+      padding: 30px;
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      max-height: 90vh;
+      overflow: hidden;
+    ">
+      <!-- Tombol close -->
+      <button id="close-detail-modal" style="
+        position: absolute;
+        top: 10px;
+        right: 15px;
+        font-size: 20px;
+        border: none;
+        background: none;
+        cursor: pointer;
+      ">&times;</button>
+
+      <!-- Logo -->
+      <img src="${team.logo || '/static/images/default_logo.png'}" 
+        alt="Team Logo" 
+        style="width: 120px; height: 120px; border-radius: 50%; object-fit: cover; margin-bottom: 15px;" />
+
+      <!-- Nama tim -->
+      <h2 style="font-size: 28px; font-weight: 700; margin-bottom: 10px; text-align: center;">
+        ${team.name || "Unnamed Team"}
+      </h2>
+
+      <!-- Captain -->
+      <div style="align-self: flex-start; margin-left: 10px; font-size: 16px; margin-bottom: 10px;">
+        <strong>Captain:</strong> ${team.captain || "Unknown"}
+      </div>
+
+      <!-- Daftar member -->
+      <div style="
+        width: 100%;
+        border-top: 1px solid #ddd;
+        margin-top: 10px;
+        padding-top: 10px;
+        overflow-y: auto;
+        max-height: 300px;
+      ">
+        <h4 style="margin-bottom: 8px;">Members</h4>
+        <ul style="list-style: none; padding: 0; margin: 0;">
+          ${
+            team.members && team.members.length > 0
+              ? team.members
+                  .slice(0, 10)
+                  .map(
+                    (m, i) =>
+                      `<li style="padding: 6px 0; border-bottom: 1px solid #f0f0f0;">${i + 1}. ${m}</li>`
+                  )
+                  .join("")
+              : "<li>No members yet.</li>"
+          }
+        </ul>
+      </div>
+    </div>
+  `;
+
+  // Tambahkan ke body
+  document.body.appendChild(modal);
+
+  // Tutup modal saat klik tombol X atau area luar
+  document.getElementById("close-detail-modal").onclick = () => modal.remove();
+  modal.onclick = (e) => {
+    if (e.target === modal) modal.remove();
+  };
+}
+
 </script>

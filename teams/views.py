@@ -21,7 +21,7 @@ def meet_team(request):
     """Halaman meet team"""
     return render(request, 'meet_team.html')
 
-def join_team_page(request):
+def join_team(request):
     """Halaman join team"""
     return render(request, 'join_team.html')
 
@@ -37,7 +37,7 @@ def search_teams(request):
       ?mode=join&q=abc&page=2
     """
     query = request.GET.get('q', '').strip()
-    mode = request.GET.get('mode', 'join')  # default: join
+    mode = request.GET.get('mode', 'join')
     page = request.GET.get('page', 1)
 
     # Base queryset
@@ -104,7 +104,6 @@ def create_team(request):
         return JsonResponse({'status': 'error', 'message': 'Nama tim wajib diisi.'}, status=400)
 
     team = Team.objects.create(name=name, captain=request.user, logo=logo)
-    team.members.add(request.user)
     return JsonResponse({'status': 'success', 'team_id': team.id})
 
 
@@ -134,35 +133,52 @@ def delete_team(request, team_id):
 
 @require_POST
 @login_required
-def join_team(request, team_id):
-    team = get_object_or_404(Team, id=team_id)
-    team.members.add(request.user)
-    return JsonResponse({'status': 'success'})
+def delete_member(request, team_id, member_id):
+    team = get_object_or_404(Team, id=team_id, captain=request.user)
+    member = get_object_or_404(team.members.all(), id=member_id)
+
+    if member == request.user:
+        return JsonResponse({'status': 'error', 'message': 'Kapten tidak dapat menghapus diri sendiri.'}, status=400)
+
+    team.members.remove(member)
+    updated_members = list(team.members.values('id', 'username'))
+
+    return JsonResponse({
+        'status': 'success',
+        'removed_member': member.username,
+        'members': updated_members
+    })
 
 
 @require_POST
 @login_required
 def leave_team(request, team_id):
     team = get_object_or_404(Team, id=team_id)
-    team.members.remove(request.user)
 
     if team.captain == request.user:
         return JsonResponse({'status': 'error', 'message': 'Kapten tidak dapat keluar dari tim.'}, status=400)
-    else:
-        return JsonResponse({'status': 'success'})
+
+    team.members.remove(request.user)
+    return JsonResponse({'status': 'success'})
 
 
 @require_POST
 @login_required
-def delete_member(request, team_id, member_id):
+def delete_member(request, team_id, member_username):
     team = get_object_or_404(Team, id=team_id, captain=request.user)
-    member = get_object_or_404(team.members, id=member_id)
+    member = get_object_or_404(team.members.all(), username=member_username)
 
     if member == request.user:
         return JsonResponse({'status': 'error', 'message': 'Kapten tidak dapat menghapus diri sendiri.'}, status=400)
 
     team.members.remove(member)
-    return JsonResponse({'status': 'success', 'removed_member': member.username})
+    updated_members = list(team.members.values('id', 'username'))
+
+    return JsonResponse({
+        'status': 'success',
+        'removed_member': member.username,
+        'members': updated_members
+    })
 
 def show_json(request):
     teams = Team.objects.all()
@@ -184,10 +200,8 @@ def team_detail_json(request, team_id):
     data = {
         'id': team.id,
         'name': team.name,
-        # Pastikan `.url` diakses dengan benar
         'logo': team.logo.url if team.logo else None,
         'captain': team.captain.username if team.captain else None,
-        # Mengambil daftar username anggota
         'members': [member.username for member in team.members.all()],
         'members_count': team.members.count(),
     }

@@ -1,0 +1,110 @@
+<div id="modal-create-team" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.55); z-index:9999; justify-content:center; align-items:center;">
+  <div style="background:#fff; width:420px; max-width:92%; border-radius:12px; padding:20px; box-shadow:0 8px 30px rgba(0,0,0,0.25); position:relative; font-family:system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial;">
+    <button onclick="closeModal('modal-create-team')" style="position:absolute; right:12px; top:8px; border:none; background:none; font-size:20px; cursor:pointer;">&times;</button>
+
+    <h2 style="margin:0 0 14px 0; font-size:18px; font-weight:700; text-align:left;">Create New Team</h2>
+
+    <form id="create-team-form" method="post" enctype="multipart/form-data" style="display:flex; flex-direction:column; gap:12px;">
+      {% csrf_token %}
+
+      <label style="font-weight:600; font-size:13px;">Team Name
+        <input type="text" id="team-name" name="name" required placeholder="Enter team name" 
+               style="width:100%; box-sizing:border-box; margin-top:6px; padding:8px 10px; border:1px solid #e2e8f0; border-radius:8px; font-size:14px;">
+      </label>
+
+      <label style="font-weight:600; font-size:13px;">Team Logo (optional)
+        <input type="file" id="team-logo" name="logo" accept="image/*"
+               style="width:100%; box-sizing:border-box; margin-top:6px; padding:6px 8px; font-size:13px;">
+      </label>
+
+      <div id="logo-preview" style="display:none; align-items:center; gap:10px; margin-top:4px;">
+        <img id="logo-preview-img" src="" alt="logo preview" style="width:72px; height:72px; object-fit:cover; border-radius:8px; border:1px solid #eee;">
+        <div style="font-size:13px; color:#444;">Selected image</div>
+      </div>
+
+      <div style="display:flex; justify-content:flex-end; gap:8px; margin-top:6px;">
+        <button type="button" onclick="closeModal('modal-create-team')" style="background:#eee; border:none; padding:8px 14px; border-radius:8px; cursor:pointer;">Cancel</button>
+        <button type="submit" style="background:#0b74ff; color:white; border:none; padding:8px 14px; border-radius:8px; cursor:pointer;">Create</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+/* Helper: ambil CSRF dari hidden input (lebih andal ketika form ada {% csrf_token %}) */
+function getCSRFTokenFromForm() {
+  const el = document.querySelector('#create-team-form input[name="csrfmiddlewaretoken"]');
+  return el ? el.value : (document.cookie.split('; ').find(r => r.startsWith('csrftoken=')) || '').split('=')[1] || '';
+}
+
+const logoInput = document.getElementById('team-logo');
+const previewWrap = document.getElementById('logo-preview');
+const previewImg = document.getElementById('logo-preview-img');
+
+if (logoInput) {
+  logoInput.addEventListener('change', (e) => {
+    const f = e.target.files && e.target.files[0];
+    if (!f) {
+      previewWrap.style.display = 'none';
+      previewImg.src = '';
+      return;
+    }
+    const url = URL.createObjectURL(f);
+    previewImg.src = url;
+    previewWrap.style.display = 'flex';
+  });
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  const form = document.getElementById('create-team-form');
+  if (!form) return;
+
+  form.addEventListener('submit', async function (ev) {
+    ev.preventDefault();
+
+    const submitBtn = form.querySelector('button[type="submit"]');
+    const originalText = submitBtn.textContent;
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Creating...';
+
+    try {
+      const formData = new FormData(form); // includes file + csrf hidden input
+      // If you prefer to ensure csrf header too:
+      const csrf = getCSRFTokenFromForm();
+
+      const resp = await fetch("/teams/create/", {
+        method: "POST",
+        headers: {
+          "X-CSRFToken": csrf,
+          "X-Requested-With": "XMLHttpRequest"
+          // NOTE: DO NOT set 'Content-Type' — browser will set multipart/form-data boundary
+        },
+        body: formData
+      });
+
+      const data = await resp.json();
+
+      if (resp.ok && data.status === 'success') {
+        showToast('Selamat membentuk tim, Kapten', 'success');
+        form.reset();
+        previewWrap.style.display = 'none';
+        closeModal('modal-create-team');
+
+        // optional: refresh lists if functions exist
+        if (typeof searchJoinTeams === 'function') searchJoinTeams(1);
+        if (typeof searchManageTeams === 'function') searchManageTeams(1);
+        if (typeof searchMeetTeams === 'function') searchMeetTeams(1);
+      } else {
+        const message = data && data.message ? data.message : 'Failed to create team';
+        alert(message);
+      }
+    } catch (err) {
+      console.error('Create team error:', err);
+      alert('An error occurred while creating the team.');
+    } finally {
+      submitBtn.disabled = false;
+      submitBtn.textContent = originalText;
+    }
+  });
+});
+</script>
