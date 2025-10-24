@@ -46,7 +46,7 @@
             <li class="flex items-center space-x-3 bg-gray-50 p-3 rounded-lg">
                 {# Tampilkan logo tim jika ada, jika tidak pakai placeholder #}
                 {% if team.logo %}
-                <img src="{{ team.logo.url }}" alt="Logo {{ team.name }}"
+                <img src="{{ team.logo }}" alt="Logo {{ team.name}}"
                     class="w-10 h-10 rounded-full object-cover border border-gray-200">
                 {% else %}
                 <img src="https://img.icons8.com/?size=100&id=uMMzE4KzgxCO&format=png&color=000000"

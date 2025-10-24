@@ -26,6 +26,7 @@
 
     <input type="hidden" id="config-team-id" />
     <input type="hidden" id="config-team-name-original" />
+
     <div class="space-y-4">
       <label class="block font-semibold text-sm text-gray-700">Nama Tim:
         <input type="text" id="config-team-name"
@@ -39,7 +40,7 @@
 
       <h3 class="text-lg font-semibold text-gray-800 pt-3 border-t border-gray-200">Anggota</h3>
       <div id="members-list" class="max-h-48 overflow-y-auto border border-gray-200 p-3 rounded-lg space-y-2">
-        <p class="text-gray-500">Memuat anggota...</p>
+        <p class="text-gray-500 italic">Memuat anggota...</p>
       </div>
     </div>
 
@@ -47,10 +48,32 @@
       <button id="save-config-btn" onclick="saveTeamConfig()"
         class="w-full bg-green-500 text-white font-bold py-2 px-4 rounded-lg hover:bg-green-600 transition">Simpan</button>
       <button onclick="closeModal('modal-configure')"
-        class="w-full bg-gray-300 text-gray-700 font-medium py-2 px-4 rounded-lg hover:bg-gray-400 transition">Tutup</button>
+        class="w-full bg-gray-300 text-gray-700 font-medium py-2 px-4 rounded-lg hover:bg-gray-400 transition order-last sm:order-none">Tutup</button>
       <button id="delete-team-btn" onclick="deleteTeamConfirm()"
         class="w-full bg-red-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-red-700 transition">Hapus
         Tim</button>
+    </div>
+  </div>
+</div>
+
+<div id="modal-delete-confirm"
+  class="fixed inset-0 bg-gray-900 bg-opacity-80 z-[10000] flex justify-center items-center hidden">
+  <div class="bg-white w-full max-w-sm rounded-xl p-6 shadow-2xl relative text-center">
+    <h2 class="text-2xl font-bold text-red-600 mb-4">Peringatan!</h2>
+    <p class="text-gray-700 mb-6">
+      Yakin ingin menghapus tim <strong id="delete-confirm-team-name" class="text-gray-900"></strong>?
+      <br>
+      <span class="font-semibold">Aksi ini tidak bisa dibatalkan.</span>
+    </p>
+    <div class="flex justify-center gap-4">
+      <button id="delete-confirm-yes"
+        class="w-full bg-red-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-red-700 transition">
+        Ya, Hapus
+      </button>
+      <button id="delete-confirm-no"
+        class="w-full bg-gray-300 text-gray-700 font-medium py-2 px-4 rounded-lg hover:bg-gray-400 transition">
+        Batal
+      </button>
     </div>
   </div>
 </div>
@@ -127,7 +150,7 @@
       const team = await response.json();
 
       document.getElementById("config-team-name").value = team.name;
-      document.getElementById("config-team-name-original").value = team.name; // Simpan nama asli
+      document.getElementById("config-team-name-original").value = team.name;
       document.getElementById("config-team-logo").value = team.logo || '';
 
       renderMembers(team.members, teamId);
@@ -164,7 +187,7 @@
       const data = await response.json();
       if (data.status === "success") {
         if (typeof showToast === 'function') showToast("Anggota berhasil dikeluarkan", "success");
-        if (data.members) renderMembers(data.members, teamId); // Render ulang list
+        if (data.members) renderMembers(data.members, teamId);
       } else {
         if (typeof showToast === 'function') showToast(data.message || "Gagal mengeluarkan anggota", "error");
       }
@@ -178,7 +201,6 @@
     const teamId = document.getElementById("config-team-id").value;
     const name = document.getElementById("config-team-name").value.trim();
     const logo = document.getElementById("config-team-logo").value.trim();
-    const originalName = document.getElementById("config-team-name-original").value;
     const btn = document.getElementById("save-config-btn");
 
     if (!name) {
@@ -186,13 +208,9 @@
       return;
     }
 
-    // Jika nama tidak berubah dan logo juga tidak berubah, tidak perlu kirim
-    // (Note: Cek logo lama diperlukan, tapi kita skip agar simpel)
-
     btn.disabled = true;
     btn.textContent = "Menyimpan...";
 
-    // Kita kirim pakai application/x-www-form-urlencoded
     const payload = new URLSearchParams();
     payload.append('name', name);
     payload.append('logo', logo);
@@ -210,7 +228,7 @@
       if (data.status === "success") {
         if (typeof showToast === 'function') showToast("Tim berhasil diperbarui!", "success");
         if (typeof closeModal === 'function') closeModal("modal-configure");
-        if (typeof searchManageTeams === 'function') searchManageTeams(1); // Refresh list
+        if (typeof searchManageTeams === 'function') searchManageTeams(1);
       } else {
         if (typeof showToast === 'function') showToast(data.message || "Gagal menyimpan", "error");
       }
@@ -223,40 +241,82 @@
     }
   }
 
+  // =============================================
+  //      PERBAIKAN FUNGSI DELETE TEAM
+  // =============================================
   async function deleteTeamConfirm() {
     const teamId = document.getElementById("config-team-id").value;
     const teamName = document.getElementById("config-team-name").value;
     const btn = document.getElementById("delete-team-btn");
 
-    if (!confirm(`YAKIN HAPUS tim "${teamName}"? Aksi ini tidak bisa dibatalkan.`)) return;
+    // Ambil elemen modal konfirmasi
+    const modalDelete = document.getElementById("modal-delete-confirm");
+    const modalDeleteName = document.getElementById("delete-confirm-team-name");
+    const btnYes = document.getElementById("delete-confirm-yes");
+    const btnNo = document.getElementById("delete-confirm-no");
 
-    btn.disabled = true;
-    btn.textContent = "Menghapus...";
-
-    try {
-      const response = await fetch(`/teams/${teamId}/delete/`, {
-        method: "POST",
-        headers: {
-          "X-CSRFToken": getCSRFToken(),
-          "X-Requested-With": "XMLHttpRequest",
-          "Content-Type": "application/json", // Asumsi backend delete baca JSON
-        },
-        body: JSON.stringify({ confirm: true }),
-      });
-      const data = await response.json();
-      if (data.status === "success") {
-        if (typeof showToast === 'function') showToast("Tim berhasil dihapus", "success");
-        if (typeof closeModal === 'function') closeModal("modal-configure");
-        if (typeof searchManageTeams === 'function') searchManageTeams(1); // Refresh list
-      } else {
-        if (typeof showToast === 'function') showToast(data.message || "Gagal menghapus", "error");
-      }
-    } catch (error) {
-      console.error(error);
-      if (typeof showToast === 'function') showToast("Error saat menghapus.", "error");
-    } finally {
-      btn.disabled = false;
-      btn.textContent = "Hapus Tim";
+    if (!modalDelete || !modalDeleteName || !btnYes || !btnNo) {
+      // Fallback jika modal tidak ada (seharusnya tidak terjadi)
+      if (!confirm(`YAKIN HAPUS tim "${teamName}"? Aksi ini tidak bisa dibatalkan.`)) return;
     }
+
+    // Set nama tim di modal konfirmasi
+    modalDeleteName.textContent = `"${teamName}"`;
+
+    // Tampilkan modal konfirmasi
+    modalDelete.classList.remove('hidden');
+    modalDelete.classList.add('flex');
+
+    // --- Tambahkan listener untuk tombol "Batal" ---
+    btnNo.onclick = () => {
+      modalDelete.classList.add('hidden');
+      modalDelete.classList.remove('flex');
+    };
+
+    // --- Ganti listener tombol "Ya" agar tidak duplikat ---
+    const newBtnYes = btnYes.cloneNode(true);
+    btnYes.parentNode.replaceChild(newBtnYes, btnYes);
+
+    newBtnYes.onclick = async () => {
+      // Tombol "Ya" diklik, jalankan logic hapus
+
+      // Nonaktifkan tombol di kedua modal
+      btn.disabled = true;
+      btn.textContent = "Menghapus...";
+      newBtnYes.disabled = true;
+      newBtnYes.textContent = "Menghapus...";
+
+      try {
+        const response = await fetch(`/teams/${teamId}/delete/`, {
+          method: "POST",
+          headers: {
+            "X-CSRFToken": getCSRFToken(),
+            "X-Requested-With": "XMLHttpRequest",
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ confirm: true }),
+        });
+        const data = await response.json();
+
+        if (data.status === "success") {
+          if (typeof showToast === 'function') showToast("Tim berhasil dihapus", "success");
+          if (typeof closeModal === 'function') closeModal("modal-configure"); // Tutup modal edit
+          if (typeof searchManageTeams === 'function') searchManageTeams(1); // Refresh list
+        } else {
+          if (typeof showToast === 'function') showToast(data.message || "Gagal menghapus", "error");
+        }
+      } catch (error) {
+        console.error(error);
+        if (typeof showToast === 'function') showToast("Error saat menghapus.", "error");
+      } finally {
+        // Apapun hasilnya, tutup modal konfirmasi dan aktifkan tombol lagi
+        modalDelete.classList.add('hidden');
+        modalDelete.classList.remove('flex');
+        btn.disabled = false;
+        btn.textContent = "Hapus Tim";
+        newBtnYes.disabled = false;
+        newBtnYes.textContent = "Ya, Hapus";
+      }
+    }; // Akhir dari btnYes.onclick
   }
 </script>
