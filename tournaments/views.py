@@ -10,6 +10,7 @@ from django.http import HttpResponseRedirect
 
 from .models import Tournament, Match
 from .forms import TournamentForm
+from teams.models import Team # Import Team model
 
 
 def tournament_home(request):
@@ -110,7 +111,6 @@ def tournament_detail_page(request, tournament_id):
     Juga mengirimkan form *edit* (kosong) untuk modal.
     """
     get_object_or_404(Tournament, pk=tournament_id)
-    # Kirim instance form KOSONG, akan diisi oleh AJAX
     edit_form = TournamentForm()
     context = {
         'tournament_id': tournament_id,
@@ -120,14 +120,14 @@ def tournament_detail_page(request, tournament_id):
 
 def get_tournament_detail_json(request, tournament_id):
     """
-    Mengembalikan data JSON detail untuk satu turnamen, termasuk data pertandingan
-    dan status kepemilikan.
+    Mengembalikan data JSON detail untuk satu turnamen, termasuk data pertandingan,
+    daftar partisipan, dan status kepemilikan.
     """
     try:
-        # get_object_or_404 sekarang di dalam try block
         tournament = get_object_or_404(
             Tournament.objects.select_related('organizer').prefetch_related(
-                Prefetch('matches', queryset=Match.objects.select_related('home_team', 'away_team').order_by('match_date'))
+                Prefetch('matches', queryset=Match.objects.select_related('home_team', 'away_team').order_by('match_date')),
+                Prefetch('participants', queryset=Team.objects.all().order_by('name'))
             ),
             pk=tournament_id
         )
@@ -145,7 +145,13 @@ def get_tournament_detail_json(request, tournament_id):
                 'is_finished': match.home_score is not None and match.away_score is not None
             })
 
-        # Cek status kepemilikan/admin
+        # --- CORRECTED: Access team.logo directly ---
+        participant_data = [
+            {'name': team.name, 'logo_url': team.logo if team.logo else None} # Simply use team.logo
+            for team in tournament.participants.all()
+        ]
+        # ---------------------------------------------
+
         is_organizer_or_admin = False
         if request.user.is_authenticated:
             profile = getattr(request.user, 'profile', None)
@@ -161,34 +167,32 @@ def get_tournament_detail_json(request, tournament_id):
             'organizer_profile_url': reverse('main:profile', args=[tournament.organizer.username]),
             'start_date_formatted': tournament.start_date.strftime('%d %b %Y'),
             'end_date_formatted': tournament.end_date.strftime('%d %b %Y'),
-            'start_date_raw': tournament.start_date.strftime('%Y-%m-%d'), # Untuk pre-fill form
-            'end_date_raw': tournament.end_date.strftime('%Y-%m-%d'),   # Untuk pre-fill form
-            'banner_url': tournament.banner, # Menggunakan URLField
+            'start_date_raw': tournament.start_date.strftime('%Y-%m-%d'),
+            'end_date_raw': tournament.end_date.strftime('%Y-%m-%d'),
+            'banner_url': tournament.banner,
             'matches': match_data,
+            'participants': participant_data, # Data partisipan
             'forum_url': reverse('forums:forum_threads', args=[tournament.pk]),
             'predictions_url': f"{reverse('predictions:predictions_index')}?tournament={tournament.pk}",
-            'is_organizer_or_admin': is_organizer_or_admin # Kirim status kepemilikan
+            'is_organizer_or_admin': is_organizer_or_admin
         }
         return JsonResponse(data)
 
-    # --- Tangkap Http404 secara eksplisit ---
     except Http404:
         return JsonResponse({'error': 'Tournament not found'}, status=404)
-    # ----------------------------------------
     except Exception as e:
-        print(f"Error fetching tournament detail JSON: {e}")
-        return JsonResponse({'error': 'An unexpected error occurred'}, status=500)
+        print(f"!!! ERROR in get_tournament_detail_json for ID {tournament_id}: {type(e).__name__} - {e}")
+        import traceback
+        traceback.print_exc() # Print full traceback to console
+        # --------------------------------------------------
+        return JsonResponse({'error': 'An unexpected server error occurred'}, status=500)
 
 
 @login_required
 @require_POST
 def edit_tournament(request, tournament_id):
-    """
-    Menangani request POST AJAX untuk mengedit turnamen yang ada.
-    """
     tournament = get_object_or_404(Tournament, pk=tournament_id)
 
-    # Pengecekan Keamanan
     profile = getattr(request.user, 'profile', None)
     is_admin = profile and profile.role == 'ADMIN'
     is_organizer = request.user == tournament.organizer
@@ -197,16 +201,19 @@ def edit_tournament(request, tournament_id):
         return JsonResponse({
             'status': 'error',
             'message': 'Akses ditolak: Hanya organizer atau admin yang dapat mengedit turnamen ini.'
-        }, status=403) # 403 Forbidden
+        }, status=403)
 
-    # Gunakan 'instance=tournament' untuk memberi tahu form bahwa ini adalah update
     form = TournamentForm(request.POST, instance=tournament)
 
     if form.is_valid():
         updated_tournament = form.save()
+        # --- CORRECTED: Access team.logo directly ---
+        participant_data = [
+             {'name': team.name, 'logo_url': team.logo if team.logo else None} # Use team.logo
+             for team in updated_tournament.participants.all().order_by('name')
+        ]
+        # ---------------------------------------------
 
-        # Kembalikan data yang sudah diperbarui agar frontend bisa refresh
-        # Kita juga perlu mengirim 'is_organizer_or_admin' lagi
         return JsonResponse({
             'status': 'success',
             'message': 'Turnamen berhasil diperbarui!',
@@ -223,14 +230,14 @@ def edit_tournament(request, tournament_id):
                 'banner_url': updated_tournament.banner,
                 'matches': list(updated_tournament.matches.select_related('home_team', 'away_team').order_by('match_date').values(
                     'pk', 'home_team__name', 'away_team__name', 'match_date', 'home_score', 'away_score'
-                )), # Kirim ulang data match (meskipun tidak berubah)
+                )),
+                'participants': participant_data,
                 'forum_url': reverse('forums:forum_threads', args=[updated_tournament.pk]),
                 'predictions_url': f"{reverse('predictions:predictions_index')}?tournament={updated_tournament.pk}",
-                'is_organizer_or_admin': True # Jika bisa edit, pasti true
+                'is_organizer_or_admin': True
             }
         }, status=200)
     else:
-        # Kembalikan error validasi form
         errors_dict = form.errors.get_json_data(escape_html=True)
         return JsonResponse({
             'status': 'error',
@@ -239,7 +246,7 @@ def edit_tournament(request, tournament_id):
         }, status=400)
 
 @login_required
-@require_http_methods(["DELETE"]) # Hanya izinkan metode DELETE
+@require_http_methods(["DELETE"])
 def delete_tournament(request, tournament_id):
     """
     Menangani request DELETE AJAX untuk menghapus turnamen yang ada.
@@ -247,7 +254,6 @@ def delete_tournament(request, tournament_id):
     """
     tournament = get_object_or_404(Tournament, pk=tournament_id)
 
-    # Pengecekan Keamanan (sama seperti edit)
     profile = getattr(request.user, 'profile', None)
     is_admin = profile and profile.role == 'ADMIN'
     is_organizer = request.user == tournament.organizer
@@ -256,19 +262,17 @@ def delete_tournament(request, tournament_id):
         return JsonResponse({
             'status': 'error',
             'message': 'Akses ditolak: Hanya organizer atau admin yang dapat menghapus turnamen ini.'
-        }, status=403) # 403 Forbidden
+        }, status=403)
 
     try:
-        tournament_name = tournament.name # Simpan nama untuk pesan
+        tournament_name = tournament.name
         tournament.delete()
         return JsonResponse({
             'status': 'success',
             'message': f'Turnamen "{tournament_name}" berhasil dihapus.',
-            # Kirim URL redirect agar JS bisa mengarahkan pengguna
             'redirect_url': reverse('tournaments:tournament_home')
         }, status=200)
     except Exception as e:
-        # Tangkap error tak terduga saat menghapus
         print(f"Error deleting tournament: {e}")
         return JsonResponse({
             'status': 'error',

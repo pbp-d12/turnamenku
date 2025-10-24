@@ -46,6 +46,16 @@
             <span><strong>Tanggal:</strong> <span id="tournament-dates"></span></span>
         </div>
         <p id="tournament-description" class="text-gray-700 mb-6 whitespace-pre-wrap break-words"></p>
+
+        {# --- ADDED: Participants Section --- #}
+        <hr class="my-6 border-gray-200">
+        <h2 class="text-2xl font-bold text-gray-800 mb-4">Tim Peserta</h2>
+        <div id="participant-list" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 mb-6">
+            <p id="no-participants-message" class="hidden text-gray-500 italic col-span-full">Belum ada tim peserta.</p>
+             {# Participant cards will be inserted here by JS #}
+        </div>
+        {# ----------------------------------- #}
+
         <hr class="my-6 border-gray-200">
         <h2 class="text-2xl font-bold text-gray-800 mb-4">Jadwal Pertandingan</h2>
         <div id="match-list" class="space-y-4">
@@ -96,6 +106,17 @@
                     <div id="error-edit-end_date" class="text-red-500 text-sm mt-1 font-medium"></div>
                 </div>
 
+                 {# --- ADDED: Placeholder for participants (future enhancement) --- #}
+                 {# <div class="hidden"> #}
+                 {#    <label for="id_participants" class="block text-sm font-semibold text-gray-700 mb-1">Peserta</label> #}
+                 {#    <select multiple name="participants" id="id_participants"> #}
+                 {#        Options filled dynamically or use a widget #}
+                 {#    </select> #}
+                 {#    <div id="error-edit-participants" class="text-red-500 text-sm mt-1 font-medium"></div> #}
+                 {# </div> #}
+                 {# ---------------------------------------------------------------- #}
+
+
                  <div id="error-edit-non_field_errors" class="text-red-500 text-sm mt-1 font-medium"></div>
 
                  <div class="pt-4 mt-6 border-t border-gray-200">
@@ -137,11 +158,14 @@
 <script>
     document.addEventListener('DOMContentLoaded', function () {
         const tournamentId = document.body.dataset.tournamentId;
-        if (!tournamentId) { /* ... error handling ... */ return; }
+        if (!tournamentId) {
+            console.error("Tournament ID not found in body dataset!");
+            // Display an error message to the user maybe
+            return;
+        }
 
         let currentTournamentData = null;
 
-        // --- Elemen Halaman ---
         const loadingIndicator = document.getElementById('loading-indicator');
         const errorMessage = document.getElementById('error-message');
         const contentDiv = document.getElementById('tournament-content');
@@ -155,13 +179,16 @@
         const noMatchesMessage = document.getElementById('no-matches-message');
         const forumLink = document.getElementById('forum-link');
         const predictionsLink = document.getElementById('predictions-link');
+        const participantList = document.getElementById('participant-list');
+        const noParticipantsMessage = document.getElementById('no-participants-message');
+        // ------------------------------------
 
-        // --- SVG Default Banner (Diisi) ---
         const defaultBannerSvg = `
             <div class="w-full h-48 md:h-64 bg-custom-blue-100 rounded-lg flex items-center justify-center">
                 <svg class="w-16 h-16 text-custom-blue-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 18.657A8 8 0 016.343 7.343S7 9 9 10m0-2.657A8 8 0 0121.657 15S21 13 19 12m0 6.657a8 8 0 01-11.314-11.314m1.414 1.414A6 6 0 0119 12m-2 2a6 6 0 01-5.586 5.586"></path></svg>
             </div>`;
-        // ------------------------------------
+
+        const defaultTeamLogoSvg = `<svg class="w-full h-full text-custom-blue-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>`;
 
         // --- Elemen Modal Edit ---
         const editModal = document.getElementById('edit-tournament-modal');
@@ -177,19 +204,16 @@
         const deleteConfirmMessage = document.getElementById('delete-confirm-message');
 
 
-        // --- Fungsi Helper untuk Styling Form ---
         function styleModalForm(formEl) {
              if (!formEl) return;
-             // ... (Fungsi styling form Anda sudah benar, saya biarkan utuh)
+             // Clear existing potentially problematic paragraph tags around fields first
              formEl.querySelectorAll('p').forEach(p => {
-                const containsLabel = p.querySelector('label');
-                const containsInput = p.querySelector('input, textarea, select');
-                const containsError = p.querySelector('div[id^="error-"]');
-                if (containsLabel || containsInput) {
-                   if (!containsError && p.children.length <= 2) {
-                        p.replaceWith(...p.childNodes);
-                    }
-                }
+                 const containsLabel = p.querySelector('label');
+                 const containsInput = p.querySelector('input, textarea, select');
+                 const containsError = p.querySelector('div[id^="error-"]');
+                 if ((containsLabel || containsInput) && !containsError && p.children.length <= 2) {
+                     p.replaceWith(...p.childNodes); // Replace <p> with its children
+                 }
              });
              formEl.querySelectorAll('label').forEach(label => {
                 label.classList.add('block', 'text-sm', 'font-semibold', 'text-gray-700', 'mb-1');
@@ -202,14 +226,18 @@
                     'transition', 'duration-150', 'ease-in-out'
                 );
              });
+             // Hide default help text if needed
              formEl.querySelectorAll('.helptext').forEach(el => el.classList.add('hidden'));
+
+             // Ensure error divs exist
              formEl.querySelectorAll('input, textarea').forEach(el => {
                 const fieldName = el.name;
                 let errorDiv = document.getElementById(`error-edit-${fieldName}`);
-                if (!errorDiv) {
+                if (!errorDiv && fieldName) { // Check if fieldName is not empty
                     errorDiv = document.createElement('div');
                     errorDiv.id = `error-edit-${fieldName}`;
                     errorDiv.className = 'text-red-500 text-sm mt-1 font-medium';
+                    // Insert after the input/textarea itself
                     el.parentNode.insertBefore(errorDiv, el.nextSibling);
                 }
              });
@@ -218,37 +246,80 @@
         // --- Fungsi untuk Mengisi Halaman dengan Data ---
         function populatePage(data) {
             currentTournamentData = data;
-            styleModalForm(editForm); // Style form setiap kali data dimuat
+            styleModalForm(editForm);
 
-            // ... (Kode populate banner, info, match, dsb. sudah benar) ...
+            // Populate Banner
             if (data.banner_url) {
-                 bannerContainer.innerHTML = `<img src="${data.banner_url}" alt="Banner ${data.name}" class="w-full h-48 md:h-64 object-cover rounded-lg" onerror="this.parentElement.innerHTML = defaultBannerSvg">`;
+                 bannerContainer.innerHTML = `<img src="${data.banner_url}" alt="Banner ${data.name}" class="w-full h-48 md:h-64 object-cover rounded-lg" onerror="this.parentElement.innerHTML = defaultBannerSvg;">`;
             } else {
                  bannerContainer.innerHTML = defaultBannerSvg;
             }
+
+            // Populate Basic Info
             nameEl.textContent = data.name;
             organizerLink.textContent = data.organizer_username;
             organizerLink.href = data.organizer_profile_url;
             datesEl.textContent = `${data.start_date_formatted} - ${data.end_date_formatted}`;
             descriptionEl.innerHTML = data.description ? data.description.replace(/\n/g, '<br>') : 'Tidak ada deskripsi.';
-            matchList.innerHTML = '';
+
+            // --- ADDED: Populate Participants ---
+            participantList.innerHTML = ''; // Clear previous participants
+            if (data.participants && data.participants.length > 0) {
+                noParticipantsMessage.classList.add('hidden');
+                data.participants.forEach(team => {
+                    const logoHtml = team.logo_url
+                        ? `<img src="${team.logo_url}" alt="Logo ${team.name}" class="w-full h-16 object-contain" onerror="this.parentElement.innerHTML = defaultTeamLogoSvg;">`
+                        : `<div class="w-full h-16 flex items-center justify-center bg-gray-100 rounded-t-lg">${defaultTeamLogoSvg}</div>`;
+
+                    const participantHtml = `
+                    <div class="border border-gray-200 rounded-lg shadow-sm overflow-hidden flex flex-col items-center text-center">
+                        <div class="w-full p-2 flex items-center justify-center h-20"> ${logoHtml}</div>
+                        <p class="text-xs font-medium text-gray-700 p-2 truncate w-full bg-gray-50">${team.name}</p>
+                    </div>`;
+                    participantList.insertAdjacentHTML('beforeend', participantHtml);
+                });
+            } else {
+                noParticipantsMessage.classList.remove('hidden');
+            }
+            // ------------------------------------
+
+            // Populate Matches
+            matchList.innerHTML = ''; // Clear previous matches
             if (data.matches && data.matches.length > 0) {
                 noMatchesMessage.classList.add('hidden');
                 data.matches.forEach(match => {
+                    // Use match_date_formatted if available, otherwise format from match_date
                     let matchDateFormatted = match.match_date_formatted;
                     if (!matchDateFormatted && match.match_date) {
-                         try {
-                            matchDateFormatted = new Date(match.match_date).toLocaleString('id-ID', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', timeZoneName: 'short' });
-                         } catch(e) { matchDateFormatted = match.match_date; }
+                         try { // Add try-catch for safety
+                            // Ensure match.match_date is treated as UTC if it doesn't have timezone info
+                            let matchDateObj = new Date(match.match_date.endsWith('Z') ? match.match_date : match.match_date + 'Z');
+                            matchDateFormatted = matchDateObj.toLocaleString('id-ID', {
+                                day: '2-digit', month: 'short', year: 'numeric',
+                                hour: '2-digit', minute: '2-digit', timeZoneName: 'short'
+                             });
+                         } catch(e) {
+                             console.error("Error formatting match date:", match.match_date, e);
+                             matchDateFormatted = match.match_date; // Fallback
+                         }
+                    } else if (!matchDateFormatted) {
+                        matchDateFormatted = 'Waktu tidak tersedia';
                     }
+
+                    const homeTeamName = match.home_team__name || match.home_team_name || 'N/A';
+                    const awayTeamName = match.away_team__name || match.away_team_name || 'N/A';
+
                     const scoreDisplay = (match.home_score !== null && match.away_score !== null)
                         ? `<span class="font-bold">${match.home_score} - ${match.away_score}</span>`
                         : `<span class="text-sm font-normal text-custom-blue-200">Belum Dimulai</span>`;
+
                     const matchHtml = `
                     <div class="p-4 border border-custom-blue-100 rounded-lg flex flex-col sm:flex-row justify-between items-center bg-custom-blue-50/30">
-                        <div class="flex-1 mb-2 sm:mb-0">
-                            <span class="font-semibold text-custom-blue-400">${match.home_team__name || match.home_team_name}</span> <span class="text-gray-500"> vs </span> <span class="font-semibold text-custom-blue-400">${match.away_team__name || match.away_team_name}</span>
-                            <p class="text-xs text-custom-blue-300 mt-1">${matchDateFormatted || 'Waktu tidak valid'}</p>
+                        <div class="flex-1 mb-2 sm:mb-0 text-center sm:text-left">
+                            <span class="font-semibold text-custom-blue-400">${homeTeamName}</span>
+                            <span class="text-gray-500 mx-1">vs</span>
+                            <span class="font-semibold text-custom-blue-400">${awayTeamName}</span>
+                            <p class="text-xs text-custom-blue-300 mt-1">${matchDateFormatted}</p>
                         </div>
                         <div class="text-lg text-custom-blue-400">${scoreDisplay}</div>
                     </div>`;
@@ -257,58 +328,52 @@
             } else {
                 noMatchesMessage.classList.remove('hidden');
             }
+
+            // Populate Links
             forumLink.href = data.forum_url;
             predictionsLink.href = data.predictions_url;
 
-            // --- Tombol Manajemen (Edit/Delete) ---
+            // Populate Management Buttons
             managementButtonsDiv.innerHTML = ''; // Clear previous buttons
             if (data.is_organizer_or_admin) {
-                // Edit Button
-                const editButtonHtml = `
-                    <button id="open-edit-modal-btn" class="bg-custom-blue-300 text-white font-semibold py-2 px-4 rounded-lg hover:bg-custom-blue-400 transition-colors text-sm">
-                        Edit Turnamen
-                    </button>`;
+                const editButtonHtml = `<button id="open-edit-modal-btn" class="bg-custom-blue-300 text-white font-semibold py-2 px-4 rounded-lg hover:bg-custom-blue-400 transition-colors text-sm">Edit Turnamen</button>`;
                 managementButtonsDiv.insertAdjacentHTML('beforeend', editButtonHtml);
                 const editBtn = document.getElementById('open-edit-modal-btn');
-                if (editBtn) editBtn.addEventListener('click', openEditModal); // Attach listener
+                if (editBtn) editBtn.addEventListener('click', openEditModal);
 
-                // Delete Button
-                const deleteButtonHtml = `
-                    <button id="open-delete-modal-btn" class="bg-red-500 text-white font-semibold py-2 px-4 rounded-lg hover:bg-red-600 transition-colors text-sm">
-                        Hapus Turnamen
-                    </button>`;
+                const deleteButtonHtml = `<button id="open-delete-modal-btn" class="bg-red-500 text-white font-semibold py-2 px-4 rounded-lg hover:bg-red-600 transition-colors text-sm">Hapus Turnamen</button>`;
                 managementButtonsDiv.insertAdjacentHTML('beforeend', deleteButtonHtml);
                 const openDeleteBtn = document.getElementById('open-delete-modal-btn');
                 if (openDeleteBtn) openDeleteBtn.addEventListener('click', openDeleteModal);
             }
-            // ------------------------------------
 
-            contentDiv.classList.remove('hidden');
+            contentDiv.classList.remove('hidden'); // Show content
         }
 
-        // --- Fungsi Fetch Utama ---
         async function fetchTournamentDetails() {
-            // ... (Kode fetch Anda sudah benar, saya biarkan utuh) ...
             loadingIndicator.classList.remove('hidden');
             errorMessage.classList.add('hidden');
             contentDiv.classList.add('hidden');
             try {
                 const response = await fetch(`/tournaments/json/${tournamentId}/`);
-                if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                if (!response.ok) {
+                    if (response.status === 404) throw new Error('Turnamen tidak ditemukan.');
+                    throw new Error(`Gagal memuat data (Status: ${response.status})`);
+                }
                 const data = await response.json();
-                if (data.error) throw new Error(data.error);
+                if (data.error) throw new Error(data.error); // Handle errors returned in JSON
                 populatePage(data);
             } catch (error) {
                 console.error("Error fetching tournament details:", error);
                 errorMessage.textContent = `Gagal memuat detail: ${error.message}`;
                 errorMessage.classList.remove('hidden');
-                if (typeof showToast === 'function') showToast('Gagal memuat detail turnamen.', 'error');
+                if (typeof showToast === 'function') showToast(`Gagal memuat detail: ${error.message}`, 'error');
             } finally {
                 loadingIndicator.classList.add('hidden');
             }
         }
 
-        // --- Logika Modal Edit (PERBAIKAN) ---
+        // --- Logika Modal Edit ---
         function openEditModal() {
             if (!editModal || !currentTournamentData) return;
             // Pre-fill form
@@ -317,47 +382,37 @@
             document.getElementById('id_banner').value = currentTournamentData.banner_url || '';
             document.getElementById('id_start_date').value = currentTournamentData.start_date_raw || '';
             document.getElementById('id_end_date').value = currentTournamentData.end_date_raw || '';
-            
-            // --- FIX DIMULAI DI SINI ---
-            editModal.classList.remove('hidden'); // 1. Hapus 'hidden'
+
+            editModal.classList.remove('hidden');
             setTimeout(() => {
-                // 2. Hapus 'opacity-0' dan 'scale-95' untuk memicu transisi
                 editModal.classList.remove('opacity-0');
                 editModal.querySelector('.transform').classList.remove('scale-95');
-            }, 10); // Delay kecil agar transisi CSS terpicu
-            // --- FIX SELESAI ---
+            }, 10);
         }
 
         function closeEditModal() {
             if (!editModal) return;
-            
-            // --- FIX DIMULAI DI SINI ---
-            editModal.classList.add('opacity-0'); // 1. Mulai transisi fade out
-            editModal.querySelector('.transform').classList.add('scale-95'); // 1. Mulai transisi scale down
-            
+            editModal.classList.add('opacity-0');
+            editModal.querySelector('.transform').classList.add('scale-95');
             setTimeout(() => {
-                editModal.classList.add('hidden'); // 2. Sembunyikan elemen setelah transisi selesai
-                 // Bersihkan error
+                editModal.classList.add('hidden');
                  editForm.querySelectorAll('[id^="error-edit-"]').forEach(el => el.textContent = '');
                  editForm.querySelectorAll('.border-red-500').forEach(el => {
                      el.classList.remove('border-red-500', 'focus:border-red-500', 'focus:ring-red-500');
                      el.classList.add('border-gray-300', 'focus:border-custom-blue-300', 'focus:ring-custom-blue-300');
                  });
-            }, 300); // 300ms, sesuaikan dengan durasi transisi di CSS (duration-300)
-            // --- FIX SELESAI ---
+            }, 300);
         }
-        
+
         if (closeEditModalBtn) closeEditModalBtn.addEventListener('click', closeEditModal);
         if (editModal) editModal.addEventListener('click', (event) => { if (event.target === editModal) closeEditModal(); });
 
-        // --- Handle Edit Form Submit ---
         if (editForm) {
             editForm.addEventListener('submit', async function(e) {
                 e.preventDefault();
                 editSubmitBtn.disabled = true;
                 editSubmitBtn.textContent = 'Menyimpan...';
-                
-                // ... (Kode clear error sudah benar) ...
+
                 editForm.querySelectorAll('[id^="error-edit-"]').forEach(el => el.textContent = '');
                 editForm.querySelectorAll('.border-red-500').forEach(el => {
                      el.classList.remove('border-red-500', 'focus:border-red-500', 'focus:ring-red-500');
@@ -368,7 +423,6 @@
                 const csrfToken = formData.get('csrfmiddlewaretoken');
 
                 try {
-                    // ... (Kode fetch POST Anda sudah benar, saya biarkan utuh) ...
                     const response = await fetch(`/tournaments/edit/${tournamentId}/`, {
                         method: 'POST',
                         headers: { 'X-CSRFToken': csrfToken, 'Accept': 'application/json' },
@@ -383,24 +437,29 @@
                          let generalErrorMessage = data.message || 'Terjadi kesalahan validasi.';
                          if (data.errors) {
                              Object.keys(data.errors).forEach(fieldName => {
-                                 const errorDiv = document.getElementById(`error-edit-${fieldName === '__all__' ? 'non_field_errors' : fieldName}`);
-                                 const fieldEl = document.getElementById(`id_${fieldName}`);
-                                 
+                                 const errorDivId = `error-edit-${fieldName === '__all__' ? 'non_field_errors' : fieldName}`;
+                                 const errorDiv = document.getElementById(errorDivId);
+                                 const fieldElId = `id_${fieldName}`;
+                                 const fieldEl = document.getElementById(fieldElId);
+
                                  if (errorDiv && data.errors[fieldName].length > 0) {
-                                     errorDiv.textContent = data.errors[fieldName][0].message;
+                                     errorDiv.textContent = data.errors[fieldName][0].message; // Display first message
                                  }
                                  if (fieldEl) {
                                      fieldEl.classList.add('border-red-500', 'focus:border-red-500', 'focus:ring-red-500');
                                      fieldEl.classList.remove('border-gray-300', 'focus:border-custom-blue-300', 'focus:ring-custom-blue-300');
                                  }
-                                 if (fieldName === '__all__') {
+                                 if (fieldName === '__all__' && errorDiv) { // Ensure non_field_errors div exists
+                                     generalErrorMessage = data.errors[fieldName][0].message;
+                                 } else if (fieldName === '__all__') {
+                                     // Fallback if the specific non_field_errors div is missing
                                      generalErrorMessage = data.errors[fieldName][0].message;
                                  }
                              });
                          }
                          if (typeof showToast === 'function') showToast(generalErrorMessage, 'error');
                     }
-                } catch (error) { 
+                } catch (error) {
                     console.error('Error submitting edit form:', error);
                     if (typeof showToast === 'function') showToast('Gagal terhubung ke server.', 'error');
                 }
@@ -411,9 +470,8 @@
             });
         }
 
-        // --- Logika Modal Hapus (Sudah benar, biarkan utuh) ---
+        // --- Logika Modal Hapus ---
         function openDeleteModal() {
-            // ...
             if (!deleteModal || !currentTournamentData) return;
             const tournamentName = currentTournamentData.name || "turnamen ini";
             deleteConfirmMessage.textContent = `Apakah Anda yakin ingin menghapus turnamen "${tournamentName}"? Tindakan ini tidak dapat dibatalkan.`;
@@ -428,7 +486,6 @@
             }, 10);
         }
         function closeDeleteModal() {
-            // ...
             if (!deleteModal) return;
             deleteModal.classList.add('opacity-0');
             deleteModal.querySelector('.transform').classList.add('scale-95');
@@ -441,7 +498,6 @@
         if (deleteModal) deleteModal.addEventListener('click', (event) => { if (event.target === deleteModal) closeDeleteModal(); });
         if (confirmDeleteBtn) {
             confirmDeleteBtn.addEventListener('click', async () => {
-                // ... (Kode konfirmasi hapus sudah benar) ...
                 confirmDeleteBtn.disabled = true;
                 confirmDeleteBtn.textContent = 'Menghapus...';
                 confirmDeleteBtn.classList.add('opacity-50', 'cursor-wait');
@@ -477,9 +533,7 @@
                 }
             });
         }
-        // --- End Logika Modal Hapus ---
 
-        // --- Panggil Fetch Awal ---
         fetchTournamentDetails();
     });
 </script>
