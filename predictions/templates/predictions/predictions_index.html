@@ -30,7 +30,7 @@
     </form>
 
     <!-- Kanan: Tambah Match -->
-    {% if user.is_authenticated and user.profile.role == "PENYELENGGARA" %}
+    {% if user.is_authenticated and user.profile.role in "PENYELENGGARA,ADMIN" %}
     <button id="openAddMatchModal"
       class="w-full sm:w-auto bg-custom-blue-400 text-white font-bold py-2 px-5 rounded-lg shadow-md hover:bg-custom-blue-300 transition-colors duration-300">
       + Tambah Match
