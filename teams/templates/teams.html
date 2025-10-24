@@ -13,8 +13,8 @@
           <img src="{% static 'images/Superman Night 1 Streamline UX Line.png' %}" alt="team leadership" />
         </div>
         <div class="text-wrapper-2">Meet Your Team</div>
-        <p class="p">Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt.</p>
-        <button onclick="openModal('modal-meet')" class="text-wrapper">Let's meet em!</button>
+        <p class="p">Saatnya melihat siapa partner kamu! Cek detail tim kamu dan mulai rencanakan langkah selanjutnya!.</p>
+        <button onclick="openModal('modal-meet')" class="text-wrapper">Mana teamku?</button>
       </div>
 
       <div class="frame">
@@ -22,8 +22,8 @@
           <img src="{% static 'images/Friends Wave Streamline UX Line.png' %}" alt="joining team" />
         </div>  
         <div class="text-wrapper-2">I Need A Team</div>
-        <p class="p">Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt.</p>
-        <button onclick="openModal('modal-join')" class="text-wrapper">I'm a human too</button>
+        <p class="p">Kamu butuh team? mungkin dari sini perjalanan kamu dimulai. Ga mungkin ditolak jadi member karena pasti diterima.</p>
+        <button onclick="openModal('modal-join')" class="text-wrapper">Aku butuh tim</button>
       </div>
 
       <div class="frame">
@@ -31,28 +31,49 @@
           <img src="{% static 'images/Comment Rating Streamline UX Line.png' %}" alt="manage team" />
         </div>
         <div class="text-wrapper-2">Manage Your Team</div>
-        <p class="p">Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt.</p>
-        <button onclick="openModal('modal-manage')" class="text-wrapper">I am the boss!!</button>
+        <p class="p">Sebagai kapten mengeluarkan anggota team dan mengganti komponen team lainnya adalah hal yang mudah.</p>
+        <button onclick="openModal('modal-manage')" class="text-wrapper">Saatnya bekerja</button>
       </div>
     </div>
   </div>
+  <div class="flex flex-col items-center justify-center mt-8 mb-16">
+    <button onclick="openModal('modal-create-team')" class="action-btn btn-primary px-6 py-3 text-lg font-semibold">
+      Create New Team
+    </button>
+    <p class="text-gray-600 text-sm mt-2">
+      Jadilah kapten dari teammu sendiri! 🫡
+    </p>
+  </div>
 
+{% include 'create_team.html' %}  
 {% include 'meet_teams.html' %}
 {% include 'manage_team.html' %}
 {% include 'join_teams.html' %}
 
 <script>
-  function openModal(modalId) {
-    document.getElementById(modalId).style.display = 'flex';
-    if(modalId === 'modal-manage') {
-      searchManageTeams(1);
-    } else if(modalId === 'modal-join') {
-      searchJoinTeams(1);
-    } else if(modalId === 'modal-meet') {
-      searchMeetTeams(1, 'meet');
-    } else if(modalId === 'modal-configure') {
+function openModal(modalId, teamId = null) {
+  const modal = document.getElementById(modalId);
+  if (!modal) {
+    console.error(`Modal dengan ID '${modalId}' tidak ditemukan`);
+    return;
+  }
+
+  modal.style.display = 'flex';
+
+  if (modalId === 'modal-manage') {
+    searchManageTeams(1);
+  } else if (modalId === 'modal-join') {
+    searchJoinTeams(1);
+  } else if (modalId === 'modal-meet') {
+    searchMeetTeams(1,);
+  } else if (modalId === 'modal-configure') {
+    if (teamId) {
+      document.getElementById("config-team-id").value = teamId;
+      openConfigureModal(teamId);
     }
   }
+}
+
 
   function closeModal(modalId) {
     document.getElementById(modalId).style.display = 'none';
