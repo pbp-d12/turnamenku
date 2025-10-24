@@ -5,8 +5,6 @@ app_name = 'teams'
 
 urlpatterns = [
     path('', show_main_teams, name='show_main_teams'),
-    path('manage/', manage_team, name='manage_teams'),
-    path('meet/', meet_team, name='meet_teams'),
     path('create/', create_team, name='create_team'),
     path('<int:team_id>/join/', join_team, name='join_team'),
     path('<int:team_id>/edit/', edit_team, name='edit_team'),

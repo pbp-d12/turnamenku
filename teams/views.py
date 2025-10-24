@@ -9,23 +9,10 @@ from .models import Team
 
 
 def show_main_teams(request):
-    """Halaman utama Teams"""
     teams = Team.objects.all()
-    return render(request, 'teams.html', {'teams': teams})
+    user = request.user if request.user.is_authenticated else None
+    return render(request, 'teams.html', {'teams': teams, 'user': user})
 
-def manage_team(request):
-    """Halaman manage team"""
-    return render(request, 'manage_teams.html')
-
-def meet_team(request):
-    """Halaman meet team"""
-    return render(request, 'meet_teams.html')
-
-def join_team(request):
-    """Halaman join team"""
-    return render(request, 'join_teams.html')
-
-# ======== SEARCH / VIEW ========
 @csrf_exempt
 def search_teams(request):
     """
@@ -49,7 +36,10 @@ def search_teams(request):
         elif mode == 'meet':
             teams = teams.filter(members=request.user)
         elif mode == 'manage':
-            teams = teams.filter(captain=request.user)
+            if request.user.is_superuser:
+                teams = teams
+            else:
+                teams = teams.filter(captain=request.user)
         else:
             return JsonResponse({'status': 'error', 'message': 'Mode tidak valid.'}, status=400)
     else:
@@ -132,14 +122,12 @@ def edit_team(request, team_id):
 
     return JsonResponse({'status': 'success'})
 
-
 @require_POST
 @login_required
 def delete_team(request, team_id):
     team = get_object_or_404(Team, id=team_id, captain=request.user)
     team.delete()
     return JsonResponse({'status': 'success'})
-
 
 @require_POST
 @login_required
@@ -159,7 +147,6 @@ def delete_member(request, team_id, member_id):
         'members': updated_members
     })
 
-
 @require_POST
 @login_required
 def leave_team(request, team_id):
@@ -172,7 +159,6 @@ def leave_team(request, team_id):
 
     team.members.remove(request.user)
     return JsonResponse({'status': 'success'})
-
 
 @require_POST
 @login_required
