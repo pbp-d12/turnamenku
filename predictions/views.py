@@ -1,26 +1,63 @@
 from django.shortcuts import render, get_object_or_404
 from django.http import JsonResponse
-from django.db import models
+from django.utils import timezone
+from django.db.models import Sum, Q
+from django.views.decorators.http import require_POST
 from django.contrib.auth.decorators import login_required
+from datetime import datetime
+
 from predictions.models import Prediction
-from tournaments.models import Match
+from tournaments.models import Match, Tournament
 from teams.models import Team
 
 
 def predictions_index(request):
-    """
-    Menampilkan daftar pertandingan yang belum selesai.
-    Pengguna dapat memberikan prediksi pemenang (klik tim).
-    """
-    matches = Match.objects.filter(home_score__isnull=True, away_score__isnull=True)
-    return render(request, 'predictions/predictions_index.html', {'matches': matches})
+    tournament_id = request.GET.get('tournament')
+    tournaments = Tournament.objects.all()
+    teams = Team.objects.all()
+
+    matches = Match.objects.all()
+    if tournament_id:
+        matches = matches.filter(tournament_id=tournament_id)
+
+    ongoing_matches = matches.filter(Q(home_score__isnull=True) | Q(away_score__isnull=True)).order_by('match_date')
+    finished_matches = matches.filter(home_score__isnull=False, away_score__isnull=False).order_by('-match_date')
+
+    context = {
+        'tournaments': tournaments,
+        'teams': teams,
+        'ongoing_matches': ongoing_matches,
+        'finished_matches': finished_matches,
+    }
+    return render(request, 'predictions/predictions_index.html', context)
+
+
+@login_required
+def add_match(request):
+    if request.user.profile.role != 'PENYELENGGARA':
+        return JsonResponse({'success': False, 'message': 'Kamu tidak punya izin.'}, status=403)
+
+    if request.method == 'POST':
+        tournament = get_object_or_404(Tournament, id=request.POST['tournament'])
+        home_team = get_object_or_404(Team, id=request.POST['home_team'])
+        away_team = get_object_or_404(Team, id=request.POST['away_team'])
+        
+        # parse datetime-local
+        match_date_str = request.POST['match_date']
+        match_date = datetime.strptime(match_date_str, "%Y-%m-%dT%H:%M")
+
+        Match.objects.create(
+            tournament=tournament,
+            home_team=home_team,
+            away_team=away_team,
+            match_date=match_date
+        )
+        return JsonResponse({'success': True, 'message': 'Match berhasil ditambahkan!'})
+    return JsonResponse({'success': False, 'message': 'Metode tidak valid.'}, status=400)
 
 
 @login_required
 def submit_prediction(request):
-    """
-    Menerima prediksi pengguna via AJAX dan menyimpannya ke database.
-    """
     if request.method == 'POST':
         match_id = request.POST.get('match_id')
         team_id = request.POST.get('team_id')
@@ -39,36 +76,35 @@ def submit_prediction(request):
 
         return JsonResponse({
             'success': True,
-            'message': f'Prediksi {team.name} disimpan!',
-            'team': team.name,
+            'message': f'Berhasil voting untuk {team.name}!',
         })
 
     return JsonResponse({'success': False, 'message': 'Permintaan tidak valid.'}, status=400)
 
 
 def leaderboard_view(request):
-    """
-    Menampilkan leaderboard berdasarkan total poin.
-    """
+    sort_order = request.GET.get('sort', 'desc')  
+
     leaderboard = (
         Prediction.objects.values('user__username')
-        .annotate(total_points=models.Sum('points_awarded'))
-        .order_by('-total_points')
+        .annotate(total_points=Sum('points_awarded'))
+        .order_by('-total_points' if sort_order == 'desc' else 'total_points')
     )
-    return render(request, 'predictions/leaderboard.html', {'leaderboard': leaderboard})
+
+    context = {
+        'leaderboard': leaderboard,
+        'sort_order': sort_order
+    }
+    return render(request, 'predictions/leaderboard.html', context)
 
 
 @login_required
 def evaluate_predictions(request, match_id):
-    """
-    Menghitung poin berdasarkan hasil pertandingan.
-    """
     match = get_object_or_404(Match, id=match_id)
 
     if match.home_score is None or match.away_score is None:
         return JsonResponse({'success': False, 'message': 'Pertandingan belum selesai.'}, status=400)
 
-    # Tentukan pemenang
     if match.home_score > match.away_score:
         correct_team = match.home_team
     elif match.away_score > match.home_score:
@@ -77,9 +113,31 @@ def evaluate_predictions(request, match_id):
         correct_team = None
 
     predictions = Prediction.objects.filter(match=match)
-
     for p in predictions:
         p.points_awarded = 10 if correct_team and p.predicted_winner == correct_team else 0
         p.save()
 
     return JsonResponse({'success': True, 'message': 'Prediksi telah dievaluasi!'})
+
+
+def get_match_scores(request, match_id):
+    match = get_object_or_404(Match, id=match_id)
+    return JsonResponse({
+        "home_score": match.home_score,
+        "away_score": match.away_score
+    })
+
+
+@require_POST
+def edit_match_score(request):
+    match_id = request.POST.get("match_id")
+    home_score = request.POST.get("home_score")
+    away_score = request.POST.get("away_score")
+    match = get_object_or_404(Match, id=match_id)
+
+    # cast ke int
+    match.home_score = int(home_score)
+    match.away_score = int(away_score)
+    match.save()
+
+    return JsonResponse({"success": True, "message": "Skor berhasil diperbarui"})

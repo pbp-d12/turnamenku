@@ -2,8 +2,8 @@ from django.shortcuts import render, get_object_or_404
 from django.http import JsonResponse
 from django.contrib.auth.decorators import login_required
 from django.views.decorators.http import require_POST
-from django.db.models import Q
-from django.core.paginator import Paginator
+from django.db.models import Q, Count
+from django.core.paginator import Paginator, EmptyPage
 from django.views.decorators.csrf import csrf_exempt
 from .models import Team
 
@@ -24,90 +24,76 @@ def meet_team(request):
 def join_team_page(request):
     """Halaman join team"""
     return render(request, 'join_team.html')
-# ======== SEARCH / VIEW (tidak perlu login) ========
 
+# ======== SEARCH / VIEW ========
 @csrf_exempt
 def search_teams(request):
-    """Search tim untuk modal join"""
+    """
+    Search tim untuk berbagai mode:
+      - mode=join   : semua tim (kecuali yang sudah diikuti user)
+      - mode=meet   : tim yang user ikuti
+      - mode=manage : tim yang dikapteni user
+    Query param:
+      ?mode=join&q=abc&page=2
+    """
     query = request.GET.get('q', '').strip()
-    teams = Team.objects.all()
+    mode = request.GET.get('mode', 'join')  # default: join
+    page = request.GET.get('page', 1)
+
+    # Base queryset
+    teams = Team.objects.all().annotate(members_count=Count('members'))
 
     if request.user.is_authenticated:
-        # Kecualikan tim yang sudah diikuti
-        teams = teams.exclude(members=request.user)
+        if mode == 'join':
+            teams = teams.exclude(members=request.user)
+        elif mode == 'meet':
+            teams = teams.filter(members=request.user)
+        elif mode == 'manage':
+            teams = teams.filter(captain=request.user)
+        else:
+            return JsonResponse({'status': 'error', 'message': 'Mode tidak valid.'}, status=400)
+    else:
+        # Jika belum login, hanya bisa lihat mode join
+        if mode != 'join':
+            return JsonResponse({'status': 'error', 'message': 'Login diperlukan.'}, status=401)
 
     if query:
-        teams = teams.filter(Q(name__icontains=query) | Q(captain__username__icontains=query))
+        teams = teams.filter(
+            Q(name__icontains=query) | Q(captain__username__icontains=query)
+        )
 
+    # Pagination
     paginator = Paginator(teams, 5)
-    page = request.GET.get('page', 1)
-    page_obj = paginator.get_page(page)
+    try:
+        page_obj = paginator.get_page(page)
+    except EmptyPage:
+        page_obj = paginator.page(paginator.num_pages)
 
+    # Format hasil JSON
     results = [
         {
             'id': team.id,
             'name': team.name,
             'logo': team.logo.url if team.logo else None,
             'captain': team.captain.username if team.captain else None,
-            'members_count': team.members.count(),
+            'members_count': team.members_count,
         }
         for team in page_obj
     ]
 
-    return JsonResponse({'status': 'success', 'results': results})
-
-
-@csrf_exempt
-def search_meet_teams(request):
-    """Tim yang user ikuti (untuk modal meet)"""
-    if not request.user.is_authenticated:
-        return JsonResponse({'status': 'success', 'results': []})
-
-    teams = Team.objects.filter(members=request.user)
-    query = request.GET.get('q', '').strip()
-
-    if query:
-        teams = teams.filter(Q(name__icontains=query) | Q(captain__username__icontains=query))
-
-    results = [
-        {
-            'id': team.id,
-            'name': team.name,
-            'logo': team.logo.url if team.logo else None,
-            'captain': team.captain.username if team.captain else None,
-            'members_count': team.members.count(),
+    return JsonResponse({
+        'status': 'success',
+        'mode': mode,
+        'results': results,
+        'pagination': {
+            'current_page': page_obj.number,
+            'total_pages': paginator.num_pages,
+            'has_next': page_obj.has_next(),
+            'has_previous': page_obj.has_previous(),
         }
-        for team in teams
-    ]
-    return JsonResponse({'status': 'success', 'results': results})
-
-
-@csrf_exempt
-def search_managed_teams(request):
-    """Tim yang dikapteni user (untuk modal manage)"""
-    if not request.user.is_authenticated:
-        return JsonResponse({'status': 'success', 'results': []})
-
-    teams = Team.objects.filter(captain=request.user)
-    query = request.GET.get('q', '').strip()
-
-    if query:
-        teams = teams.filter(name__icontains=query)
-
-    results = [
-        {
-            'id': team.id,
-            'name': team.name,
-            'logo': team.logo.url if team.logo else None,
-            'members_count': team.members.count(),
-        }
-        for team in teams
-    ]
-    return JsonResponse({'status': 'success', 'results': results})
-
+    })
 
 # ======== ACTIONS (harus login) ========
-
 @require_POST
 @login_required
 def create_team(request):
@@ -159,7 +145,11 @@ def join_team(request, team_id):
 def leave_team(request, team_id):
     team = get_object_or_404(Team, id=team_id)
     team.members.remove(request.user)
-    return JsonResponse({'status': 'success'})
+
+    if team.captain == request.user:
+        return JsonResponse({'status': 'error', 'message': 'Kapten tidak dapat keluar dari tim.'}, status=400)
+    else:
+        return JsonResponse({'status': 'success'})
 
 
 @require_POST
@@ -186,3 +176,19 @@ def show_json(request):
             'members': [member.username for member in team.members.all()],
         })
     return JsonResponse(data, safe=False)
+
+def team_detail_json(request, team_id):
+    """Mengambil detail satu tim berdasarkan ID untuk modal detail"""
+    team = get_object_or_404(Team, id=team_id)
+    
+    data = {
+        'id': team.id,
+        'name': team.name,
+        # Pastikan `.url` diakses dengan benar
+        'logo': team.logo.url if team.logo else None,
+        'captain': team.captain.username if team.captain else None,
+        # Mengambil daftar username anggota
+        'members': [member.username for member in team.members.all()],
+        'members_count': team.members.count(),
+    }
+    return JsonResponse(data)

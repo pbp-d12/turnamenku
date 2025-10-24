@@ -11,14 +11,12 @@
           type="text"
           id="manage-search-input"
           placeholder="Search your teams..."
-          onkeyup="searchManagedTeams(1)"
+          onkeyup="searchManageTeams(1)"
         />
       </div>
 
-      <div id="manage-teams-container">
-      </div>
-      <div class="pagination" id="manage-pagination">
-      </div>
+      <div id="manage-teams-container"></div>
+      <div class="pagination" id="manage-pagination"></div>
     </div>
   </div>
 </div>
@@ -32,25 +30,31 @@
 
     <div class="modal-body">
       <form id="configure-form" onsubmit="event.preventDefault(); saveTeamConfig();">
-        <input type="hidden" id="config-team-id">
-        
+        <input type="hidden" id="config-team-id" />
+
         <div class="form-group">
           <label>Team Name</label>
-          <input type="text" id="config-team-name" required>
+          <input type="text" id="config-team-name" required />
         </div>
 
         <div class="form-group">
           <label>Team Logo</label>
-          <input type="file" id="config-team-logo" accept="image/*">
+          <input type="file" id="config-team-logo" accept="image/*" />
         </div>
 
         <h3>Team Members</h3>
-        <div id="members-list">
-        </div>
+        <div id="members-list"></div>
 
         <div class="form-actions">
           <button type="submit" class="action-btn">Save Changes</button>
-          <button type="button" class="action-btn" style="background: #f44336;" onclick="deleteTeamConfirm()">Delete Team</button>
+          <button
+            type="button"
+            class="action-btn"
+            style="background: #f44336;"
+            onclick="deleteTeamConfirm()"
+          >
+            Delete Team
+          </button>
         </div>
       </form>
     </div>
@@ -58,208 +62,146 @@
 </div>
 
 <script>
-  async function searchManagedTeams(page = 1) {
-    const query = document.getElementById("manage-search-input").value.trim();
-    const url = `/teams/manage/search/?q=${encodeURIComponent(query)}`;
-    
-    try {
-      const response = await fetch(url);
-      const data = await response.json();
-      
-      if (data.status === 'success') {
-        renderManagedTeams(data.results, page);
-      }
-    } catch (error) {
-      console.error('Search error:', error);
-    }
-  }
+async function searchManageTeams(page = 1) {
+  const input = document.getElementById("manage-search-input");
+  const container = document.getElementById("manage-teams-container");
+  const pagination = document.getElementById("manage-pagination");
 
-  function renderManagedTeams(teams, currentPage) {
-    const container = document.getElementById('manage-teams-container');
-    
-    if (teams.length === 0) {
-      container.innerHTML = '<p>No managed teams found.</p>';
-      document.getElementById('manage-pagination').innerHTML = '';
-      return;
-    }
+  const query = input?.value.trim() || "";
+  container.innerHTML = `<p class="loading">Loading...</p>`;
+  pagination.innerHTML = "";
 
-    const perPage = 5;
-    const totalPages = Math.ceil(teams.length / perPage);
-    const start = (currentPage - 1) * perPage;
-    const end = start + perPage;
-    const pageTeams = teams.slice(start, end);
-
-    container.innerHTML = pageTeams.map(team => `
-      <div class="team-card" data-team-id="${team.id}">
-        <div class="team-info">
-          ${team.logo ? 
-            `<img src="${team.logo}" alt="${team.name}" class="team-avatar">` : 
-            '<div class="team-avatar"></div>'
-          }
-          <div class="team-text">
-            <h3>${team.name}</h3>
-            <p>Member count: ${team.members_count}</p>
-          </div>
-        </div>
-        <button class="action-btn" onclick="configureTeam(${team.id})">Configure</button>
-      </div>
-    `).join('');
-
-    let paginationHtml = '';
-    if (currentPage > 1) {
-      paginationHtml += `<button onclick="searchManagedTeams(${currentPage - 1})">&laquo; Prev</button> `;
-    }
-    paginationHtml += `<span>Page ${currentPage} of ${totalPages}</span>`;
-    if (currentPage < totalPages) {
-      paginationHtml += ` <button onclick="searchManagedTeams(${currentPage + 1})">Next &raquo;</button>`;
-    }
-    
-    document.getElementById('manage-pagination').innerHTML = paginationHtml;
-  }
-
-  async function configureTeam(teamId) {
-    const response = await fetch(`/teams/json/`);
+  try {
+    const response = await fetch(`/teams/search/?mode=manage&q=${encodeURIComponent(query)}&page=${page}`);
     const data = await response.json();
-    const team = data.find(t => t.id === teamId);
-    
-    if (!team) {
-      alert("Team not found");
+
+    if (data.status !== "success" || data.results.length === 0) {
+      container.innerHTML = `<p class="loading">Your not a captain.</p>`;
       return;
     }
 
-    document.getElementById('config-team-id').value = team.id;
-    document.getElementById('config-team-name').value = team.name;
-    
-    const membersList = document.getElementById('members-list');
-    membersList.innerHTML = team.members.map(member => `
-      <div class="member-item" style="display: flex; justify-content: space-between; align-items: center; padding: 8px; border-bottom: 1px solid #e0e0e0;">
-        <span>${member}</span>
-        ${member !== team.captain ? 
-          `<button type="button" class="action-btn" style="background: #f44336; padding: 4px 12px;" onclick="removeMember(${teamId}, '${member}')">Remove</button>` : 
-          '<span style="color: #666; font-size: 12px;">Captain</span>'
-        }
-      </div>
-    `).join('');
+    container.innerHTML = data.results
+      .map(
+        (team) => `
+        <div class="team-card">
+          <div class="team-info">
+            ${
+              team.logo
+                ? `<img src="${team.logo}" class="team-avatar" alt="${team.name}">`
+                : `<div class="team-avatar"></div>`
+            }
+            <div class="team-text">
+              <h3>${team.name}</h3>
+              <p>Members: ${team.members_count}</p>
+            </div>
+          </div>
+          <div class="team-actions">
+            <button class="action-btn" onclick="openConfigureModal(${team.id})">Configure</button>
+          </div>
+        </div>`
+      )
+      .join("");
 
-    closeModal('modal-manage');
-    document.getElementById('modal-configure').classList.add('show');
+    // Pagination
+    const p = data.pagination;
+    let paginationHTML = "";
+    if (p.has_previous)
+      paginationHTML += `<button onclick="searchManageTeams(${p.current_page - 1})">&laquo; Prev</button>`;
+    paginationHTML += `<span> Page ${p.current_page} of ${p.total_pages} </span>`;
+    if (p.has_next)
+      paginationHTML += `<button onclick="searchManageTeams(${p.current_page + 1})">Next &raquo;</button>`;
+    pagination.innerHTML = paginationHTML;
+  } catch (error) {
+    console.error(error);
+    container.innerHTML = `<p class="loading">Error loading teams.</p>`;
   }
+}
 
-  async function saveTeamConfig() {
-    const teamId = document.getElementById('config-team-id').value;
-    const name = document.getElementById('config-team-name').value;
-    const logoInput = document.getElementById('config-team-logo');
-    
-    const formData = new FormData();
-    formData.append('name', name);
-    if (logoInput.files.length > 0) {
-      formData.append('logo', logoInput.files[0]);
-    }
 
-    try {
-      const response = await fetch(`/teams/edit/${teamId}/`, {
-        method: 'POST',
-        headers: {
-          'X-CSRFToken': getCSRFToken(),
-          'X-Requested-With': 'XMLHttpRequest',
-        },
-        body: formData
-      });
+async function openConfigureModal(teamId) {
+  openModal("modal-configure");
+  document.getElementById("config-team-id").value = teamId;
+  document.getElementById("members-list").innerHTML = `<p class="loading">Loading members...</p>`;
 
-      const data = await response.json();
-      if (data.status === 'success') {
-        alert('Team updated successfully!');
-        closeModal('modal-configure');
-        document.getElementById('modal-manage').classList.add('show');
-        searchManagedTeams(1);
-      } else {
-        alert(data.message || 'Failed to update team');
-      }
-    } catch (error) {
-      console.error('Update error:', error);
-      alert('Failed to update team');
-    }
+  try {
+    const response = await fetch(`/teams/${teamId}/json/`);
+    const team = await response.json();
+
+    document.getElementById("config-team-name").value = team.name;
+
+    const membersHTML = team.members
+      .map(
+        (m) => `
+        <div class="member-item">
+          <span>${m}</span>
+          <button onclick="removeMember(${team.id}, '${m}')">Remove</button>
+        </div>`
+      )
+      .join("");
+    document.getElementById("members-list").innerHTML = membersHTML || "<p>No members yet.</p>";
+  } catch (error) {
+    console.error(error);
+    document.getElementById("members-list").innerHTML = `<p>Error loading team.</p>`;
   }
+}
 
-  async function removeMember(teamId, memberUsername) {
-    if (!confirm(`Remove ${memberUsername} from team?`)) return;
+async function saveTeamConfig() {
+  const teamId = document.getElementById("config-team-id").value;
+  const name = document.getElementById("config-team-name").value;
+  const logo = document.getElementById("config-team-logo").files[0];
 
-    try {
-      const response = await fetch(`/teams/json/`);
-      const data = await response.json();
-      const team = data.find(t => t.id === teamId);
-      const memberIndex = team.members.indexOf(memberUsername);
-      
-      if (memberIndex === -1) {
-        alert('Member not found');
-        return;
-      }
+  const formData = new FormData();
+  formData.append("name", name);
+  if (logo) formData.append("logo", logo);
 
-      const deleteResponse = await fetch(`/teams/member/${teamId}/${memberUsername}/delete/`, {
-        method: 'POST',
-        headers: {
-          'X-CSRFToken': getCSRFToken(),
-          'X-Requested-With': 'XMLHttpRequest',
-        }
-      });
-
-      const deleteData = await deleteResponse.json();
-      if (deleteData.status === 'success') {
-        alert('Member removed successfully!');
-        configureTeam(teamId); // Refresh
-      } else {
-        alert(deleteData.message || 'Failed to remove member');
-      }
-    } catch (error) {
-      console.error('Remove error:', error);
-      alert('Failed to remove member');
+  try {
+    const response = await fetch(`/teams/${teamId}/edit/`, {
+      method: "POST",
+      body: formData,
+      headers: { "X-CSRFToken": getCSRFToken() },
+    });
+    const data = await response.json();
+    if (data.status === "success") {
+      alert("Team updated!");
+      closeModal("modal-configure");
+      searchTeams(1, "manage");
+    } else {
+      alert("Failed to save changes.");
     }
+  } catch (error) {
+    console.error(error);
+    alert("Error saving team.");
   }
+}
 
-  async function deleteTeamConfirm() {
-    const teamId = document.getElementById('config-team-id').value;
-    const teamName = document.getElementById('config-team-name').value;
-    
-    if (!confirm(`Are you sure you want to delete team "${teamName}"? This action cannot be undone.`)) {
-      return;
+async function deleteTeamConfirm() {
+  const teamId = document.getElementById("config-team-id").value;
+  if (!confirm("Are you sure you want to delete this team?")) return;
+
+  try {
+    const response = await fetch(`/teams/${teamId}/delete/`, {
+      method: "POST",
+      headers: { "X-CSRFToken": getCSRFToken() },
+    });
+    const data = await response.json();
+    if (data.status === "success") {
+      alert("Team deleted.");
+      closeModal("modal-configure");
+      searchTeams(1, "manage");
+    } else {
+      alert("Delete failed.");
     }
-
-    try {
-      const response = await fetch(`/teams/delete/${teamId}/`, {
-        method: 'POST',
-        headers: {
-          'X-CSRFToken': getCSRFToken(),
-          'X-Requested-With': 'XMLHttpRequest',
-        }
-      });
-
-      const data = await response.json();
-      if (data.status === 'success') {
-        alert('Team deleted successfully!');
-        closeModal('modal-configure');
-        document.getElementById('modal-manage').classList.add('show');
-        searchManagedTeams(1);
-      } else {
-        alert(data.message || 'Failed to delete team');
-      }
-    } catch (error) {
-      console.error('Delete error:', error);
-      alert('Failed to delete team');
-    }
+  } catch (error) {
+    console.error(error);
+    alert("Error deleting team.");
   }
+}
 
-  function getCSRFToken() {
-    return document.querySelector('[name=csrfmiddlewaretoken]').value;
-  }
-
-  function closeModal(modalId) {
-    document.getElementById(modalId).classList.remove('show');
-  }
-
-  document.addEventListener('DOMContentLoaded', function() {
-    const manageModal = document.getElementById('modal-manage');
-    if (manageModal && manageModal.classList.contains('show')) {
-      searchManagedTeams(1);
-    }
-  });
+function getCSRFToken() {
+  const cookieValue = document.cookie
+    .split("; ")
+    .find((row) => row.startsWith("csrftoken="))
+    ?.split("=")[1];
+  return cookieValue || "";
+}
 </script>
