@@ -12,15 +12,11 @@
                style="width:100%; box-sizing:border-box; margin-top:6px; padding:8px 10px; border:1px solid #e2e8f0; border-radius:8px; font-size:14px;">
       </label>
 
-      <label style="font-weight:600; font-size:13px;">Team Logo (optional)
-        <input type="file" id="team-logo" name="logo" accept="image/*"
-               style="width:100%; box-sizing:border-box; margin-top:6px; padding:6px 8px; font-size:13px;">
-      </label>
-
-      <div id="logo-preview" style="display:none; align-items:center; gap:10px; margin-top:4px;">
-        <img id="logo-preview-img" src="" alt="logo preview" style="width:72px; height:72px; object-fit:cover; border-radius:8px; border:1px solid #eee;">
-        <div style="font-size:13px; color:#444;">Selected image</div>
-      </div>
+        <label style="font-weight:600; font-size:13px;">Team Logo (optional)
+        <input type="text" id="team-logo" name="logo" placeholder="Enter logo URL"
+                style="width:100%; box-sizing:border-box; margin-top:6px; padding:8px 10px; border:1px solid #e2e8f0; border-radius:8px; font-size:14px;">
+        </label>
+        <img id="logo-preview" src="" style="display:none; width:80px; height:80px; object-fit:cover; margin-top:6px; border-radius:6px;">
 
       <div style="display:flex; justify-content:flex-end; gap:8px; margin-top:6px;">
         <button type="button" onclick="closeModal('modal-create-team')" style="background:#eee; border:none; padding:8px 14px; border-radius:8px; cursor:pointer;">Cancel</button>
@@ -38,23 +34,20 @@ function getCSRFTokenFromForm() {
 }
 
 const logoInput = document.getElementById('team-logo');
-const previewWrap = document.getElementById('logo-preview');
-const previewImg = document.getElementById('logo-preview-img');
+const previewImg = document.getElementById('logo-preview');
 
 if (logoInput) {
-  logoInput.addEventListener('change', (e) => {
-    const f = e.target.files && e.target.files[0];
-    if (!f) {
-      previewWrap.style.display = 'none';
+  logoInput.addEventListener('input', (e) => {
+    const url = e.target.value.trim();
+    if (url) {
+      previewImg.src = url;
+      previewImg.style.display = 'block';
+    } else {
       previewImg.src = '';
-      return;
+      previewImg.style.display = 'none';
     }
-    const url = URL.createObjectURL(f);
-    previewImg.src = url;
-    previewWrap.style.display = 'flex';
   });
 }
-
 document.addEventListener('DOMContentLoaded', () => {
   const form = document.getElementById('create-team-form');
   if (!form) return;
@@ -68,17 +61,20 @@ document.addEventListener('DOMContentLoaded', () => {
     submitBtn.textContent = 'Creating...';
 
     try {
-      const formData = new FormData(form); // includes file + csrf hidden input
-      // If you prefer to ensure csrf header too:
-      const csrf = getCSRFTokenFromForm();
+      const csrf = document.querySelector('#create-team-form input[name="csrfmiddlewaretoken"]').value;
+      const payload = {
+        name: document.getElementById('team-name').value.trim(),
+        logo: document.getElementById('team-logo').value.trim()
+      };
 
       const resp = await fetch("create/", {
         method: "POST",
         headers: {
+          "Content-Type": "application/json",
           "X-CSRFToken": csrf,
           "X-Requested-With": "XMLHttpRequest"
         },
-        body: formData
+        body: JSON.stringify(payload)
       });
 
       const data = await resp.json();
@@ -86,10 +82,10 @@ document.addEventListener('DOMContentLoaded', () => {
       if (resp.ok && data.status === 'success') {
         showToast('Selamat membentuk tim, Kapten', 'success');
         form.reset();
-        previewWrap.style.display = 'none';
+        previewImg.src = '';
+        previewImg.style.display = 'none';
         closeModal('modal-create-team');
 
-        // optional: refresh lists if functions exist
         if (typeof searchJoinTeams === 'function') searchJoinTeams(1);
         if (typeof searchManageTeams === 'function') searchManageTeams(1);
         if (typeof searchMeetTeams === 'function') searchMeetTeams(1);

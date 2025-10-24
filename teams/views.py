@@ -7,7 +7,6 @@ from django.core.paginator import Paginator, EmptyPage
 from django.views.decorators.csrf import csrf_exempt
 from .models import Team
 
-
 def show_main_teams(request):
     teams = Team.objects.all()
     user = request.user if request.user.is_authenticated else None
@@ -63,7 +62,7 @@ def search_teams(request):
         {
             'id': team.id,
             'name': team.name,
-            'logo': team.logo.url if team.logo else None,
+            'logo': team.logo if team.logo else None,
             'captain': team.captain.username if team.captain else None,
             'members_count': team.members_count,
         }
@@ -82,12 +81,11 @@ def search_teams(request):
         }
     })
 
-# ======== ACTIONS (harus login) ========
 @require_POST
 @login_required
 def create_team(request):
     name = request.POST.get('name')
-    logo = request.FILES.get('logo')
+    logo = request.POST.get('logo')
 
     if not name:
         return JsonResponse({'status': 'error', 'message': 'Nama tim wajib diisi.'}, status=400)
@@ -112,7 +110,7 @@ def join_team(request, team_id):
 def edit_team(request, team_id):
     team = get_object_or_404(Team, id=team_id, captain=request.user)
     name = request.POST.get('name')
-    logo = request.FILES.get('logo')
+    logo = request.POST.get('logo')
 
     if name:
         team.name = name
@@ -129,11 +127,22 @@ def delete_team(request, team_id):
     team.delete()
     return JsonResponse({'status': 'success'})
 
+# Hapus fungsi ini karena duplikasi dan tidak terdaftar di urls.py
+# @require_POST
+# @login_required
+# def delete_member(request, team_id, member_id):
+#     ...
+
 @require_POST
 @login_required
-def delete_member(request, team_id, member_id):
-    team = get_object_or_404(Team, id=team_id, captain=request.user)
-    member = get_object_or_404(team.members.all(), id=member_id)
+def delete_member(request, team_id, member_username):
+    # Modifikasi: Jika superuser, bisa delete dari semua team tanpa harus captain
+    if request.user.is_superuser:
+        team = get_object_or_404(Team, id=team_id)
+    else:
+        team = get_object_or_404(Team, id=team_id, captain=request.user)
+    
+    member = get_object_or_404(team.members.all(), username=member_username)
 
     if member == request.user:
         return JsonResponse({'status': 'error', 'message': 'Kapten tidak dapat menghapus diri sendiri.'}, status=400)
@@ -160,24 +169,6 @@ def leave_team(request, team_id):
     team.members.remove(request.user)
     return JsonResponse({'status': 'success'})
 
-@require_POST
-@login_required
-def delete_member(request, team_id, member_username):
-    team = get_object_or_404(Team, id=team_id, captain=request.user)
-    member = get_object_or_404(team.members.all(), username=member_username)
-
-    if member == request.user:
-        return JsonResponse({'status': 'error', 'message': 'Kapten tidak dapat menghapus diri sendiri.'}, status=400)
-
-    team.members.remove(member)
-    updated_members = list(team.members.values('id', 'username'))
-
-    return JsonResponse({
-        'status': 'success',
-        'removed_member': member.username,
-        'members': updated_members
-    })
-
 def show_json(request):
     teams = Team.objects.all()
     data = []
@@ -185,7 +176,7 @@ def show_json(request):
         data.append({
             'id': team.id,
             'name': team.name,
-            'logo': team.logo.url if team.logo else None,
+            'logo': team.logo if team.logo else None,
             'captain': team.captain.username if team.captain else None,
             'members': [member.username for member in team.members.all()],
         })
@@ -198,7 +189,7 @@ def team_detail_json(request, team_id):
     data = {
         'id': team.id,
         'name': team.name,
-        'logo': team.logo.url if team.logo else None,
+        'logo': team.logo if team.logo else None,
         'captain': team.captain.username if team.captain else None,
         'members': [member.username for member in team.members.all()],
         'members_count': team.members.count(),
