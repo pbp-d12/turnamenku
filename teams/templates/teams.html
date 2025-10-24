@@ -47,7 +47,7 @@
 
 {% include 'create_team.html' %}  
 {% include 'meet_teams.html' %}
-{% include 'manage_teams.html' %}
+{% include 'manage_team.html' %}
 {% include 'join_teams.html' %}
 
 <script>
@@ -73,7 +73,6 @@ function openModal(modalId, teamId = null) {
     }
   }
 }
-
 
   function closeModal(modalId) {
     document.getElementById(modalId).style.display = 'none';

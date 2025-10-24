@@ -86,7 +86,7 @@ async function searchManageTeams(page = 1) {
             ${
               team.logo
                 ? `<img src="${team.logo || 'https://img.icons8.com/?size=100&id=uMMzE4KzgxCO&format=png&color=000000'}" class="team-avatar" alt="${team.name}">`
-                : `<div class="team-avatar"></div>`
+                : `<img src="${team.logo || 'https://img.icons8.com/?size=100&id=uMMzE4KzgxCO&format=png&color=000000'}" class="team-avatar" alt="${team.name}">`
             }
             <div class="team-text">
               <h3>${team.name}</h3>
