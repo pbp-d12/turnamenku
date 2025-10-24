@@ -114,7 +114,15 @@ def evaluate_predictions(request, match_id):
 
     predictions = Prediction.objects.filter(match=match)
     for p in predictions:
-        p.points_awarded = 10 if correct_team and p.predicted_winner == correct_team else 0
+        if correct_team is None:
+            # Jika hasilnya draw
+            p.points_awarded = 0
+        elif p.predicted_winner == correct_team:
+            # Prediksi benar
+            p.points_awarded = 10
+        else:
+            # Prediksi salah
+            p.points_awarded = -10
         p.save()
 
     return JsonResponse({'success': True, 'message': 'Prediksi telah dievaluasi!'})
