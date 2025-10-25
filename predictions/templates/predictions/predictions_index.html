@@ -38,7 +38,7 @@
 
     <div class="bg-white p-6 rounded-xl shadow-lg border border-gray-200 text-center flex flex-col">
       <div class="flex justify-center items-center h-24">
-        <img src="https://img.icons8.com/?size=100&id=13735&format=png&color=000000" alt="Ongoing Match"
+        <img src="https://img.icons8.com/?size=100&id=11370&format=png&color=000000" alt="Ongoing Match"
           class="h-20 w-20" />
       </div>
       <h2 class="text-xl font-bold text-gray-800 mt-4 mb-2">Pertandingan Berlangsung</h2>
@@ -53,7 +53,7 @@
 
     <div class="bg-white p-6 rounded-xl shadow-lg border border-gray-200 text-center flex flex-col">
       <div class="flex justify-center items-center h-24">
-        <img src="https://img.icons8.com/?size=100&id=61043&format=png&color=000000" alt="Finished Match"
+        <img src="https://img.icons8.com/?size=100&id=12143&format=png&color=000000" alt="Finished Match"
           class="h-20 w-20" />
       </div>
       <h2 class="text-xl font-bold text-gray-800 mt-4 mb-2">Pertandingan Selesai</h2>
@@ -89,32 +89,32 @@
       {% csrf_token %}
       <div class="mb-3">
         <label class="block text-gray-700 mb-1">Turnamen</label>
-        <select name="tournament" required class="w-full border rounded-lg p-2">
-          {% for t in tournaments %}
+        <select name="tournament" required class="w-full border rounded-lg p-2" id="addMatchTournamentSelect">
+          <option value="" disabled selected>Pilih Turnamen</option> {% for t in tournaments %}
           <option value="{{ t.id }}">{{ t.name }}</option>
           {% endfor %}
         </select>
       </div>
+
       <div class="mb-3">
         <label class="block text-gray-700 mb-1">Tim Home</label>
-        <select name="home_team" required class="w-full border rounded-lg p-2">
-          {% for team in teams %}
-          <option value="{{ team.id }}">{{ team.name }}</option>
-          {% endfor %}
+        <select name="home_team" required class="w-full border rounded-lg p-2" id="addMatchHomeTeamSelect" disabled>
+          <option value="" disabled selected>Pilih turnamen dulu</option>
         </select>
       </div>
+
       <div class="mb-3">
         <label class="block text-gray-700 mb-1">Tim Away</label>
-        <select name="away_team" required class="w-full border rounded-lg p-2">
-          {% for team in teams %}
-          <option value="{{ team.id }}">{{ team.name }}</option>
-          {% endfor %}
+        <select name="away_team" required class="w-full border rounded-lg p-2" id="addMatchAwayTeamSelect" disabled>
+          <option value="" disabled selected>Pilih turnamen dulu</option>
         </select>
       </div>
+
       <div class="mb-3">
         <label class="block text-gray-700 mb-1">Tanggal Pertandingan</label>
         <input type="datetime-local" name="match_date" required class="w-full border rounded-lg p-2">
       </div>
+
       <div class="flex justify-end gap-3 mt-6">
         <button type="button" id="cancelAddMatch"
           class="bg-gray-300 hover:bg-gray-400 text-gray-700 px-4 py-2 rounded-lg">Batal</button>
@@ -177,6 +177,9 @@
 
   const CURRENT_TOURNAMENT_ID = "{{ current_tournament_id|escapejs }}";
   const CSRF_TOKEN = '{{ csrf_token }}';
+  
+  // Ambil peta data tim dari view
+  const TOURNAMENT_TEAMS_MAP = {{ tournaments_with_teams_json }};
 
   // Fungsi untuk menjalankan Fun Messages
   function applyFunMessages(containerSelector = document) {
@@ -200,11 +203,7 @@
     
     modal.classList.remove("hidden");
     modal.classList.add("flex");
-    spinner.classList.remove("hidden"); // Tampilkan spinner (jika sebelumnya disembunyikan)
     
-    // Kosongkan konten *setelah* spinner, jika ada konten sebelumnya
-    // Ini lebih baik: kita sembunyikan spinner-nya *setelah* fetch, bukan hapus.
-    // Tapi untuk fix bug Anda, kita akan pastikan spinner ada.
     contentEl.innerHTML = ''; // Kosongkan dulu
     contentEl.appendChild(spinner); // Tambahkan spinner-nya
     spinner.classList.remove("hidden"); // Pastikan terlihat
@@ -221,26 +220,50 @@
     try {
       const response = await fetch(url);
       const html = await response.text();
-      // spinner.classList.add("hidden"); // Spinner akan terhapus oleh innerHTML
       contentEl.innerHTML = html; // Ganti spinner dengan konten
       applyFunMessages(contentEl); 
     } catch (error) {
-      // spinner.classList.add("hidden"); // Spinner mungkin sudah hilang
       contentEl.innerHTML = `<p class="text-center text-red-500">Gagal memuat data. Coba lagi.</p>`;
       console.error("Fetch error:", error);
     }
   }
 
+  // FUNGSI BARU: Untuk update dropdown tim di modal Add Match
+  function updateAddMatchTeamDropdowns(tournamentId, homeSelect, awaySelect) {
+    const teams = TOURNAMENT_TEAMS_MAP[tournamentId] || [];
+    
+    homeSelect.innerHTML = '';
+    awaySelect.innerHTML = '';
+
+    if (teams.length > 0) {
+      homeSelect.disabled = false;
+      awaySelect.disabled = false;
+      
+      homeSelect.add(new Option('Pilih Tim Home', ''));
+      awaySelect.add(new Option('Pilih Tim Away', ''));
+
+      // `team.name` sekarang akan valid
+      teams.forEach(team => {
+        homeSelect.add(new Option(team.name, team.id));
+        awaySelect.add(new Option(team.name, team.id));
+      });
+    } else {
+      homeSelect.disabled = true;
+      awaySelect.disabled = true;
+      homeSelect.add(new Option('Tidak ada tim di turnamen ini', ''));
+      awaySelect.add(new Option('Tidak ada tim di turnamen ini', ''));
+    }
+  }
+
   // ===================================================================
-  // EVENT LISTENERS (Semua dipindahkan ke dalam DOMContentLoaded)
+  // EVENT LISTENERS (Semua di dalam DOMContentLoaded)
   // ===================================================================
   document.addEventListener('DOMContentLoaded', function () {
 
-    // --- Tombol tutup modal pertandingan (modal BARU) ---
+    // --- Tombol tutup modal pertandingan (PERBAIKAN BUG SPINNER) ---
     const matchesModal = document.getElementById("matchesModal");
     const closeMatchesBtn = document.getElementById("closeMatchesModal");
     
-    // INI ADALAH PERBAIKANNYA
     closeMatchesBtn?.addEventListener("click", () => {
       matchesModal?.classList.add("hidden");
       matchesModal?.classList.remove("flex");
@@ -256,14 +279,36 @@
       }
     });
 
-    // --- Modal tambah match (Logika asli) ---
+    // --- Modal tambah match (LOGIKA BARU) ---
     const addModal = document.getElementById("addMatchModal");
     const openAddBtn = document.getElementById("openAddMatchModal");
     const cancelAddBtn = document.getElementById("cancelAddMatch");
     const addForm = document.getElementById("addMatchForm");
+    
+    // Ini adalah variabel yang menyebabkan error, sekarang seharusnya sudah ditemukan
+    const addMatchTournamentSelect = document.getElementById("addMatchTournamentSelect");
+    const addMatchHomeTeamSelect = document.getElementById("addMatchHomeTeamSelect");
+    const addMatchAwayTeamSelect = document.getElementById("addMatchAwayTeamSelect");
 
-    openAddBtn?.addEventListener("click", () => addModal.classList.remove("hidden"));
+
+    openAddBtn?.addEventListener("click", () => {
+      addModal.classList.remove("hidden");
+      addForm?.reset(); 
+      
+      // Ini adalah kode yang GAGAL sebelumnya. Sekarang akan berhasil.
+      addMatchHomeTeamSelect.innerHTML = '<option value="" disabled selected>Pilih turnamen dulu</option>';
+      addMatchHomeTeamSelect.disabled = true;
+      addMatchAwayTeamSelect.innerHTML = '<option value="" disabled selected>Pilih turnamen dulu</option>';
+      addMatchAwayTeamSelect.disabled = true;
+    });
+    
     cancelAddBtn?.addEventListener("click", () => addModal.classList.add("hidden"));
+
+    // LISTENER BARU: Saat turnamen di modal 'Add Match' diganti
+    addMatchTournamentSelect?.addEventListener('change', function() {
+      const selectedTournamentId = this.value;
+      updateAddMatchTeamDropdowns(selectedTournamentId, addMatchHomeTeamSelect, addMatchAwayTeamSelect);
+    });
 
     addForm?.addEventListener("submit", async e => {
       e.preventDefault();
@@ -283,7 +328,7 @@
       }
     });
 
-    // --- Modal edit skor (Logika asli) ---
+    // --- Modal edit skor ---
     const editModal = document.getElementById("editScoreModal");
     const editForm = document.getElementById("editScoreForm");
     const cancelEditBtn = document.getElementById("cancelEditScore");
@@ -308,11 +353,11 @@
       }
     });
 
-    // --- Modal hapus prediction (Logika asli) ---
+    // --- Modal hapus prediction ---
     const deleteModal = document.getElementById("deletePredictionModal");
     const cancelDeleteBtn = document.getElementById("cancelDeletePrediction");
     const confirmDeleteBtn = document.getElementById("confirmDeletePrediction");
-    let matchIdToDelete = null;
+    let matchIdToDelete = null; 
 
     cancelDeleteBtn?.addEventListener("click", () => {
       deleteModal.classList.add("hidden");
