@@ -8,62 +8,82 @@
 {% timezone "Asia/Jakarta" %} 
 <div class="container mx-auto p-4 md:p-8 max-w-4xl">
 
-    <div class="mb-6">
-        <a href="{% url 'forums:forum_index' %}" class="text-custom-blue-300 hover:underline">
-            &larr; Kembali ke Halaman Forum
+    <div class="mb-8">
+        <a href="{% url 'forums:forum_index' %}" class="text-custom-blue-300 hover:text-custom-blue-400 transition-colors flex items-center mb-4">
+            <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>
+            Kembali ke Daftar Forum
         </a>
-        <h1 class="text-4xl font-bold text-custom-blue-400 mt-2">{{ tournament.name }}</h1>
-        <p class="text-xl text-custom-blue-300 mt-1">Selamat datang di forum diskusi</p>
-         {% if user.is_authenticated and user == tournament.organizer or user.is_superuser %}
-         <div class="mt-4 flex space-x-3"></div>
-         {% endif %}
+        <h1 class="text-4xl md:text-5xl font-extrabold text-custom-blue-400 border-b-2 border-custom-blue-100 pb-2">{{ tournament.name }}</h1>
+        <p class="text-lg text-custom-blue-300 mt-2">Ruang diskusi khusus untuk turnamen ini.</p>
+        
+        {% if user.is_authenticated and user == tournament.organizer or user.is_superuser %}
+            {# You can add organizer/admin action buttons here, e.g., link to edit tournament details #}
+            <div class="mt-4 flex space-x-3"></div>
+        {% endif %}
     </div>
 
-    <div class="mb-6 flex flex-col md:flex-row md:items-end md:justify-between gap-4 p-4 bg-gray-50 rounded-lg border border-custom-blue-100">
-         <div class="flex-grow space-y-3">
+    <div class="mb-6 flex flex-col gap-4 p-4 bg-custom-blue-50 rounded-xl shadow-inner border border-custom-blue-100">
+         <div class="flex flex-col sm:flex-row justify-between items-center gap-4">
+             {# Improvement: Prominent CTA at the top of the filtering section #}
              {% if user.is_authenticated %}
                  <a href="{% url 'forums:create_thread' tournament.id %}"
-                 class="inline-block bg-custom-blue-400 text-white font-bold py-2 px-5 rounded-lg shadow-md hover:bg-custom-blue-300 transition-colors duration-300 whitespace-nowrap">
-                     + Buat Thread Baru
+                 class="w-full sm:w-auto text-center bg-custom-blue-400 text-white font-bold py-3 px-6 rounded-xl shadow-lg hover:bg-custom-blue-300 transition-all duration-300 whitespace-nowrap flex items-center justify-center">
+                     <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v3m0 0v3m0-3h3m-3 0H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                     Mulai Diskusi Baru
                  </a>
              {% else %}
-                 <p class="text-sm text-custom-blue-300">
-                     Silakan <a href="{% url 'main:login' %}" class="underline font-medium">login</a> untuk membuat thread baru.
+                 <p class="text-sm text-custom-blue-300 p-2 border-l-4 border-custom-blue-300 bg-white rounded-lg w-full sm:w-auto">
+                     Silakan <a href="{% url 'main:login' %}" class="underline font-medium text-custom-blue-400">login</a> untuk membuat thread.
                  </p>
              {% endif %}
-             <div>
+
+             {# Improvement: Search input with integrated icon #}
+             <div class="relative w-full sm:max-w-xs">
                   <label for="search-threads" class="sr-only">Cari Thread</label>
+                  <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                     <svg class="h-5 w-5 text-custom-blue-300" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                        <path fill-rule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clip-rule="evenodd" />
+                     </svg>
+                  </div>
                   <input type="text" 
                          id="search-threads" 
                          placeholder="Cari judul thread..." 
-                         class="filter-input w-full md:max-w-xs px-3 py-2 border border-custom-blue-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-custom-blue-300 text-sm">
+                         class="filter-input w-full pl-10 pr-4 py-2 border border-custom-blue-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-custom-blue-300 text-sm">
              </div>
          </div>
          
-         <div class="flex flex-col sm:flex-row gap-4 items-end">
-             <div>
+         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2 border-t border-custom-blue-100 mt-2">
+              {# Improvement: Grouped inputs in a grid for better structure #}
+              <div>
                   <label for="filter-author" class="block text-sm font-medium text-custom-blue-300 mb-1">Filter Penulis</label>
                   <input type="text" id="filter-author" placeholder="Username..." class="filter-input w-full px-3 py-2 border border-custom-blue-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-custom-blue-300 text-sm">
-             </div>
+              </div>
               <div>
-                  <label for="sort-threads-by" class="block text-sm font-medium text-custom-blue-300 mb-1">Urutkan</label>
-                  <select id="sort-threads-by" class="filter-input w-full px-3 py-2 border border-custom-blue-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-custom-blue-300 text-sm bg-white appearance-none pr-8">
-                      <option value="-created_at">Terbaru</option>
-                      <option value="created_at">Terlama</option>
-                      <option value="popularity">Kurang Populer (Replies)</option>
-                      <option value="-popularity">Populer </option>
-                      <option value="title">Judul (A-Z)</option>
-                      <option value="-title">Judul (Z-A)</option>
-                  </select>
+                  <label for="sort-threads-by" class="block text-sm font-medium text-custom-blue-300 mb-1">Urutkan Berdasarkan</label>
+                  <div class="relative">
+                      <select id="sort-threads-by" class="filter-input w-full px-3 py-2 border border-custom-blue-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-custom-blue-300 text-sm bg-white appearance-none pr-8">
+                          <option value="-created_at">Terbaru</option>
+                          <option value="created_at">Terlama</option>
+                          <option value="-popularity">Paling Populer (Balasan)</option>
+                          <option value="popularity">Kurang Populer (Balasan)</option>
+                          <option value="title">Judul (A-Z)</option>
+                          <option value="-title">Judul (Z-A)</option>
+                      </select>
+                       <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-custom-blue-300">
+                           <svg class="h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" /></svg>
+                       </div>
+                  </div>
              </div>
          </div>
     </div>
+    
     <div class="bg-white rounded-lg shadow-xl overflow-hidden">
-        <div class="flex bg-custom-blue-50 text-custom-blue-300 font-bold p-4 text-sm">
-            <div class="w-6/12">Topik</div>
-            <div class="w-2/12 text-left">Penulis</div>
-            <div class="w-2/12 text-left">Dibuat</div>
-            <div class="w-2/12 text-center">Balasan</div>
+        {# Improvement: Enhanced header row with more spacing and clear roles #}
+        <div class="flex bg-custom-blue-100 text-custom-blue-400 font-bold p-4 text-sm uppercase tracking-wider border-b border-custom-blue-200">
+            <div class="w-7/12">Topik Diskusi</div>
+            <div class="w-2/12 text-left hidden sm:block">Penulis</div>
+            <div class="w-2/12 text-left hidden md:block">Dibuat</div>
+            <div class="w-1/12 text-center">Balasan</div>
         </div>
         
         <div class="p-8 text-center text-custom-blue-300" id="loading-state">
@@ -77,44 +97,45 @@
     <nav id="pagination-container" class="mt-6 flex justify-center items-center space-x-1 hidden"></nav>
 
 
-    <div id="edit-thread-modal" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50 hidden">
-        <div class="relative top-20 mx-auto p-5 border w-11/12 md:max-w-xl shadow-lg rounded-md bg-white">
+    {# Modals remain largely the same, focusing on functionality #}
+    <div id="edit-thread-modal" class="fixed inset-0 bg-gray-600 bg-opacity-75 overflow-y-auto h-full w-full z-50 hidden flex items-center justify-center p-4">
+        <div class="relative mx-auto p-6 border w-11/12 md:max-w-xl shadow-2xl rounded-xl bg-white transform transition-all">
             <div class="mt-3">
-                <h3 class="text-lg font-medium text-custom-blue-400 mb-4">Edit Judul Thread</h3>
+                <h3 class="text-2xl font-semibold text-custom-blue-400 mb-6 border-b pb-2">Edit Judul Thread</h3>
                 <form id="edit-thread-form">
                     <div class="mb-4">
-                        <label for="edit-thread-title-input" class="block text-sm font-medium text-custom-blue-300 mb-1">Judul Thread</F>label>
-                        <input type="text" id="edit-thread-title-input" name="title" class="w-full p-3 border border-custom-blue-100 rounded-lg text-custom-blue-400 focus:outline-none focus:ring-2 focus:ring-custom-blue-300" required>
-                        <div id="edit-thread-form-errors" class="text-red-500 text-sm mt-2"></div>
+                        <label for="edit-thread-title-input" class="block text-sm font-medium text-custom-blue-400 mb-2">Judul Thread</label>
+                        <input type="text" id="edit-thread-title-input" name="title" class="w-full p-3 border border-custom-blue-200 rounded-lg text-custom-blue-400 focus:outline-none focus:ring-2 focus:ring-custom-blue-300" required>
+                        <div id="edit-thread-form-errors" class="text-red-500 text-sm mt-2 font-medium"></div>
                     </div>
                     <div class="flex justify-end space-x-3 mt-6">
-                        <button type="button" id="cancel-edit-thread" class="px-4 py-2 border border-custom-blue-300 text-custom-blue-400 rounded-lg hover:bg-custom-blue-50">Batal</button>
-                        <button type="submit" id="submit-edit-thread" class="px-4 py-2 bg-custom-blue-400 text-white rounded-lg hover:bg-custom-blue-300">Simpan Perubahan</button>
+                        <button type="button" id="cancel-edit-thread" class="px-5 py-2 border border-custom-blue-300 text-custom-blue-400 font-medium rounded-lg hover:bg-custom-blue-50">Batal</button>
+                        <button type="submit" id="submit-edit-thread" class="px-5 py-2 bg-custom-blue-400 text-white font-medium rounded-lg hover:bg-custom-blue-300 transition-colors">Simpan Perubahan</button>
                     </div>
                 </form>
             </div>
         </div>
     </div>
 
-    <div id="delete-thread-modal" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50 hidden">
-        <div class="relative top-20 mx-auto p-5 border w-11/12 md:max-w-md shadow-lg rounded-md bg-white">
+    <div id="delete-thread-modal" class="fixed inset-0 bg-gray-600 bg-opacity-75 overflow-y-auto h-full w-full z-50 hidden flex items-center justify-center p-4">
+        <div class="relative mx-auto p-6 border w-11/12 md:max-w-md shadow-2xl rounded-xl bg-white transform transition-all">
             <div class="mt-3 text-center">
-                <div class="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-red-100">
-                    <svg class="h-6 w-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <div class="mx-auto flex items-center justify-center h-14 w-14 rounded-full bg-red-100">
+                    <svg class="h-8 w-8 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
                     </svg>
                 </div>
-                <h3 class="text-lg font-medium text-custom-blue-400 mt-4">Hapus Thread</h3>
-                <div class="mt-2 px-7 py-3">
-                    <p class="text-sm text-custom-blue-300">
-                        Apakah Anda yakin ingin menghapus thread ini? <br>
+                <h3 class="text-xl font-medium text-custom-blue-400 mt-4">Hapus Thread</h3>
+                <div class="mt-2 px-3 py-3">
+                    <p class="text-sm text-custom-blue-300 leading-relaxed">
+                        Anda akan menghapus thread ini secara permanen. <br>
                         Semua postingan di dalamnya akan ikut terhapus. <br>
-                        <strong class="text-red-500">Tindakan ini tidak dapat dibatalkan.</strong>
+                        <strong class="text-red-600">Tindakan ini tidak dapat dibatalkan.</strong>
                     </p>
                 </div>
-                <div class="flex justify-center space-x-3 mt-4">
-                    <button type="button" id="cancel-delete-thread" class="px-4 py-2 border border-custom-blue-300 text-custom-blue-400 rounded-lg hover:bg-custom-blue-50">Batal</button>
-                    <button type="button" id="confirm-delete-thread" class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700">Ya, Hapus Thread</button>
+                <div class="flex justify-center space-x-4 mt-6">
+                    <button type="button" id="cancel-delete-thread" class="px-5 py-2 border border-custom-blue-300 text-custom-blue-400 font-medium rounded-lg hover:bg-custom-blue-50">Batal</button>
+                    <button type="button" id="confirm-delete-thread" class="px-5 py-2 bg-red-600 text-white font-medium rounded-lg hover:bg-red-700 transition-colors">Ya, Hapus Thread</button>
                 </div>
             </div>
         </div>
@@ -138,6 +159,7 @@
     let isLoading = false;
     let totalPages = 1;
     let fetchTimeout;
+    const currentUserId = '{{ user.id }}' || null; // Capture current user ID if logged in
 
     // --- THREAD LIST ELEMENTS ---
     const container = document.getElementById('threads-container');
@@ -147,7 +169,7 @@
     const authorInput = document.getElementById('filter-author');
     const sortBySelect = document.getElementById('sort-threads-by');
 
-    // --- EDIT THREAD MODAL ELEMENTS ---
+    // --- MODAL ELEMENTS ---
     const editThreadModal = document.getElementById('edit-thread-modal');
     const editThreadForm = document.getElementById('edit-thread-form');
     const editThreadTitleInput = document.getElementById('edit-thread-title-input');
@@ -155,7 +177,6 @@
     const submitEditThread = document.getElementById('submit-edit-thread');
     const editThreadFormErrors = document.getElementById('edit-thread-form-errors');
 
-    // --- DELETE THREAD MODAL ELEMENTS ---
     const deleteThreadModal = document.getElementById('delete-thread-modal');
     const cancelDeleteThread = document.getElementById('cancel-delete-thread');
     const confirmDeleteThread = document.getElementById('confirm-delete-thread');
@@ -190,8 +211,10 @@
         if (isLoading) return;
         isLoading = true;
         showLoading();
-        if (isNewFilterOrSort || page === 1) { container.innerHTML = ''; }
-        paginationContainer.classList.add('hidden'); 
+        // Always clear container on new fetch
+        container.innerHTML = ''; 
+        paginationContainer.classList.add('hidden');
+        
         currentQuery = searchInput.value.trim();
         currentAuthor = authorInput.value.trim();
         currentSort = sortBySelect.value;
@@ -220,7 +243,32 @@
                 renderPagination(pagination.current_page, totalPages);
                 paginationContainer.classList.remove('hidden');
             } else if (page === 1) {
-                container.innerHTML = `<div class="p-6 text-center text-custom-blue-300"><p class="text-lg">${currentQuery || currentAuthor ? 'Tidak ada thread yang sesuai dengan filter.' : 'Belum ada thread di forum ini.'}</p>${currentQuery || currentAuthor ? '' : '<p>Jadilah yang pertama untuk memulai diskusi!</p>'}</div>`;
+                // Enhanced Empty State
+                const emptyMessage = currentQuery || currentAuthor 
+                    ? `Tidak ada thread yang sesuai dengan kriteria filter/pencarian.` 
+                    : `Jadilah yang pertama untuk memulai diskusi!`;
+
+                container.innerHTML = `
+                <div class="p-12 text-center text-custom-blue-300">
+                    
+                    <svg class="w-16 h-16 mx-auto mb-4 text-custom-blue-200" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        
+                        <path d="M12 21C16.9706 21 21 16.9706 21 12C21 7.02944 16.9706 3 12 3C7.02944 3 3 7.02944 3 12C3 16.9706 7.02944 21 12 21Z" 
+                            stroke="currentColor" 
+                            stroke-width="1.5" 
+                            stroke-linecap="round" 
+                            stroke-linejoin="round"/>
+                        
+                        <path d="M7 9L9 11M9 9L7 11" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        <path d="M15 9L17 11M17 9L15 11" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+
+                        <path d="M8 16H16" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                    
+                    <p class="text-xl font-semibold text-custom-blue-400 mb-2">Belum Ada Thread</p>
+                    <p class="text-custom-blue-300">${emptyMessage}</p>
+                </div>
+                `;
                 paginationContainer.classList.add('hidden');
             } else {
                  paginationContainer.classList.add('hidden');
@@ -243,29 +291,36 @@
     
     function createThreadRow(thread) {
 
-        const actionButtons = thread.can_edit || thread.can_delete ? `
-            <div class="thread-actions mt-2 flex space-x-2">
-                ${thread.can_edit ? `<button class="edit-thread-btn text-xs text-custom-blue-400 hover:text-custom-blue-300" data-thread-id="${thread.id}">Edit</button>` : ''}
-                ${thread.can_delete ? `<button class="delete-thread-btn text-xs text-red-500 hover:text-red-400" data-thread-id="${thread.id}">Hapus</button>` : ''}
+        // Determine if the current user can see/use the action buttons
+        const canViewActions = thread.can_edit || thread.can_delete;
+
+        const actionButtons = canViewActions ? `
+            <div class="thread-actions flex space-x-3 mt-1 opacity-75 group-hover:opacity-100 transition-opacity">
+                ${thread.can_edit ? `<button class="edit-thread-btn text-xs text-custom-blue-400 hover:text-custom-blue-300 font-medium" data-thread-id="${thread.id}">Edit</button>` : ''}
+                ${thread.can_delete ? `<button class="delete-thread-btn text-xs text-red-500 hover:text-red-400 font-medium" data-thread-id="${thread.id}">Hapus</button>` : ''}
             </div>
         ` : '';
 
         return `
-        <div class="thread-item">
+        <div class="thread-item group">
             <a href="${thread.url}" class="flex p-4 items-center hover:bg-custom-blue-50 transition-colors duration-150 text-sm">
-                <div class="w-6/12 pr-4">
-                    <span class="font-semibold text-base text-custom-blue-400 hover:underline line-clamp-2">${thread.title}</span>
+                
+                <div class="w-7/12 pr-4">
+                    <span class="font-semibold text-base text-custom-blue-400 hover:text-custom-blue-300 line-clamp-2 transition-colors">${thread.title}</span>
                     ${actionButtons}
                 </div>
-                <div class="w-2/12 text-left text-custom-blue-300 truncate pr-2">
+
+                <div class="w-2/12 text-left text-custom-blue-300 truncate pr-2 hidden sm:block">
                     ${thread.author_username}
                 </div>
-                <div class="w-2/12 text-left text-custom-blue-200 pr-2">
-                    <div>${thread.created_date}</div>
-                    <div class="text-xs">${thread.created_time}</div>
+
+                <div class="w-2/12 text-left text-custom-blue-200 pr-2 hidden md:block">
+                    {# Displaying only date for cleaner look, time is available but less critical here #}
+                    <div class="text-sm font-medium">${thread.created_date}</div>
                 </div>
-                <div class="w-2/12 text-center">
-                    <span class="bg-custom-blue-400 text-white text-xs font-bold rounded-full px-3 py-1 tabular-nums">
+
+                <div class="w-1/12 text-center">
+                    <span class="bg-custom-blue-100 text-custom-blue-400 text-sm font-bold rounded-lg px-3 py-1 tabular-nums min-w-[30px] inline-block">
                         ${thread.reply_count}
                     </span>
                 </div>
@@ -329,7 +384,8 @@
     // --- THREAD ACTIONS ---
     async function handleEditThread(threadId) {
         try {
-            const response = await fetch(`/forums/thread/${threadId}/edit/`, {
+            // FIX: Using the correct URL name 'forums:edit_thread'
+            const response = await fetch(`{% url 'forums:edit_thread' 0 %}`.replace('0', threadId), {
                 method: 'GET',
                 headers: { 'X-Requested-With': 'XMLHttpRequest' }
             });
@@ -392,7 +448,8 @@
             clearFormErrors(editThreadForm);
 
             try {
-                const response = await fetch(`/forums/thread/${threadId}/edit/`, {
+                // FIX: Using the correct URL name 'forums:edit_thread'
+                const response = await fetch(`{% url 'forums:edit_thread' 0 %}`.replace('0', threadId), {
                     method: 'POST',
                     headers: { 'X-Requested-With': 'XMLHttpRequest' },
                     body: formData
@@ -433,7 +490,8 @@
             confirmDeleteThread.textContent = 'Menghapus...';
 
             try {
-                const response = await fetch(`/forums/thread/${threadId}/delete/`, {
+                // FIX: Using the correct URL name 'forums:delete_thread'
+                const response = await fetch(`{% url 'forums:delete_thread' 0 %}`.replace('0', threadId), {
                     method: 'POST',
                     headers: { 'X-Requested-With': 'XMLHttpRequest' },
                     body: formData
