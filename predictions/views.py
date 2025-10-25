@@ -16,20 +16,45 @@ def predictions_index(request):
     tournaments = Tournament.objects.all().order_by('name')
     teams = Team.objects.all().order_by('name')
 
-    matches = Match.objects.all()
-    if tournament_id:
-        matches = matches.filter(tournament_id=tournament_id)
-
-    ongoing_matches = matches.filter(Q(home_score__isnull=True) | Q(away_score__isnull=True)).order_by('match_date')
-    finished_matches = matches.filter(home_score__isnull=False, away_score__isnull=False).order_by('-match_date')
+    # HAPUS query Match dari sini agar halaman utama ringan
+    # matches = Match.objects.all()
+    # ... (query ongoing_matches dan finished_matches dihapus)
 
     context = {
         'tournaments': tournaments,
         'teams': teams,
-        'ongoing_matches': ongoing_matches,
-        'finished_matches': finished_matches,
+        # Kirim tournament_id yang sedang aktif ke template
+        'current_tournament_id': tournament_id if tournament_id else "", 
     }
     return render(request, 'predictions/predictions_index.html', context)
+
+# VIEW BARU: Untuk mengambil partial HTML ongoing matches
+def get_ongoing_matches(request):
+    tournament_id = request.GET.get('tournament')
+    matches = Match.objects.all()
+    if tournament_id:
+        matches = matches.filter(tournament_id=tournament_id)
+    
+    ongoing_matches = matches.filter(
+        Q(home_score__isnull=True) | Q(away_score__isnull=True)
+    ).order_by('match_date')
+    
+    context = {'ongoing_matches': ongoing_matches}
+    return render(request, 'predictions/_ongoing_matches_partial.html', context)
+
+# VIEW BARU: Untuk mengambil partial HTML finished matches
+def get_finished_matches(request):
+    tournament_id = request.GET.get('tournament')
+    matches = Match.objects.all()
+    if tournament_id:
+        matches = matches.filter(tournament_id=tournament_id)
+
+    finished_matches = matches.filter(
+        home_score__isnull=False, away_score__isnull=False
+    ).order_by('-match_date')
+    
+    context = {'finished_matches': finished_matches}
+    return render(request, 'predictions/_finished_matches_partial.html', context)
 
 @login_required
 def add_match(request):

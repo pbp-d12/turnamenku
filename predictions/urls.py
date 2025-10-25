@@ -12,4 +12,6 @@ urlpatterns = [
     path('get_match_scores/<int:match_id>/', views.get_match_scores, name='get_match_scores'),
     path('edit_match_score/', views.edit_match_score, name='edit_match_score'),
     path('delete_prediction/', views.delete_prediction, name='delete_prediction'),
+    path('get-ongoing-matches/', views.get_ongoing_matches, name='get_ongoing_matches'),
+    path('get-finished-matches/', views.get_finished_matches, name='get_finished_matches'),
 ]

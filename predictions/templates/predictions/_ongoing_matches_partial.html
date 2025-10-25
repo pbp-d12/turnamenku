@@ -1,0 +1,46 @@
+{# pbp-d12/turnamenku/turnamenku-ff654ab42419b2e2b4f8baadb7e703f3408590cc/predictions/templates/predictions/_ongoing_matches_partial.html #}
+
+{% if ongoing_matches %}
+<h2 class="text-2xl font-bold mb-4 text-gray-800">Pertandingan Berlangsung</h2>
+<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+  {% for match in ongoing_matches %}
+  <div class="bg-white shadow-md hover:shadow-xl rounded-2xl p-6 transition duration-300 flex flex-col justify-between">
+    <div>
+      <h2 class="text-2xl font-semibold text-center text-gray-800 mb-3 break-words">
+        {{ match.home_team.name }} vs {{ match.away_team.name }}
+      </h2>
+      <p class="text-sm text-center text-gray-500 mb-2">{{ match.match_date }}</p>
+      <p class="text-sm text-center text-custom-blue-400 font-medium mb-5">{{ match.tournament.name }}</p>
+      <p class="funText text-center text-lg font-semibold animate-wiggle text-gray-700 mb-8"></p>
+    </div>
+
+    <div class="flex flex-col sm:flex-row justify-center items-center gap-3">
+      <button
+        class="team-btn bg-custom-blue-100 hover:bg-custom-blue-300 text-white px-4 py-2 rounded-xl font-medium shadow-sm transition duration-200 w-full sm:w-[45%] truncate"
+        data-match-id="{{ match.id }}" data-team-id="{{ match.home_team.id }}">
+        {{ match.home_team.name }}
+      </button>
+      <button
+        class="team-btn bg-custom-blue-100 hover:bg-custom-blue-300 text-white px-4 py-2 rounded-xl font-medium shadow-sm transition duration-200 w-full sm:w-[45%] truncate"
+        data-match-id="{{ match.id }}" data-team-id="{{ match.away_team.id }}">
+        {{ match.away_team.name }}
+      </button>
+      {% if user.is_authenticated and user.profile.role in "PENYELENGGARA,ADMIN" %}
+      <div class="flex flex-col sm:flex-row justify-center gap-3 mt-3">
+        <button class="edit-score-btn bg-custom-blue-400 hover:bg-custom-blue-700 text-white px-4 py-2 rounded-lg font-medium shadow-sm transition duration-200"
+          data-match-id="{{ match.id }}">
+          Edit Skor
+        </button>
+        <button class="delete-prediction-btn bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg font-medium shadow-sm transition duration-200"
+          data-match-id="{{ match.id }}">
+          Delete Prediction
+        </button>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% else %}
+<p class="text-center text-gray-600 py-10">Tidak ada pertandingan yang sedang berlangsung.</p>
+{% endif %}
