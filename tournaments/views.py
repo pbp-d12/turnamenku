@@ -6,6 +6,7 @@ from django.utils import timezone
 from django.contrib.auth.decorators import login_required
 from django.views.decorators.http import require_POST, require_http_methods
 from django.http import HttpResponseRedirect
+from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
 import traceback 
 
 from .models import Tournament, Match
@@ -22,7 +23,8 @@ def tournament_home(request):
 def get_tournaments_json(request):
     queryset = Tournament.objects.select_related('organizer').all()
     today = timezone.now().date()
-
+    
+    # --- Filtering (same as before) ---
     status_filter = request.GET.get('status', None)
     search_query = request.GET.get('search', None)
 
@@ -37,10 +39,25 @@ def get_tournaments_json(request):
     if search_query:
         queryset = queryset.filter(Q(name__icontains=search_query))
 
-    tournaments = queryset.order_by('-start_date', 'name')
+    # --- Ordering (same as before) ---
+    tournaments_list = queryset.order_by('-start_date', 'name')
+    
+    # --- Pagination Logic ---
+    PER_PAGE = 9 # Set a page size (e.g., 9 for a 3-col grid)
+    page_number = request.GET.get('page', 1)
+    paginator = Paginator(tournaments_list, PER_PAGE)
+    
+    try:
+        page_obj = paginator.get_page(page_number)
+    except PageNotAnInteger:
+        page_obj = paginator.page(1)
+    except EmptyPage:
+        # If page is out of range, return an empty list for that page
+        page_obj = paginator.page(paginator.num_pages)
 
+    # --- Serialization (now on page_obj) ---
     data = []
-    for t in tournaments:
+    for t in page_obj: # Iterate over the paginated results
         data.append({
             'id': t.pk,
             'name': t.name,
@@ -51,7 +68,15 @@ def get_tournaments_json(request):
             'banner_url': t.banner,
             'detail_page_url': reverse('tournaments:tournament_detail_page', args=[t.pk])
         })
-    return JsonResponse(data, safe=False)
+    
+    # --- Return new JSON object structure ---
+    return JsonResponse({
+        'tournaments': data,
+        'has_next_page': page_obj.has_next(),
+        'next_page_number': page_obj.next_page_number() if page_obj.has_next() else None,
+        'current_page': page_obj.number,
+        'total_pages': paginator.num_pages,
+    })
 
 @login_required
 @require_POST
