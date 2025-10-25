@@ -106,6 +106,7 @@ def get_tournament_detail_json(request, tournament_id):
     try:
         tournament = get_object_or_404(
             Tournament.objects.select_related('organizer').prefetch_related(
+                # This prefetch is key: it gets all matches and their related teams
                 Prefetch('matches', queryset=Match.objects.select_related('home_team', 'away_team').order_by('match_date')),
                 Prefetch('participants', queryset=Team.objects.all().order_by('name'))
             ),
@@ -113,8 +114,32 @@ def get_tournament_detail_json(request, tournament_id):
         )
 
         match_data = []
+        
+        # --- NEW LEADERBOARD LOGIC START ---
+
+        # 1. Initialize stats for all participants using the prefetched data
+        team_stats = {}
+        for team in tournament.participants.all(): # .all() re-uses the prefetched cache
+            team_stats[team.pk] = {
+                'team_id': team.pk,
+                'team_name': team.name,
+                'team_logo': team.logo if team.logo else None,
+                'played': 0,
+                'wins': 0,
+                'draws': 0,
+                'losses': 0,
+                'goals_for': 0,      # Goals Scored
+                'goals_against': 0,  # Goals Conceded
+                'goal_difference': 0,
+                'points': 0,
+            }
+        
+        # 2. Process all matches (again, using the prefetched cache)
         for match in tournament.matches.all():
             local_match_time = timezone.localtime(match.match_date)
+            is_finished = match.home_score is not None and match.away_score is not None
+            
+            # Append to match_data as before
             match_data.append({
                 'id': match.pk,
                 'home_team_name': match.home_team.name,
@@ -122,8 +147,61 @@ def get_tournament_detail_json(request, tournament_id):
                 'match_date_formatted': local_match_time.strftime('%d %b %Y, %H:%M %Z'),
                 'home_score': match.home_score,
                 'away_score': match.away_score,
-                'is_finished': match.home_score is not None and match.away_score is not None
+                'is_finished': is_finished
             })
+            
+            # 3. If match is finished, update leaderboard stats for BOTH teams
+            if is_finished:
+                home_id = match.home_team_id
+                away_id = match.away_team_id
+                home_score = match.home_score
+                away_score = match.away_score
+
+                # Update stats for Home Team (if they are a participant)
+                if home_id in team_stats:
+                    stats = team_stats[home_id]
+                    stats['played'] += 1
+                    stats['goals_for'] += home_score
+                    stats['goals_against'] += away_score
+                    if home_score > away_score:
+                        stats['wins'] += 1
+                        stats['points'] += 3
+                    elif home_score == away_score:
+                        stats['draws'] += 1
+                        stats['points'] += 1
+                    else:
+                        stats['losses'] += 1
+
+                # Update stats for Away Team (if they are a participant)
+                if away_id in team_stats:
+                    stats = team_stats[away_id]
+                    stats['played'] += 1
+                    stats['goals_for'] += away_score
+                    stats['goals_against'] += home_score
+                    if away_score > home_score:
+                        stats['wins'] += 1
+                        stats['points'] += 3
+                    elif home_score == away_score:
+                        stats['draws'] += 1
+                        stats['points'] += 1
+                    else:
+                        stats['losses'] += 1
+        
+        # 4. Calculate Goal Difference and convert dictionary to a list
+        leaderboard_data = []
+        for stats in team_stats.values():
+            stats['goal_difference'] = stats['goals_for'] - stats['goals_against']
+            leaderboard_data.append(stats)
+
+        # 5. Sort the leaderboard by standard rules:
+        #    - Primary: Points (descending)
+        #    - Secondary: Goal Difference (descending)
+        #    - Tertiary: Goals For (descending)
+        #    - Quaternary: Team Name (ascending)
+        leaderboard_data.sort(key=lambda x: x['team_name']) # 4. Name (asc)
+        leaderboard_data.sort(key=lambda x: (x['points'], x['goal_difference'], x['goals_for']), reverse=True) # 1, 2, 3 (desc)
+
+        # --- NEW LEADERBOARD LOGIC END ---
 
         participant_data = [
             {'id': team.pk, 'name': team.name, 'logo_url': team.logo if team.logo else None}
@@ -131,6 +209,9 @@ def get_tournament_detail_json(request, tournament_id):
         ]
 
         print(f"DEBUG: Participant data for tournament {tournament_id}: {participant_data}")
+        # Add this print statement to check your work in the console:
+        print(f"DEBUG: Leaderboard data for tournament {tournament_id}: {leaderboard_data}")
+
 
         is_organizer_or_admin = False
         if request.user.is_authenticated:
@@ -152,6 +233,7 @@ def get_tournament_detail_json(request, tournament_id):
             'banner_url': tournament.banner,
             'matches': match_data,
             'participants': participant_data,
+            'leaderboard': leaderboard_data,  # <-- ADD THE LEADERBOARD TO THE JSON
             'registration_open': tournament.registration_open, 
             'winner_name': tournament.winner.name if tournament.winner else None, 
             'forum_url': reverse('forums:forum_threads', args=[tournament.pk]),
