@@ -1,7 +1,9 @@
 from django.shortcuts import render, get_object_or_404
 from django.http import JsonResponse, HttpResponseForbidden, Http404
 from django.urls import reverse
-from django.db.models import Prefetch, Q
+from django.db import models
+from django.db.models import Prefetch, Q, Count, Sum, F, Case, When
+from django.db.models.functions import Coalesce
 from django.utils import timezone
 from django.contrib.auth.decorators import login_required
 from django.views.decorators.http import require_POST, require_http_methods
@@ -137,26 +139,7 @@ def get_tournament_detail_json(request, tournament_id):
         )
 
         match_data = []
-        
-        # 1. Initialize stats for all participants using the prefetched data
-        team_stats = {}
-        for team in tournament.participants.all(): 
-            team_stats[team.pk] = {
-                'team_id': team.pk,
-                'team_name': team.name,
-                'team_logo': team.logo if team.logo else None,
-                'played': 0,
-                'wins': 0,
-                'draws': 0,
-                'losses': 0,
-                'goals_for': 0,      
-                'goals_against': 0,  
-                'goal_difference': 0,
-                'points': 0,
-            }
-        
-        # 2. Process all matches (again, using the prefetched cache)
-        for match in tournament.matches.all():
+        for match in tournament.matches.all(): 
             local_match_time = timezone.localtime(match.match_date)
             is_finished = match.home_score is not None and match.away_score is not None
             
@@ -169,50 +152,81 @@ def get_tournament_detail_json(request, tournament_id):
                 'away_score': match.away_score,
                 'is_finished': is_finished
             })
-            
-            # 3. If match is finished, update leaderboard stats for BOTH teams
-            if is_finished:
-                home_id = match.home_team_id
-                away_id = match.away_team_id
-                home_score = match.home_score
-                away_score = match.away_score
-
-                if home_id in team_stats:
-                    stats = team_stats[home_id]
-                    stats['played'] += 1
-                    stats['goals_for'] += home_score
-                    stats['goals_against'] += away_score
-                    if home_score > away_score:
-                        stats['wins'] += 1
-                        stats['points'] += 3
-                    elif home_score == away_score:
-                        stats['draws'] += 1
-                        stats['points'] += 1
-                    else:
-                        stats['losses'] += 1
-
-                if away_id in team_stats:
-                    stats = team_stats[away_id]
-                    stats['played'] += 1
-                    stats['goals_for'] += away_score
-                    stats['goals_against'] += home_score
-                    if away_score > home_score:
-                        stats['wins'] += 1
-                        stats['points'] += 3
-                    elif home_score == away_score:
-                        stats['draws'] += 1
-                        stats['points'] += 1
-                    else:
-                        stats['losses'] += 1
+        home_win = Q(home_score__gt=F('away_score'))
+        home_draw = Q(home_score=F('away_score'))
+        home_loss = Q(home_score__lt=F('away_score'))
         
-        # 4. Calculate Goal Difference and convert dictionary to a list
-        leaderboard_data = []
-        for stats in team_stats.values():
-            stats['goal_difference'] = stats['goals_for'] - stats['goals_against']
-            leaderboard_data.append(stats)
+        away_win = Q(away_score__gt=F('home_score'))
+        away_draw = Q(away_score=F('home_score'))
+        away_loss = Q(away_score__lt=F('home_score'))
 
-        leaderboard_data.sort(key=lambda x: x['team_name']) # 4. Name (asc)
-        leaderboard_data.sort(key=lambda x: (x['points'], x['goal_difference'], x['goals_for']), reverse=True) # 1, 2, 3 (desc)
+        home_matches = Match.objects.filter(
+            home_team=models.OuterRef('pk'),
+            tournament=tournament,
+            home_score__isnull=False
+        ).values('home_team') 
+
+        home_wins_sub = home_matches.annotate(c=Count('pk', filter=home_win)).values('c')
+        home_draws_sub = home_matches.annotate(c=Count('pk', filter=home_draw)).values('c')
+        home_losses_sub = home_matches.annotate(c=Count('pk', filter=home_loss)).values('c')
+        home_gf_sub = home_matches.annotate(s=Sum('home_score')).values('s')
+        home_ga_sub = home_matches.annotate(s=Sum('away_score')).values('s')
+
+        away_matches = Match.objects.filter(
+            away_team=models.OuterRef('pk'),
+            tournament=tournament,
+            home_score__isnull=False
+        ).values('away_team') 
+
+        away_wins_sub = away_matches.annotate(c=Count('pk', filter=away_win)).values('c')
+        away_draws_sub = away_matches.annotate(c=Count('pk', filter=away_draw)).values('c')
+        away_losses_sub = away_matches.annotate(c=Count('pk', filter=away_loss)).values('c')
+        away_gf_sub = away_matches.annotate(s=Sum('away_score')).values('s')
+        away_ga_sub = away_matches.annotate(s=Sum('home_score')).values('s')
+
+        leaderboard_queryset = tournament.participants.all().annotate(
+            h_wins=Coalesce(models.Subquery(home_wins_sub, output_field=models.IntegerField()), 0),
+            h_draws=Coalesce(models.Subquery(home_draws_sub, output_field=models.IntegerField()), 0),
+            h_losses=Coalesce(models.Subquery(home_losses_sub, output_field=models.IntegerField()), 0),
+            h_gf=Coalesce(models.Subquery(home_gf_sub, output_field=models.IntegerField()), 0),
+            h_ga=Coalesce(models.Subquery(home_ga_sub, output_field=models.IntegerField()), 0),
+            
+            a_wins=Coalesce(models.Subquery(away_wins_sub, output_field=models.IntegerField()), 0),
+            a_draws=Coalesce(models.Subquery(away_draws_sub, output_field=models.IntegerField()), 0),
+            a_losses=Coalesce(models.Subquery(away_losses_sub, output_field=models.IntegerField()), 0),
+            a_gf=Coalesce(models.Subquery(away_gf_sub, output_field=models.IntegerField()), 0),
+            a_ga=Coalesce(models.Subquery(away_ga_sub, output_field=models.IntegerField()), 0),
+        
+        ).annotate(
+            wins=F('h_wins') + F('a_wins'),
+            draws=F('h_draws') + F('a_draws'),
+            losses=F('h_losses') + F('a_losses'),
+            goals_for=F('h_gf') + F('a_gf'),
+            goals_against=F('h_ga') + F('a_ga')
+        ).annotate(
+            played=F('wins') + F('draws') + F('losses'),
+            goal_difference=F('goals_for') - F('goals_against'),
+            points=(F('wins') * 3) + F('draws')
+        ).order_by(
+            '-points', 
+            '-goal_difference', 
+            '-goals_for', 
+            'name'
+        ).values(
+            team_id=F('id'), 
+            team_name=F('name'), 
+            team_logo=F('logo'),
+            played=F('played'), 
+            wins=F('wins'), 
+            draws=F('draws'), 
+            losses=F('losses'), 
+            goals_for=F('goals_for'), 
+            goals_against=F('goals_against'), 
+            goal_difference=F('goal_difference'), 
+            points=F('points')
+        )
+        
+        leaderboard_data = list(leaderboard_queryset)
 
         participant_data = [
             {'id': team.pk, 'name': team.name, 'logo_url': team.logo if team.logo else None}
