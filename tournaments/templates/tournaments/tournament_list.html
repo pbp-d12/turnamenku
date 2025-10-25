@@ -63,6 +63,13 @@
         <p id="no-tournaments-subtext" class="mt-2"></p> {# Subteks akan diatur oleh JavaScript #}
     </div>
 
+    <div id="pagination-controls" class="text-center mt-8 mb-4">
+        <button id="load-more-btn"
+                class="bg-custom-blue-400 text-white font-bold py-2 px-6 rounded-lg shadow-md hover:bg-custom-blue-300 transition-colors duration-300 disabled:opacity-50 disabled:cursor-wait hidden">
+            Muat Lebih Banyak
+        </button>
+    </div>
+
 </div>
 
 {# --- Modal Buat Turnamen --- #}
@@ -150,6 +157,10 @@
         const loadingIndicator = document.getElementById('loading-indicator');
         const noTournamentsMessage = document.getElementById('no-tournaments-message');
         const noTournamentsSubtext = document.getElementById('no-tournaments-subtext');
+        const loadMoreBtn = document.getElementById('load-more-btn');
+
+        let next_page_to_load = 1; 
+        let is_loading = false;
         
         const defaultBannerSvg = `
             <div class="h-40 bg-custom-blue-100 flex items-center justify-center text-custom-blue-300">
@@ -178,52 +189,92 @@
             `;
         }
 
-        async function fetchTournaments() {
-            loadingIndicator.classList.remove('hidden');
-            tournamentContainer.classList.add('hidden');
-            tournamentContainer.innerHTML = '';
+        // Main Data Fetching Function 
+        async function fetchTournaments(page = 1, isLoadMore = false) {
+            if (is_loading) return;
+            is_loading = true;
+
             noTournamentsMessage.classList.add('hidden');
             noTournamentsMessage.classList.remove('text-red-600');
 
+            if (isLoadMore) {
+                loadMoreBtn.textContent = 'Memuat...';
+                loadMoreBtn.disabled = true;
+            } else {
+                tournamentContainer.innerHTML = '';
+                tournamentContainer.classList.add('hidden');
+                loadMoreBtn.classList.add('hidden'); 
+                loadingIndicator.classList.remove('hidden');
+            }
+            
             const searchValue = searchInput.value.trim();
             const statusValue = statusFilter.value;
             const url = new URL("{% url 'tournaments:get_tournaments_json' %}", window.location.origin);
             if (searchValue) url.searchParams.append('search', searchValue);
             if (statusValue) url.searchParams.append('status', statusValue);
+            url.searchParams.append('page', page); 
 
             try {
                 const response = await fetch(url);
                 if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-                const tournaments = await response.json();
+                
+                const responseData = await response.json();
+                const tournaments = responseData.tournaments;
 
-                if (tournaments.length === 0) {
-                    noTournamentsMessage.querySelector('p:first-child').textContent = 'Tidak ada turnamen yang cocok dengan filter Anda.';
-                    noTournamentsSubtext.textContent = 'Coba ubah kriteria pencarian atau filter status.';
-                    noTournamentsMessage.classList.remove('hidden');
-                } else {
+                if (tournaments.length > 0) {
                     tournaments.forEach(tournament => {
                         const cardHtml = createTournamentCardHtml(tournament);
                         tournamentContainer.insertAdjacentHTML('beforeend', cardHtml);
                     });
                     tournamentContainer.classList.remove('hidden');
                 }
+                
+                if (page === 1 && tournaments.length === 0) {
+                    noTournamentsMessage.querySelector('p:first-child').textContent = 'Tidak ada turnamen yang cocok dengan filter Anda.';
+                    noTournamentsSubtext.textContent = 'Coba ubah kriteria pencarian atau filter status.';
+                    noTournamentsMessage.classList.remove('hidden');
+                }
+                
+                if (responseData.has_next_page) {
+                    next_page_to_load = responseData.next_page_number;
+                    loadMoreBtn.classList.remove('hidden');
+                } else {
+                    next_page_to_load = null;
+                    loadMoreBtn.classList.add('hidden');
+                }
+
             } catch (error) {
                 console.error("Error fetching tournaments:", error);
-                 noTournamentsMessage.querySelector('p:first-child').textContent = 'Gagal memuat daftar turnamen.';
-                 noTournamentsSubtext.textContent = 'Terjadi kesalahan saat menghubungi server.';
-                 noTournamentsMessage.classList.add('text-red-600');
-                 noTournamentsMessage.classList.remove('hidden');
+                if (page === 1) { 
+                     noTournamentsMessage.querySelector('p:first-child').textContent = 'Gagal memuat daftar turnamen.';
+                     noTournamentsSubtext.textContent = 'Terjadi kesalahan saat menghubungi server.';
+                     noTournamentsMessage.classList.add('text-red-600');
+                     noTournamentsMessage.classList.remove('hidden');
+                }
                 if (typeof showToast === 'function') showToast('Gagal memuat turnamen.', 'error');
             } finally {
-                loadingIndicator.classList.add('hidden');
+                loadingIndicator.classList.add('hidden'); 
+                if (isLoadMore) {
+                    loadMoreBtn.textContent = 'Muat Lebih Banyak';
+                    loadMoreBtn.disabled = false;
+                }
+                is_loading = false; 
             }
         }
 
+        //Event Listeners
         searchInput.addEventListener('input', () => {
             clearTimeout(searchTimeout);
-            searchTimeout = setTimeout(fetchTournaments, 300);
+            searchTimeout = setTimeout(() => fetchTournaments(1, false), 300);
         });
-        statusFilter.addEventListener('change', fetchTournaments);
+        
+        statusFilter.addEventListener('change', () => fetchTournaments(1, false));
+
+        loadMoreBtn.addEventListener('click', () => {
+            if (next_page_to_load) {
+                fetchTournaments(next_page_to_load, true);
+            }
+        });
 
         {% if user.is_authenticated and user.profile.role in "PENYELENGGARA,ADMIN" %}
         const createModal = document.getElementById('create-tournament-modal');
@@ -255,8 +306,6 @@
 
                 if (createForm) {
                     createForm.reset();
-
-                    // --- Clear participant search UI ---
                     if (participantSearchInputCreate) participantSearchInputCreate.value = '';
                     if (participantSearchResultsCreate) {
                         participantSearchResultsCreate.innerHTML = '';
@@ -267,7 +316,6 @@
                     if (hiddenParticipantsSelectCreate) {
                         Array.from(hiddenParticipantsSelectCreate.options).forEach(opt => (opt.selected = false));
                     }
-                    // -----------------------------------
 
                     createForm.querySelectorAll('[id^="error-"]').forEach(el => (el.textContent = ''));
                     createForm.querySelectorAll('.border-red-500').forEach(el => {

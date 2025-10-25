@@ -6,6 +6,7 @@ from django.utils import timezone
 from django.contrib.auth.decorators import login_required
 from django.views.decorators.http import require_POST, require_http_methods
 from django.http import HttpResponseRedirect
+from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
 import traceback 
 
 from .models import Tournament, Match
@@ -22,7 +23,8 @@ def tournament_home(request):
 def get_tournaments_json(request):
     queryset = Tournament.objects.select_related('organizer').all()
     today = timezone.now().date()
-
+    
+    #   Filtering   
     status_filter = request.GET.get('status', None)
     search_query = request.GET.get('search', None)
 
@@ -37,10 +39,24 @@ def get_tournaments_json(request):
     if search_query:
         queryset = queryset.filter(Q(name__icontains=search_query))
 
-    tournaments = queryset.order_by('-start_date', 'name')
+    #   Ordering   
+    tournaments_list = queryset.order_by('-start_date', 'name')
+    
+    #   Pagination Logic  
+    PER_PAGE = 9 
+    page_number = request.GET.get('page', 1)
+    paginator = Paginator(tournaments_list, PER_PAGE)
+    
+    try:
+        page_obj = paginator.get_page(page_number)
+    except PageNotAnInteger:
+        page_obj = paginator.page(1)
+    except EmptyPage:
+        page_obj = paginator.page(paginator.num_pages)
 
+    #   Serialization (now on page_obj)  
     data = []
-    for t in tournaments:
+    for t in page_obj: # Iterate over the paginated results
         data.append({
             'id': t.pk,
             'name': t.name,
@@ -51,7 +67,15 @@ def get_tournaments_json(request):
             'banner_url': t.banner,
             'detail_page_url': reverse('tournaments:tournament_detail_page', args=[t.pk])
         })
-    return JsonResponse(data, safe=False)
+    
+    #   Return new JSON object structure  
+    return JsonResponse({
+        'tournaments': data,
+        'has_next_page': page_obj.has_next(),
+        'next_page_number': page_obj.next_page_number() if page_obj.has_next() else None,
+        'current_page': page_obj.number,
+        'total_pages': paginator.num_pages,
+    })
 
 @login_required
 @require_POST
@@ -106,7 +130,6 @@ def get_tournament_detail_json(request, tournament_id):
     try:
         tournament = get_object_or_404(
             Tournament.objects.select_related('organizer').prefetch_related(
-                # This prefetch is key: it gets all matches and their related teams
                 Prefetch('matches', queryset=Match.objects.select_related('home_team', 'away_team').order_by('match_date')),
                 Prefetch('participants', queryset=Team.objects.all().order_by('name'))
             ),
@@ -115,11 +138,9 @@ def get_tournament_detail_json(request, tournament_id):
 
         match_data = []
         
-        # --- NEW LEADERBOARD LOGIC START ---
-
         # 1. Initialize stats for all participants using the prefetched data
         team_stats = {}
-        for team in tournament.participants.all(): # .all() re-uses the prefetched cache
+        for team in tournament.participants.all(): 
             team_stats[team.pk] = {
                 'team_id': team.pk,
                 'team_name': team.name,
@@ -128,8 +149,8 @@ def get_tournament_detail_json(request, tournament_id):
                 'wins': 0,
                 'draws': 0,
                 'losses': 0,
-                'goals_for': 0,      # Goals Scored
-                'goals_against': 0,  # Goals Conceded
+                'goals_for': 0,      
+                'goals_against': 0,  
                 'goal_difference': 0,
                 'points': 0,
             }
@@ -139,7 +160,6 @@ def get_tournament_detail_json(request, tournament_id):
             local_match_time = timezone.localtime(match.match_date)
             is_finished = match.home_score is not None and match.away_score is not None
             
-            # Append to match_data as before
             match_data.append({
                 'id': match.pk,
                 'home_team_name': match.home_team.name,
@@ -157,7 +177,6 @@ def get_tournament_detail_json(request, tournament_id):
                 home_score = match.home_score
                 away_score = match.away_score
 
-                # Update stats for Home Team (if they are a participant)
                 if home_id in team_stats:
                     stats = team_stats[home_id]
                     stats['played'] += 1
@@ -172,7 +191,6 @@ def get_tournament_detail_json(request, tournament_id):
                     else:
                         stats['losses'] += 1
 
-                # Update stats for Away Team (if they are a participant)
                 if away_id in team_stats:
                     stats = team_stats[away_id]
                     stats['played'] += 1
@@ -193,15 +211,8 @@ def get_tournament_detail_json(request, tournament_id):
             stats['goal_difference'] = stats['goals_for'] - stats['goals_against']
             leaderboard_data.append(stats)
 
-        # 5. Sort the leaderboard by standard rules:
-        #    - Primary: Points (descending)
-        #    - Secondary: Goal Difference (descending)
-        #    - Tertiary: Goals For (descending)
-        #    - Quaternary: Team Name (ascending)
         leaderboard_data.sort(key=lambda x: x['team_name']) # 4. Name (asc)
         leaderboard_data.sort(key=lambda x: (x['points'], x['goal_difference'], x['goals_for']), reverse=True) # 1, 2, 3 (desc)
-
-        # --- NEW LEADERBOARD LOGIC END ---
 
         participant_data = [
             {'id': team.pk, 'name': team.name, 'logo_url': team.logo if team.logo else None}
@@ -209,7 +220,6 @@ def get_tournament_detail_json(request, tournament_id):
         ]
 
         print(f"DEBUG: Participant data for tournament {tournament_id}: {participant_data}")
-        # Add this print statement to check your work in the console:
         print(f"DEBUG: Leaderboard data for tournament {tournament_id}: {leaderboard_data}")
 
 
@@ -233,7 +243,7 @@ def get_tournament_detail_json(request, tournament_id):
             'banner_url': tournament.banner,
             'matches': match_data,
             'participants': participant_data,
-            'leaderboard': leaderboard_data,  # <-- ADD THE LEADERBOARD TO THE JSON
+            'leaderboard': leaderboard_data, 
             'registration_open': tournament.registration_open, 
             'winner_name': tournament.winner.name if tournament.winner else None, 
             'forum_url': reverse('forums:forum_threads', args=[tournament.pk]),
@@ -405,17 +415,11 @@ def get_user_captain_status(request, tournament_id):
         'is_registration_open': tournament.registration_open
     })
 
-@login_required # Only logged-in users can search? Decide based on requirements.
+@login_required 
 def search_teams_json(request):
     query = request.GET.get('q', '').strip()
     teams = []
-    if len(query) >= 2: # Only search if query is 2+ chars
-        teams = Team.objects.filter(name__icontains=query).order_by('name')[:10] # Limit results
-
-    # Exclude already selected teams if IDs are passed? Optional enhancement.
-    # exclude_ids = request.GET.getlist('exclude_ids[]')
-    # if exclude_ids:
-    #    teams = teams.exclude(pk__in=exclude_ids)
-
+    if len(query) >= 2: 
+        teams = Team.objects.filter(name__icontains=query).order_by('name')[:10] 
     data = [{'id': team.pk, 'name': team.name} for team in teams]
     return JsonResponse(data, safe=False)
