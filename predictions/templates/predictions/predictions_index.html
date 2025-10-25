@@ -5,15 +5,12 @@
 <div class="container mx-auto px-4 py-8">
   <h1 class="text-4xl font-bold mb-8 text-center text-custom-blue-400">Prediksi Pertandingan</h1>
 
-  <!-- Bagian atas: Leaderboard (kiri), Filter (tengah), Tambah Match (kanan) -->
   <div class="flex flex-col sm:flex-row justify-between items-center mb-8 gap-4">
-    <!-- Kiri: Leaderboard -->
     <a href="{% url 'predictions:leaderboard' %}"
        class="bg-custom-blue-100 hover:bg-custom-blue-300 text-white px-6 py-2 rounded-lg font-semibold shadow-md transition duration-300">
        🏆 Leaderboard
     </a>
 
-    <!-- Tengah: Filter Turnamen -->
     <form method="get" id="filterForm" class="absolute left-1/2 transform -translate-x-1/2 flex items-center gap-2">
       <select name="tournament" class="border border-gray-300 rounded-lg p-2 focus:ring-2 focus:ring-custom-blue-200">
         <option value="">Semua Turnamen</option>
@@ -29,7 +26,6 @@
       </button>
     </form>
 
-    <!-- Kanan: Tambah Match -->
     {% if user.is_authenticated and user.profile.role in "PENYELENGGARA,ADMIN" %}
     <button id="openAddMatchModal"
       class="w-full sm:w-auto bg-custom-blue-400 text-white font-bold py-2 px-5 rounded-lg shadow-md hover:bg-custom-blue-300 transition-colors duration-300">
@@ -38,74 +34,54 @@
     {% endif %}
   </div>
 
-  <!-- Pertandingan Berlangsung (Ongoing) -->
-  {% if ongoing_matches %}
-  <h2 class="text-2xl font-bold mb-4 text-gray-800">Pertandingan Berlangsung</h2>
-  <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-    {% for match in ongoing_matches %}
-    <div class="bg-white shadow-md hover:shadow-xl rounded-2xl p-6 transition duration-300 flex flex-col justify-between">
-      <div>
-        <h2 class="text-2xl font-semibold text-center text-gray-800 mb-3 break-words">
-          {{ match.home_team.name }} vs {{ match.away_team.name }}
-        </h2>
-        <p class="text-sm text-center text-gray-500 mb-2">{{ match.match_date }}</p>
-        <p class="text-sm text-center text-custom-blue-400 font-medium mb-5">{{ match.tournament.name }}</p>
-        <p class="funText text-center text-lg font-semibold animate-wiggle text-gray-700 mb-8"></p>
-      </div>
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8 mt-16">
 
-      <div class="flex flex-col sm:flex-row justify-center items-center gap-3">
-        <button
-          class="team-btn bg-custom-blue-100 hover:bg-custom-blue-300 text-white px-4 py-2 rounded-xl font-medium shadow-sm transition duration-200 w-full sm:w-[45%] truncate"
-          data-match-id="{{ match.id }}" data-team-id="{{ match.home_team.id }}">
-          {{ match.home_team.name }}
-        </button>
-        <button
-          class="team-btn bg-custom-blue-100 hover:bg-custom-blue-300 text-white px-4 py-2 rounded-xl font-medium shadow-sm transition duration-200 w-full sm:w-[45%] truncate"
-          data-match-id="{{ match.id }}" data-team-id="{{ match.away_team.id }}">
-          {{ match.away_team.name }}
-        </button>
-        {% if user.is_authenticated and user.profile.role in "PENYELENGGARA,ADMIN" %}
-        <div class="flex flex-col sm:flex-row justify-center gap-3 mt-3">
-          <button class="edit-score-btn bg-custom-blue-400 hover:bg-custom-blue-700 text-white px-4 py-2 rounded-lg font-medium shadow-sm transition duration-200"
-            data-match-id="{{ match.id }}">
-            <!-- text-gray-400 hover:text-gray-700 text-3xl leading-none -->
-            Edit Skor
-          </button>
-          <button class="delete-prediction-btn bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg font-medium shadow-sm transition duration-200"
-            data-match-id="{{ match.id }}">
-            Delete Prediction
-          </button>
-        </div>
-        {% endif %}
+    <div class="bg-white p-6 rounded-xl shadow-lg border border-gray-200 text-center flex flex-col">
+      <div class="flex justify-center items-center h-24">
+        <img src="https://img.icons8.com/?size=100&id=13735&format=png&color=000000" alt="Ongoing Match"
+          class="h-20 w-20" />
       </div>
+      <h2 class="text-xl font-bold text-gray-800 mt-4 mb-2">Pertandingan Berlangsung</h2>
+      <p class="text-gray-600 text-sm mb-4 flex-grow">
+        Lihat pertandingan yang sedang berlangsung dan buat prediksimu. Buktikan insting sepak bolamu!
+      </p>
+      <button onclick="openMatchesModal('ongoing')"
+        class="w-full bg-custom-blue-400 text-white font-semibold py-2 px-4 rounded-lg hover:bg-custom-blue-300 transition duration-150 ease-in-out">
+        Lihat Pertandingan
+      </button>
     </div>
-    {% endfor %}
-  </div>
-  {% endif %}
 
-  <!-- Pertandingan Selesai (Finished) -->
-  {% if finished_matches %}
-  <h2 class="text-2xl font-bold mb-4 mt-10 text-gray-600">Pertandingan Selesai</h2>
-  <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-    {% for match in finished_matches %}
-    <div class="bg-gray-100 shadow rounded-2xl p-6 flex flex-col justify-between opacity-80">
-      <div>
-        <h2 class="text-2xl font-semibold text-center text-gray-700 mb-3 break-words">
-          {{ match.home_team.name }} vs {{ match.away_team.name }}
-        </h2>
-        <p class="text-sm text-center text-gray-500 mb-2">{{ match.match_date }}</p>
-        <p class="text-sm text-center text-gray-400 font-medium mb-5">{{ match.tournament.name }}</p>
-        <p class="text-center text-lg font-semibold text-gray-800 mb-2">
-          Skor: {{ match.home_score }} - {{ match.away_score }}
-        </p>
+    <div class="bg-white p-6 rounded-xl shadow-lg border border-gray-200 text-center flex flex-col">
+      <div class="flex justify-center items-center h-24">
+        <img src="https://img.icons8.com/?size=100&id=61043&format=png&color=000000" alt="Finished Match"
+          class="h-20 w-20" />
       </div>
+      <h2 class="text-xl font-bold text-gray-800 mt-4 mb-2">Pertandingan Selesai</h2>
+      <p class="text-gray-600 text-sm mb-4 flex-grow">
+        Cek riwayat pertandingan yang telah selesai dan lihat skor akhirnya.
+      </p>
+      <button onclick="openMatchesModal('finished')"
+        class="w-full bg-custom-blue-400 text-white font-semibold py-2 px-4 rounded-lg hover:bg-custom-blue-300 transition duration-150 ease-in-out">
+        Lihat Riwayat
+      </button>
     </div>
-    {% endfor %}
   </div>
-  {% endif %}
 </div>
 
-<!-- Modal Tambah Match -->
+<div id="matchesModal" class="hidden fixed inset-0 bg-gray-800 bg-opacity-75 flex justify-center items-center z-40 p-4">
+  <div class="bg-gray-50 rounded-2xl shadow-lg p-6 w-full max-w-7xl h-[90vh] flex flex-col">
+    <div class="flex justify-between items-center mb-4">
+      <h2 id="matchesModalTitle" class="text-2xl font-bold text-custom-blue-400">Daftar Pertandingan</h2>
+      <button id="closeMatchesModal" class="text-gray-500 hover:text-gray-800 text-3xl">&times;</button>
+    </div>
+    <div id="matchesModalContent" class="flex-grow overflow-y-auto pr-2">
+      <div id="matchesLoadingSpinner" class="text-center py-20">
+        <p class="text-lg text-gray-600">Memuat data...</p>
+      </div>
+    </div>
+  </div>
+</div>
+
 <div id="addMatchModal" class="hidden fixed inset-0 bg-gray-800 bg-opacity-50 flex justify-center items-center z-50">
   <div class="bg-white rounded-2xl shadow-lg p-6 w-full max-w-lg relative">
     <h2 class="text-2xl font-bold mb-4 text-center text-custom-blue-400">Tambah Match</h2>
@@ -119,7 +95,6 @@
           {% endfor %}
         </select>
       </div>
-
       <div class="mb-3">
         <label class="block text-gray-700 mb-1">Tim Home</label>
         <select name="home_team" required class="w-full border rounded-lg p-2">
@@ -128,7 +103,6 @@
           {% endfor %}
         </select>
       </div>
-
       <div class="mb-3">
         <label class="block text-gray-700 mb-1">Tim Away</label>
         <select name="away_team" required class="w-full border rounded-lg p-2">
@@ -137,12 +111,10 @@
           {% endfor %}
         </select>
       </div>
-
       <div class="mb-3">
         <label class="block text-gray-700 mb-1">Tanggal Pertandingan</label>
         <input type="datetime-local" name="match_date" required class="w-full border rounded-lg p-2">
       </div>
-
       <div class="flex justify-end gap-3 mt-6">
         <button type="button" id="cancelAddMatch"
           class="bg-gray-300 hover:bg-gray-400 text-gray-700 px-4 py-2 rounded-lg">Batal</button>
@@ -153,7 +125,6 @@
   </div>
 </div>
 
-<!-- Modal Edit Skor -->
 <div id="editScoreModal" class="hidden fixed inset-0 bg-gray-800 bg-opacity-50 flex justify-center items-center z-50">
   <div class="bg-white rounded-2xl shadow-lg p-6 w-full max-w-md relative">
     <h2 class="text-2xl font-bold mb-4 text-center text-custom-blue-400">Edit Skor</h2>
@@ -178,7 +149,6 @@
   </div>
 </div>
 
-<!-- Modal Konfirmasi Hapus Prediction -->
 <div id="deletePredictionModal" class="hidden fixed inset-0 bg-gray-800 bg-opacity-50 flex justify-center items-center z-50">
   <div class="bg-white rounded-2xl shadow-lg p-6 w-full max-w-md relative">
     <h2 class="text-2xl font-bold mb-4 text-center text-red-500">Hapus Prediksi?</h2>
@@ -194,26 +164,9 @@
 {% block javascript %}
 {{ block.super }}
 <script>
-document.addEventListener('DOMContentLoaded', function () {
-
-  // Tombol prediksi
-  document.querySelectorAll('.team-btn').forEach(btn => {
-    btn.addEventListener('click', async function () {
-      const matchId = this.dataset.matchId;
-      const teamId = this.dataset.teamId;
-      const csrfToken = '{{ csrf_token }}';
-      const response = await fetch("{% url 'predictions:submit_prediction' %}", {
-        method: 'POST',
-        headers: { 'X-CSRFToken': csrfToken, 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: new URLSearchParams({ match_id: matchId, team_id: teamId })
-      });
-      const data = await response.json();
-      if (data.success) showToast(data.message, 'success');
-      else showToast(data.message, 'error');
-    });
-  });
-
-  // Fun messages
+  // ===================================================================
+  // DEFINISI GLOBAL (Fungsi & Konstanta yang TIDAK butuh HTML)
+  // ===================================================================
   const funMessages = [
     "Tebak siapa yang bakal jadi juara kali ini! ⚽🔥",
     "Prediksi sekarang, buktikan nanti! 🧠🏆",
@@ -221,125 +174,208 @@ document.addEventListener('DOMContentLoaded', function () {
     "Buktikan insting sepak bolamu! ⚔️",
     "Ayo ikut seru-seruan bareng! 😎⚽"
   ];
-  document.querySelectorAll(".funText").forEach(el => {
-    el.textContent = funMessages[Math.floor(Math.random() * funMessages.length)];
-  });
 
-  // Modal tambah match
-  const addModal = document.getElementById("addMatchModal");
-  const openAddBtn = document.getElementById("openAddMatchModal");
-  const cancelAddBtn = document.getElementById("cancelAddMatch");
-  const addForm = document.getElementById("addMatchForm");
+  const CURRENT_TOURNAMENT_ID = "{{ current_tournament_id|escapejs }}";
+  const CSRF_TOKEN = '{{ csrf_token }}';
 
-  openAddBtn?.addEventListener("click", () => addModal.classList.remove("hidden"));
-  cancelAddBtn?.addEventListener("click", () => addModal.classList.add("hidden"));
-
-  addForm.addEventListener("submit", async e => {
-    e.preventDefault();
-    const csrfToken = '{{ csrf_token }}';
-    const formData = new FormData(addForm);
-
-    const response = await fetch("{% url 'predictions:add_match' %}", {
-      method: "POST",
-      headers: { "X-CSRFToken": csrfToken },
-      body: formData
+  // Fungsi untuk menjalankan Fun Messages
+  function applyFunMessages(containerSelector = document) {
+    containerSelector.querySelectorAll(".funText").forEach(el => {
+      el.textContent = funMessages[Math.floor(Math.random() * funMessages.length)];
     });
-    const data = await response.json();
-
-    if (data.success) {
-      showToast(data.message, 'success');
-      addModal.classList.add("hidden");
-      setTimeout(() => location.reload(), 1000);
-    } else {
-      showToast(data.message, 'error');
-    }
-  });
-
-  // Modal edit skor
-  const editModal = document.getElementById("editScoreModal");
-  const editForm = document.getElementById("editScoreForm");
-  const cancelEditBtn = document.getElementById("cancelEditScore");
-
-  document.querySelectorAll(".edit-score-btn").forEach(btn => {
-    btn.addEventListener("click", async () => {
-      const matchId = btn.dataset.matchId;
-
-      // Ambil data skor saat ini dari server
-      const response = await fetch(`/predictions/get_match_scores/${matchId}/`);
-      const data = await response.json();
-
-      document.getElementById("editMatchId").value = matchId;
-      document.getElementById("editHomeScore").value = data.home_score ?? 0;
-      document.getElementById("editAwayScore").value = data.away_score ?? 0;
-
-      editModal.classList.remove("hidden");
-    });
-  });
-
-  cancelEditBtn.addEventListener("click", () => editModal.classList.add("hidden"));
-
-  editForm.addEventListener("submit", async e => {
-    e.preventDefault();
-    const csrfToken = '{{ csrf_token }}';
-    const formData = new FormData(editForm);
-
-    const response = await fetch("{% url 'predictions:edit_match_score' %}", {
-      method: "POST",
-      headers: { "X-CSRFToken": csrfToken },
-      body: formData
-    });
-
-    const data = await response.json();
-    if (data.success) {
-      showToast(data.message, 'success');
-      editModal.classList.add("hidden");
-      setTimeout(() => location.reload(), 1000);
-    } else {
-      showToast(data.message, 'error');
-    }
-  });
-
-}); 
-
-// Modal hapus prediction
-const deleteModal = document.getElementById("deletePredictionModal");
-const cancelDeleteBtn = document.getElementById("cancelDeletePrediction");
-const confirmDeleteBtn = document.getElementById("confirmDeletePrediction");
-let matchIdToDelete = null;
-
-document.querySelectorAll(".delete-prediction-btn").forEach(btn => {
-  btn.addEventListener("click", () => {
-    matchIdToDelete = btn.dataset.matchId;
-    deleteModal.classList.remove("hidden");
-  });
-});
-
-cancelDeleteBtn.addEventListener("click", () => {
-  deleteModal.classList.add("hidden");
-  matchIdToDelete = null;
-});
-
-confirmDeleteBtn.addEventListener("click", async () => {
-  if (!matchIdToDelete) return;
-  const csrfToken = '{{ csrf_token }}';
-
-  const response = await fetch("{% url 'predictions:delete_prediction' %}", {
-    method: "POST",
-    headers: { "X-CSRFToken": csrfToken, "Content-Type": "application/x-www-form-urlencoded" },
-    body: new URLSearchParams({ match_id: matchIdToDelete })
-  });
-
-  const data = await response.json();
-  if (data.success) {
-    showToast(data.message, 'success');
-    deleteModal.classList.add("hidden");
-    setTimeout(() => location.reload(), 1000);
-  } else {
-    showToast(data.message, 'error');
   }
-});
 
+  // Fungsi untuk membuka modal pertandingan (Ongoing/Finished)
+  async function openMatchesModal(type) {
+    const modal = document.getElementById("matchesModal");
+    const titleEl = document.getElementById("matchesModalTitle");
+    const contentEl = document.getElementById("matchesModalContent");
+    const spinner = document.getElementById("matchesLoadingSpinner");
+    
+    if (!modal || !spinner) {
+      console.error("Elemen modal (#matchesModal atau #matchesLoadingSpinner) tidak ditemukan.");
+      showToast("Gagal membuka modal.", "error");
+      return;
+    }
+    
+    modal.classList.remove("hidden");
+    modal.classList.add("flex");
+    spinner.classList.remove("hidden"); // Tampilkan spinner (jika sebelumnya disembunyikan)
+    
+    // Kosongkan konten *setelah* spinner, jika ada konten sebelumnya
+    // Ini lebih baik: kita sembunyikan spinner-nya *setelah* fetch, bukan hapus.
+    // Tapi untuk fix bug Anda, kita akan pastikan spinner ada.
+    contentEl.innerHTML = ''; // Kosongkan dulu
+    contentEl.appendChild(spinner); // Tambahkan spinner-nya
+    spinner.classList.remove("hidden"); // Pastikan terlihat
 
+    let url = "";
+    if (type === 'ongoing') {
+      titleEl.textContent = "Pertandingan Berlangsung";
+      url = `{% url 'predictions:get_ongoing_matches' %}?tournament=${CURRENT_TOURNAMENT_ID}`;
+    } else {
+      titleEl.textContent = "Pertandingan Selesai";
+      url = `{% url 'predictions:get_finished_matches' %}?tournament=${CURRENT_TOURNAMENT_ID}`;
+    }
+
+    try {
+      const response = await fetch(url);
+      const html = await response.text();
+      // spinner.classList.add("hidden"); // Spinner akan terhapus oleh innerHTML
+      contentEl.innerHTML = html; // Ganti spinner dengan konten
+      applyFunMessages(contentEl); 
+    } catch (error) {
+      // spinner.classList.add("hidden"); // Spinner mungkin sudah hilang
+      contentEl.innerHTML = `<p class="text-center text-red-500">Gagal memuat data. Coba lagi.</p>`;
+      console.error("Fetch error:", error);
+    }
+  }
+
+  // ===================================================================
+  // EVENT LISTENERS (Semua dipindahkan ke dalam DOMContentLoaded)
+  // ===================================================================
+  document.addEventListener('DOMContentLoaded', function () {
+
+    // --- Tombol tutup modal pertandingan (modal BARU) ---
+    const matchesModal = document.getElementById("matchesModal");
+    const closeMatchesBtn = document.getElementById("closeMatchesModal");
+    
+    // INI ADALAH PERBAIKANNYA
+    closeMatchesBtn?.addEventListener("click", () => {
+      matchesModal?.classList.add("hidden");
+      matchesModal?.classList.remove("flex");
+      
+      const contentEl = document.getElementById("matchesModalContent");
+      if (contentEl) {
+        // Kembalikan spinner ke dalam content area
+        contentEl.innerHTML = `
+          <div id="matchesLoadingSpinner" class="text-center py-20">
+            <p class="text-lg text-gray-600">Memuat data...</p>
+          </div>
+        `;
+      }
+    });
+
+    // --- Modal tambah match (Logika asli) ---
+    const addModal = document.getElementById("addMatchModal");
+    const openAddBtn = document.getElementById("openAddMatchModal");
+    const cancelAddBtn = document.getElementById("cancelAddMatch");
+    const addForm = document.getElementById("addMatchForm");
+
+    openAddBtn?.addEventListener("click", () => addModal.classList.remove("hidden"));
+    cancelAddBtn?.addEventListener("click", () => addModal.classList.add("hidden"));
+
+    addForm?.addEventListener("submit", async e => {
+      e.preventDefault();
+      const formData = new FormData(addForm);
+      const response = await fetch("{% url 'predictions:add_match' %}", {
+        method: "POST",
+        headers: { "X-CSRFToken": CSRF_TOKEN },
+        body: formData
+      });
+      const data = await response.json();
+      if (data.success) {
+        showToast(data.message, 'success');
+        addModal.classList.add("hidden");
+        setTimeout(() => location.reload(), 1000);
+      } else {
+        showToast(data.message, 'error');
+      }
+    });
+
+    // --- Modal edit skor (Logika asli) ---
+    const editModal = document.getElementById("editScoreModal");
+    const editForm = document.getElementById("editScoreForm");
+    const cancelEditBtn = document.getElementById("cancelEditScore");
+
+    cancelEditBtn?.addEventListener("click", () => editModal.classList.add("hidden"));
+
+    editForm?.addEventListener("submit", async e => {
+      e.preventDefault();
+      const formData = new FormData(editForm);
+      const response = await fetch("{% url 'predictions:edit_match_score' %}", {
+        method: "POST",
+        headers: { "X-CSRFToken": CSRF_TOKEN },
+        body: formData
+      });
+      const data = await response.json();
+      if (data.success) {
+        showToast(data.message, 'success');
+        editModal.classList.add("hidden");
+        setTimeout(() => location.reload(), 1000);
+      } else {
+        showToast(data.message, 'error');
+      }
+    });
+
+    // --- Modal hapus prediction (Logika asli) ---
+    const deleteModal = document.getElementById("deletePredictionModal");
+    const cancelDeleteBtn = document.getElementById("cancelDeletePrediction");
+    const confirmDeleteBtn = document.getElementById("confirmDeletePrediction");
+    let matchIdToDelete = null;
+
+    cancelDeleteBtn?.addEventListener("click", () => {
+      deleteModal.classList.add("hidden");
+      matchIdToDelete = null;
+    });
+
+    confirmDeleteBtn?.addEventListener("click", async () => {
+      if (!matchIdToDelete) return;
+      const response = await fetch("{% url 'predictions:delete_prediction' %}", {
+        method: "POST",
+        headers: { "X-CSRFToken": CSRF_TOKEN, "Content-Type": "application/x-www-form-urlencoded" },
+        body: new URLSearchParams({ match_id: matchIdToDelete })
+      });
+      const data = await response.json();
+      if (data.success) {
+        showToast(data.message, 'success');
+        deleteModal.classList.add("hidden");
+        setTimeout(() => location.reload(), 1000);
+      } else {
+        showToast(data.message, 'error');
+      }
+    });
+
+    // --- Event Delegation untuk tombol DINAMIS ---
+    document.body.addEventListener('click', async function(e) {
+      
+      // 1. Tombol Prediksi (.team-btn)
+      if (e.target.matches('.team-btn')) {
+        const btn = e.target;
+        const response = await fetch("{% url 'predictions:submit_prediction' %}", {
+          method: 'POST',
+          headers: { 'X-CSRFToken': CSRF_TOKEN, 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: new URLSearchParams({ match_id: btn.dataset.matchId, team_id: btn.dataset.teamId })
+        });
+        const data = await response.json();
+        if (data.success) showToast(data.message, 'success');
+        else showToast(data.message, 'error');
+      }
+
+      // 2. Tombol Edit Skor (.edit-score-btn)
+      if (e.target.matches('.edit-score-btn')) {
+        const btn = e.target;
+        const matchId = btn.dataset.matchId;
+        const response = await fetch(`/predictions/get_match_scores/${matchId}/`);
+        const data = await response.json();
+        
+        document.getElementById("editMatchId").value = matchId;
+        document.getElementById("editHomeScore").value = data.home_score ?? 0;
+        document.getElementById("editAwayScore").value = data.away_score ?? 0;
+
+        editModal.classList.remove("hidden");
+      }
+
+      // 3. Tombol Delete Prediksi (.delete-prediction-btn)
+      if (e.target.matches('.delete-prediction-btn')) {
+        matchIdToDelete = e.target.dataset.matchId;
+        deleteModal.classList.remove("hidden");
+      }
+    });
+
+    // Terapkan fun messages saat halaman pertama kali dimuat
+    applyFunMessages();
+  }); 
 
 </script>
 {% endblock javascript %}
