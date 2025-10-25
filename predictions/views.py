@@ -5,7 +5,8 @@ from django.db.models import Sum, Q
 from django.views.decorators.http import require_POST
 from django.contrib.auth.decorators import login_required
 from datetime import datetime
-
+import json
+from django.utils.safestring import mark_safe
 from predictions.models import Prediction
 from tournaments.models import Match, Tournament
 from teams.models import Team
@@ -13,23 +14,49 @@ from teams.models import Team
 
 def predictions_index(request):
     tournament_id = request.GET.get('tournament')
-    tournaments = Tournament.objects.all().order_by('name')
-    teams = Team.objects.all().order_by('name')
+    
+    
+    tournaments = Tournament.objects.prefetch_related('participants').all().order_by('name')
+    
+    tournaments_with_teams = {}
+    for t in tournaments:
+        teams_list = list(t.participants.all().order_by('name').values('id', 'name'))
+        tournaments_with_teams[t.id] = teams_list
+    
+    context = {
+        'tournaments': tournaments,
+        'tournaments_with_teams_json': mark_safe(json.dumps(tournaments_with_teams)),
+        'current_tournament_id': tournament_id if tournament_id else "",
+    }
+    return render(request, 'predictions/predictions_index.html', context)
 
+#Untuk mengambil partial HTML ongoing matches
+def get_ongoing_matches(request):
+    tournament_id = request.GET.get('tournament')
+    matches = Match.objects.all()
+    if tournament_id:
+        matches = matches.filter(tournament_id=tournament_id)
+    
+    ongoing_matches = matches.filter(
+        Q(home_score__isnull=True) | Q(away_score__isnull=True)
+    ).order_by('match_date')
+    
+    context = {'ongoing_matches': ongoing_matches}
+    return render(request, 'predictions/_ongoing_matches_partial.html', context)
+
+#Untuk mengambil partial HTML finished matches
+def get_finished_matches(request):
+    tournament_id = request.GET.get('tournament')
     matches = Match.objects.all()
     if tournament_id:
         matches = matches.filter(tournament_id=tournament_id)
 
-    ongoing_matches = matches.filter(Q(home_score__isnull=True) | Q(away_score__isnull=True)).order_by('match_date')
-    finished_matches = matches.filter(home_score__isnull=False, away_score__isnull=False).order_by('-match_date')
-
-    context = {
-        'tournaments': tournaments,
-        'teams': teams,
-        'ongoing_matches': ongoing_matches,
-        'finished_matches': finished_matches,
-    }
-    return render(request, 'predictions/predictions_index.html', context)
+    finished_matches = matches.filter(
+        home_score__isnull=False, away_score__isnull=False
+    ).order_by('-match_date')
+    
+    context = {'finished_matches': finished_matches}
+    return render(request, 'predictions/_finished_matches_partial.html', context)
 
 @login_required
 def add_match(request):
@@ -41,6 +68,14 @@ def add_match(request):
         home_team = get_object_or_404(Team, id=request.POST['home_team'])
         away_team = get_object_or_404(Team, id=request.POST['away_team'])
         
+        # Validasi menggunakan 'tournament.participants.all()'
+        tournament_teams = tournament.participants.all()
+        if home_team not in tournament_teams or away_team not in tournament_teams:
+            return JsonResponse({'success': False, 'message': 'Tim yang dipilih tidak terdaftar di turnamen ini.'}, status=400)
+        
+        if home_team == away_team:
+             return JsonResponse({'success': False, 'message': 'Tim Home dan Tim Away tidak boleh sama.'}, status=400)
+
         # parse datetime-local
         match_date_str = request.POST['match_date']
         match_date = datetime.strptime(match_date_str, "%Y-%m-%dT%H:%M")
