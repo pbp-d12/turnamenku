@@ -99,7 +99,9 @@
                                 {# Hasil pencarian akan dimasukkan di sini oleh JS #}
                             </div>
 
-                            {{ field }} {# Renders the hidden <select> tag with id="id_participants" #}
+                            <div class="hidden">
+                                {{ field }} {# Renders the <select> tag #}
+                            </div>
 
                             <div id="selected-participants-display-create" class="mt-2 space-x-2 space-y-1">
                                 {# Badge tim terpilih akan dimasukkan di sini oleh JS #}
