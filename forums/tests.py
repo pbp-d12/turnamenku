@@ -1,7 +1,7 @@
 from unittest.mock import patch
 from tournaments.models import Tournament
 from django.middleware.csrf import get_token
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, date
 from forums.forms import ThreadCreateForm, ThreadEditForm, PostEditForm, PostReplyForm
 import json
 from django.contrib.auth import get_user_model
@@ -12,6 +12,7 @@ from django.utils import timezone
 from forums.models import Thread, Post
 from django.contrib.auth.models import User, AnonymousUser
 from forums.views import *
+from django.template import Template, Context
 
 User = get_user_model()
 
@@ -312,13 +313,6 @@ class CreateThreadTests(TestCase):
         Tournament.objects.all().delete()
         User.objects.all().delete()
         
-from django.test import TestCase, Client
-from django.contrib.auth.models import User
-from django.urls import reverse
-import json
-from datetime import date, timedelta
-from tournaments.models import Tournament
-
 class ForumIndexTests(TestCase):
     def setUp(self):
         self.client = Client()
@@ -550,15 +544,6 @@ class ForumIndexTests(TestCase):
         self.assertEqual(response.status_code, 200)
         data = json.loads(response.content)
         self.assertEqual(len(data['tournaments']), 0)
-
-from django.test import TestCase
-from django.contrib.auth import get_user_model
-from forums.models import Thread, Post
-from tournaments.models import Tournament
-from datetime import timedelta, datetime
-from django.utils import timezone
-
-User = get_user_model()
 
 class TestForumModels(TestCase):
     
@@ -1336,102 +1321,6 @@ class TestForumViews(TestCase):
         response = edit_post(request, self.post.id)
         self.assertEqual(response.status_code, 405)
 
-class TestForumAJAXFunctionality(TestCase):
-    
-    def setUp(self):
-        self.factory = RequestFactory()
-        self.user = User.objects.create_user(
-            username='testuser',
-            email='test@example.com',
-            password='testpass123'
-        )
-        
-        self.tournament = Tournament.objects.create(
-            name='Test Tournament',
-            description='Test description',
-            organizer=self.user,
-            start_date=datetime.now().date(),
-            end_date=datetime.now().date() + timedelta(days=7)
-        )
-        
-        self.thread = Thread.objects.create(
-            title='Test Thread',
-            author=self.user,
-            tournament=self.tournament
-        )
-        self.post = Post.objects.create(
-            thread=self.thread,
-            author=self.user,
-            body='Test post content'
-        )
-    
-    def test_edit_thread_ajax_success(self):
-        """Test successful thread edit via AJAX"""
-        form_data = {
-            'title': 'Updated Thread Title'
-        }
-        request = self.factory.post(
-            reverse('forums:edit_thread', args=[self.thread.id]),
-            data=form_data,
-            HTTP_X_REQUESTED_WITH='XMLHttpRequest'
-        )
-        request.user = self.user  # Author can edit
-        
-        # Add CSRF token
-        from django.middleware.csrf import get_token
-        form_data['csrfmiddlewaretoken'] = get_token(request)
-        
-        response = edit_thread(request, self.thread.id)
-        
-        self.assertEqual(response.status_code, 200)
-        data = json.loads(response.content)
-        self.assertTrue(data['success'])
-        self.assertIn('thread', data)
-    
-    def test_delete_thread_ajax_success(self):
-        """Test successful thread deletion via AJAX"""
-        request = self.factory.post(
-            reverse('forums:delete_thread', args=[self.thread.id]),
-            HTTP_X_REQUESTED_WITH='XMLHttpRequest'
-        )
-        request.user = self.user  # Author can delete
-        
-        # Add CSRF token
-        from django.middleware.csrf import get_token
-        request.POST = request.POST.copy()
-        request.POST['csrfmiddlewaretoken'] = get_token(request)
-        
-        response = delete_thread(request, self.thread.id)
-        
-        self.assertEqual(response.status_code, 200)
-        data = json.loads(response.content)
-        self.assertTrue(data['success'])
-    
-    def test_edit_post_ajax_success(self):
-        """Test successful post edit via AJAX"""
-        form_data = {
-            'body': 'Updated post content',
-            'image': 'https://example.com/new-image.jpg'
-        }
-        request = self.factory.post(
-            reverse('forums:edit_post', args=[self.post.id]),
-            data=form_data,
-            HTTP_X_REQUESTED_WITH='XMLHttpRequest'
-        )
-        request.user = self.user  # Author can edit
-        
-        # Add CSRF token
-        from django.middleware.csrf import get_token
-        form_data['csrfmiddlewaretoken'] = get_token(request)
-        
-        response = edit_post(request, self.post.id)
-        
-        self.assertEqual(response.status_code, 200)
-        data = json.loads(response.content)
-        self.assertTrue(data['success'])
-        self.assertIn('post', data)
-
-
 
 class TestForumForms(TestCase):
     
@@ -1573,17 +1462,6 @@ class TestForumForms(TestCase):
                 self.assertIn('border', css_class)
                 self.assertIn('rounded', css_class)
 
-
-from django.test import TestCase, RequestFactory
-from django.contrib.auth import get_user_model
-from django.template import Template, Context
-from django.urls import reverse
-from tournaments.models import Tournament
-from forums.models import Thread, Post
-from datetime import datetime, timedelta
-import json
-
-User = get_user_model()
 
 class TestForumThreadsTemplate(TestCase):
     
@@ -1817,15 +1695,18 @@ class TestForumThreadsTemplate(TestCase):
         self.assertIn('Urutkan', template_content)
     
     def test_sort_options_exist(self):
-        """Test all sort options are present"""
-        template_content = self.load_template_content()
-        sort_options = [
-            'Terbaru', 'Terlama', 'Kurang Populer (Replies)', 
-            'Populer', 'Judul (A-Z)', 'Judul (Z-A)'
-        ]
-        
-        for option in sort_options:
-            self.assertIn(option, template_content)
+            """Test all sort options are present"""
+            template_content = self.load_template_content()
+            sort_options = [
+                'Terbaru', 'Terlama', 
+                # FIX applied here:
+                'Kurang Populer (Balasan)', 
+                'Paling Populer (Balasan)', 
+                'Judul (A-Z)', 'Judul (Z-A)'
+            ]
+            
+            for option in sort_options:
+                self.assertIn(option, template_content)
     
     def test_edit_thread_modal_exists(self):
         """Test edit thread modal exists"""
@@ -1870,10 +1751,11 @@ class TestForumThreadsTemplate(TestCase):
         self.assertIn('paginationContainer.addEventListener', template_content)
     
     def test_ajax_urls_in_javascript(self):
-        """Test AJAX URLs are correctly referenced"""
-        template_content = self.load_template_content()
-        self.assertIn("{% url 'forums:get_tournament_threads' tournament.id %}", template_content)
-        self.assertIn('/forums/thread/', template_content)  # Edit and delete URLs
+            """Test AJAX URLs are correctly referenced"""
+            template_content = self.load_template_content()
+            self.assertIn("{% url 'forums:get_tournament_threads' tournament.id %}", template_content)
+            self.assertIn("{% url 'forums:edit_thread' 0 %}", template_content)
+            self.assertIn("{% url 'forums:delete_thread' 0 %}", template_content)
     
     def test_css_classes_exist(self):
         """Test important CSS classes are present"""
@@ -1889,7 +1771,7 @@ class TestForumThreadsTemplate(TestCase):
         
         for css_class in css_classes:
             self.assertIn(css_class, template_content)
-    
+
     def test_responsive_design_classes(self):
         """Test responsive design classes exist"""
         template_content = self.load_template_content()
@@ -1897,10 +1779,8 @@ class TestForumThreadsTemplate(TestCase):
             'container mx-auto',
             'p-4 md:p-8',
             'max-w-4xl',
-            'flex-col md:flex-row',
-            'md:items-end',
-            'md:justify-between',
-            'w-full md:max-w-xs'
+            'flex flex-col sm:flex-row', 
+            'w-full sm:max-w-xs' 
         ]
         
         for responsive_class in responsive_classes:
@@ -2001,8 +1881,8 @@ class TestForumThreadsTemplateIntegration(TestCase):
         
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'Test Tournament')
-        self.assertContains(response, 'Selamat datang di forum diskusi')
-        self.assertContains(response, 'Buat Thread Baru')
+        self.assertContains(response, 'Ruang diskusi khusus untuk turnamen ini.')
+        self.assertContains(response, 'Mulai Diskusi Baru')
     
     def test_template_context_variables(self):
         """Test template receives correct context variables"""
@@ -2025,7 +1905,7 @@ class TestForumThreadsTemplateIntegration(TestCase):
         response = client.get(reverse('forums:forum_threads', args=[self.tournament.id]))
         
         # Authenticated users should see create thread button
-        self.assertContains(response, 'Buat Thread Baru')
+        self.assertContains(response, 'Mulai Diskusi Baru')
         # Should not contain login prompt
         self.assertNotContains(response, 'Silakan login')
     

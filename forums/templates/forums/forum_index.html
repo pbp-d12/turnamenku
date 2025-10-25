@@ -19,14 +19,15 @@
                 <path fill-rule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clip-rule="evenodd" />
              </svg>
         </div>
+        {# IMPROVEMENT: Added shadow and refined focus/border for a more modern input look #}
         <input type="text"
                id="search-tournaments"
                placeholder="Cari nama atau deskripsi turnamen..."
-               class="filter-input w-full pl-10 pr-4 py-3 border border-custom-blue-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-custom-blue-300 focus:border-transparent transition-all duration-300 text-custom-blue-400 placeholder-custom-blue-200">
+               class="filter-input w-full pl-10 pr-4 py-3 border-2 border-custom-blue-100 rounded-2xl shadow-md focus:outline-none focus:ring-2 focus:ring-custom-blue-300 focus:border-custom-blue-300 transition-all duration-300 text-custom-blue-400 placeholder-custom-blue-300">
     </div>
 
     <div class="mb-6 flex flex-col sm:flex-row justify-between items-center gap-4">
-        <button id="filter-modal-button" class="w-full sm:w-auto px-5 py-2 border border-custom-blue-300 text-custom-blue-400 font-medium rounded-lg hover:bg-custom-blue-50 transition-colors duration-200 flex items-center justify-center">
+        <button id="filter-modal-button" class="w-full sm:w-auto px-5 py-2 border border-custom-blue-300 text-custom-blue-400 font-medium rounded-lg hover:bg-custom-blue-100 transition-colors duration-200 flex items-center justify-center">
              <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"></path></svg>
              Filter
              <span id="active-filter-count" class="ml-2 bg-custom-blue-400 text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center hidden">0</span>
@@ -42,6 +43,7 @@
     </div>
 
     <div class="bg-white rounded-lg shadow-xl overflow-hidden min-h-[300px]">
+        {# IMPROVEMENT: Loading state is simple, but we can manage it with JS logic #}
         <div class="p-8 text-center text-custom-blue-300" id="loading-state">
             <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-custom-blue-400 mx-auto"></div>
             <p class="text-custom-blue-300 mt-4">Memuat turnamen...</p>
@@ -51,8 +53,8 @@
 
     <nav id="pagination-container" class="mt-6 flex justify-center items-center space-x-1 hidden"></nav>
 
-    <div id="filter-modal" class="fixed inset-0 bg-gray-600 bg-opacity-75 overflow-y-auto h-full w-full z-50 hidden flex items-center justify-center p-4 transition-opacity duration-300 ease-out opacity-0" data-state="closed">
-      <div class="relative bg-white w-full max-w-lg mx-auto rounded-lg shadow-xl transform transition-transform duration-300 ease-out scale-95" data-state="closed">
+    <div id="filter-modal" class="fixed inset-0 bg-gray-600 bg-opacity-75 backdrop-blur-sm overflow-y-auto h-full w-full z-50 hidden flex items-center justify-center p-4 transition-opacity duration-300 ease-out opacity-0" data-state="closed">
+      <div class="relative bg-white w-full max-w-lg mx-auto rounded-lg shadow-2xl transform transition-transform duration-300 ease-out scale-95" data-state="closed">
         <div class="p-6">
           <div class="flex justify-between items-center mb-6 pb-3 border-b border-custom-blue-100">
             <h3 class="text-xl font-semibold text-custom-blue-400">Filter Turnamen</h3>
@@ -193,6 +195,12 @@
          closeModal();
          triggerFetchWithDebounce(true);
     });
+    
+    function handleClearSearch() {
+        searchInput.value = '';
+        fetchTournaments(1, true);
+    }
+
 
     function showLoading() { if (loadingState) loadingState.style.display = 'block'; }
     function hideLoading() { if (loadingState) loadingState.style.display = 'none'; }
@@ -202,7 +210,7 @@
         isLoading = true;
 
         showLoading();
-        if (isNewFilterOrSort || page === 1) { container.innerHTML = ''; }
+        container.innerHTML = ''; 
         paginationContainer.classList.add('hidden');
 
         currentQuery = searchInput.value.trim();
@@ -266,8 +274,19 @@
                 renderPagination(pagination.current_page, totalPages);
                 paginationContainer.classList.remove('hidden');
             } else if (page === 1) {
-                container.innerHTML = `<div class="p-8 text-center text-custom-blue-300"><p class="text-lg">Tidak ada turnamen yang sesuai.</p></div>`;
+                container.innerHTML = `
+                    <div class="p-12 text-center text-custom-blue-300">
+                        <svg class="w-16 h-16 mx-auto mb-4 text-custom-blue-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15 13l-3 3m0 0l-3-3m3 3V8m0 13a9 9 0 110-18 9 9 0 010 18z"></path>
+                        </svg>
+                        <p class="text-xl font-semibold text-custom-blue-400 mb-2">Tidak Ditemukan</p>
+                        <p class="text-custom-blue-300">Coba atur ulang filter Anda atau gunakan kata kunci yang berbeda.</p>
+                        <button id="clear-search-btn" class="mt-4 px-4 py-2 text-sm text-custom-blue-400 border border-custom-blue-300 rounded-lg hover:bg-custom-blue-50 transition-colors">Reset Pencarian</button>
+                    </div>
+                `;
                 paginationContainer.classList.add('hidden');
+                // Re-attach event listener for the new button
+                document.getElementById('clear-search-btn')?.addEventListener('click', handleClearSearch);
             } else {
                  paginationContainer.classList.add('hidden');
             }
@@ -293,6 +312,9 @@
         const endDate = tournament.end_date || 'Belum ditentukan';
         const organizer = tournament.organizer_username || 'Tidak diketahui';
         const participantCount = tournament.participant_count ?? '?';
+        
+        // IMPROVEMENT: Participant count moved to a more prominent badge
+        // IMPROVEMENT: Call to Action (CTA) changed to a more clickable button style
 
         return `
         <a href="${tournament.url}" class="block p-6 hover:bg-custom-blue-50 transition-colors duration-150">
@@ -303,14 +325,23 @@
                 <div class="flex-grow">
                     <div class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2 mb-3">
                         <h3 class="font-semibold text-xl text-custom-blue-400 hover:underline flex-grow">${tournament.name}</h3>
-                        <span class="bg-custom-blue-400 text-white text-sm font-medium px-3 py-1 rounded-full whitespace-nowrap">${participantCount} Pemain</span>
+                        <span class="bg-custom-blue-400 text-white text-sm font-medium px-3 py-1 rounded-full whitespace-nowrap flex items-center">
+                            Jumlah Pemain: ${participantCount}
+                        </span>
                     </div>
                     <p class="text-custom-blue-300 mb-4 line-clamp-2">${description}</p>
                     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 text-sm text-custom-blue-300">
                         <div class="flex items-center"><svg class="w-4 h-4 mr-2 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg><span class="truncate">Oleh ${organizer}</span></div>
                         <div class="flex items-center"><svg class="w-4 h-4 mr-2 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg><span class="truncate">Mulai: ${startDate}</span></div>
                         <div class="flex items-center"><svg class="w-4 h-4 mr-2 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg><span class="truncate">Selesai: ${endDate}</span></div>
-                        <div class="flex items-center justify-end sm:justify-start"><span class="text-custom-blue-400 font-medium">Lihat Forum &rarr;</span></div>
+                        
+                        {# IMPROVEMENT: CTA is now a button-like style #}
+                        <div class="flex items-center justify-end sm:justify-start">
+                            <span class="px-3 py-1 bg-custom-blue-100 text-custom-blue-400 font-semibold rounded-lg hover:bg-custom-blue-200 transition-colors text-xs flex items-center">
+                                Lihat Forum
+                                <svg class="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path></svg>
+                            </span>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -348,7 +379,8 @@
         target.disabled = true;
         const page = parseInt(target.dataset.page);
         if (page !== currentPage) {
-            fetchTournaments(page, false);
+            // FIXED: fetchTournaments will now clear the container itself.
+            fetchTournaments(page, false); 
             window.scrollTo({ top: 0, behavior: 'smooth' });
         } else {
              target.disabled = false;
