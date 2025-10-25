@@ -36,7 +36,7 @@
         Gagal memuat detail turnamen.
     </div>
 
-    {# --- Konten Placeholder (Awalnya tersembunyi) --- #}
+    {#   Konten Placeholder (Awalnya tersembunyi)   #}
     <div id="tournament-content" class="hidden">
         <div id="tournament-banner-container" class="mb-6"></div>
         <h1 id="tournament-name" class="text-3xl md:text-4xl font-bold text-custom-blue-400 mb-2 break-words"></h1>
@@ -63,14 +63,41 @@
         <div id="team-registration-container" class="my-4">
             </div>
 
-        {# --- Bagian Tim Peserta --- #}
+        {#   Bagian Tim Peserta   #}
         <hr class="my-6 border-gray-200">
         <h2 class="text-2xl font-bold text-gray-800 mb-4">Tim Peserta</h2>
         <div id="participant-list" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 mb-6">
              {# Kartu tim peserta akan dimasukkan di sini oleh JavaScript #}
         </div>
         <p id="no-participants-message" class="hidden text-gray-500 col-span-full">Belum ada tim yang mendaftar.</p>
-        {# ----------------------------------- #}
+        {#            -- #}
+
+        {#   Bagian Leaderboard   #}
+        <hr class="my-6 border-gray-200">
+        <h2 class="text-2xl font-bold text-gray-800 mb-4">Leaderboard</h2>
+        <div id="leaderboard-container" class="overflow-x-auto rounded-lg border border-gray-200 shadow-sm mb-6 hidden">
+            <table class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th scope="col" class="px-3 py-3 text-left text-xs font-bold text-gray-600 uppercase tracking-wider w-1/12">Pos</th>
+                        <th scope="col" class="px-4 py-3 text-left text-xs font-bold text-gray-600 uppercase tracking-wider w-4/12">Tim</th>
+                        <th scope="col" title="Played" class="px-2 py-3 text-center text-xs font-bold text-gray-600 uppercase tracking-wider">P</th>
+                        <th scope="col" title="Wins" class="px-2 py-3 text-center text-xs font-bold text-gray-600 uppercase tracking-wider">W</th>
+                        <th scope="col" title="Draws" class="px-2 py-3 text-center text-xs font-bold text-gray-600 uppercase tracking-wider">D</th>
+                        <th scope="col" title="Losses" class="px-2 py-3 text-center text-xs font-bold text-gray-600 uppercase tracking-wider">L</th>
+                        <th scope="col" title="Goals For" class="px-2 py-3 text-center text-xs font-bold text-gray-600 uppercase tracking-wider">GF</th>
+                        <th scope="col" title="Goals Against" class="px-2 py-3 text-center text-xs font-bold text-gray-600 uppercase tracking-wider">GA</th>
+                        <th scope="col" title="Goal Difference" class="px-2 py-3 text-center text-xs font-bold text-gray-600 uppercase tracking-wider">GD</th>
+                        <th scope="col" title="Points" class="px-2 py-3 text-center text-xs font-bold text-gray-600 uppercase tracking-wider">Pts</th>
+                    </tr>
+                </thead>
+                <tbody id="leaderboard-body" class="bg-white divide-y divide-gray-200">
+                    {# Leaderboard rows will be injected here by JS #}
+                </tbody>
+            </table>
+        </div>
+        <p id="no-leaderboard-message" class="hidden text-gray-500">Leaderboard akan tersedia setelah ada pertandingan yang selesai.</p>
+        {#            -- #}
 
         <hr class="my-6 border-gray-200">
         <h2 class="text-2xl font-bold text-gray-800 mb-4">Jadwal Pertandingan</h2>
@@ -83,10 +110,10 @@
              <a id="forum-link" href="#" class="flex-1 text-center bg-custom-blue-100 text-custom-blue-400 font-semibold py-2 px-4 rounded-lg hover:bg-custom-blue-200 transition-colors">Diskusi Forum</a>
              <a id="predictions-link" href="#" class="flex-1 text-center bg-custom-blue-100 text-custom-blue-400 font-semibold py-2 px-4 rounded-lg hover:bg-custom-blue-200 transition-colors">Lihat Prediksi</a>
          </div>
-    </div> {# --- End #tournament-content --- #}
+    </div> {#   End #tournament-content   #}
 </div>
 
-{# --- MODAL EDIT TURNAMEN --- #}
+{#   MODAL EDIT TURNAMEN   #}
 <div id="edit-tournament-modal" class="fixed inset-0 bg-gray-900 bg-opacity-75 flex items-center justify-center z-50 hidden p-4 transition-opacity duration-300 opacity-0">
     <div class="bg-white rounded-xl shadow-xl w-full max-w-lg max-h-[90vh] flex flex-col transform scale-95 transition-all duration-300">
         <div class="flex justify-between items-center p-5 border-b border-gray-200">
@@ -129,7 +156,7 @@
                 </div>
                 <div id="error-edit-registration_open" class="text-red-500 text-sm mt-1 font-medium"></div>
 
-                {# --- Field Peserta (Searchable) --- #}
+                {#   Field Peserta (Searchable)   #}
                 <div class="relative"> {# Use relative positioning for dropdown #}
                     <label for="participant-search-input" class="block text-sm font-semibold text-gray-700 mb-1">Cari Tim Peserta</label>
                     <input type="search" id="participant-search-input" placeholder="Ketik nama tim..."
@@ -144,7 +171,7 @@
                   </div>
                   <div id="error-edit-participants" class="text-red-500 text-sm mt-1 font-medium"></div>
                 </div>
-                {# --------------------- #}
+                {#         #}
                  <div id="error-edit-non_field_errors" class="text-red-500 text-sm mt-1 font-medium"></div>
 
                  <div class="pt-4 mt-6 border-t border-gray-200">
@@ -158,9 +185,9 @@
         </div>
     </div>
 </div>
-{# --- End Modal Edit --- #}
+{#   End Modal Edit   #}
 
-{# --- MODAL KONFIRMASI HAPUS --- #}
+{#   MODAL KONFIRMASI HAPUS   #}
 <div id="delete-confirm-modal" class="fixed inset-0 bg-gray-900 bg-opacity-75 flex items-center justify-center z-50 hidden p-4 transition-opacity duration-300 opacity-0">
     <div class="bg-white rounded-xl shadow-xl w-full max-w-md transform scale-95 transition-all duration-300">
         <div class="flex justify-between items-center p-5 border-b border-gray-200">
@@ -180,7 +207,7 @@
         </div>
     </div>
 </div>
-{# --- End Modal Konfirmasi Hapus --- #}
+{#   End Modal Konfirmasi Hapus   #}
 
 
 <script>
@@ -215,6 +242,9 @@
         const registrationStatusBadge = document.getElementById('registration-status-badge');
         const winnerNameDisplay = document.getElementById('winner-name-display');
         const teamRegistrationContainer = document.getElementById('team-registration-container');
+        const leaderboardContainer = document.getElementById('leaderboard-container');
+        const leaderboardBody = document.getElementById('leaderboard-body');
+        const noLeaderboardMessage = document.getElementById('no-leaderboard-message');
 
         // Elemen Modal Edit
         const editModal = document.getElementById('edit-tournament-modal');
@@ -304,7 +334,7 @@
                         participantSearchResults.appendChild(item);
                         }
                     });
-                    if (participantSearchResults.children.length > 0) { // Only show if there are valid results
+                    if (participantSearchResults.children.length > 0) { 
                         participantSearchResults.classList.remove('hidden');
                     } else {
                         participantSearchResults.classList.add('hidden');
@@ -330,7 +360,7 @@
                 option.selected = true;
             } else {
                 console.warn("DEBUG: Option for selected team not found in hidden select. Creating.");
-                const newOption = new Option(teamName, teamId, false, true); // text, value, defaultSelected, selected
+                const newOption = new Option(teamName, teamId, false, true); 
                 hiddenParticipantsSelect.appendChild(newOption);
             }
 
@@ -361,26 +391,22 @@
             selectedParticipantsDisplay.appendChild(badge);
         }
 
-        // --- Handle removing a team badge/selection ---
+        // Handle removing a team badge/selection
         function handleTeamRemove(teamId) {
             console.log("DEBUG: Removing team:", teamId);
-            // Remove from hidden select
             const option = hiddenParticipantsSelect.querySelector(`option[value="${teamId}"]`);
             if (option) {
                 option.selected = false;
             }
 
-            // Remove badge
             const badge = selectedParticipantsDisplay.querySelector(`[data-team-id="${teamId}"]`);
             if (badge) {
                 badge.remove();
             }
         }
         function styleModalForm(formEl) {
-             // ... (Styling logic as before - make sure 'let fieldName' fix is here) ...
              if (!formEl) return;
              try {
-                 // Reset paragraphs
                  formEl.querySelectorAll('p').forEach(p => {
                      const isWrapper = p.querySelector('label') || p.querySelector('input, textarea, select');
                      if (isWrapper && !p.querySelector('div[id^="error-"]') && p.children.length <= 2) {
@@ -434,21 +460,21 @@
             try {
                 styleModalForm(editForm); // Style form early
 
-                // --- Banner ---
+                //   Banner  
                 console.log("DEBUG: Populating banner...");
                 if (bannerContainer) {
                     if (data.banner_url) { bannerContainer.innerHTML = `<img src="${data.banner_url}" alt="Banner ${data.name}" class="w-full h-48 md:h-64 object-cover rounded-lg" onerror="console.warn('DEBUG: Banner image failed to load!'); this.parentElement.innerHTML = defaultBannerSvg;">`; }
                     else { bannerContainer.innerHTML = defaultBannerSvg; }
                 }
 
-                // --- Basic Info ---
+                //   Basic Info  
                 console.log("DEBUG: Populating basic info...");
                 if (nameEl) nameEl.textContent = data.name;
                 if (organizerLink) { organizerLink.textContent = data.organizer_username; organizerLink.href = data.organizer_profile_url;}
                 if (datesEl) datesEl.textContent = `${data.start_date_formatted} - ${data.end_date_formatted}`;
                 if (descriptionEl) descriptionEl.innerHTML = data.description ? data.description.replace(/\n/g, '<br>') : 'Tidak ada deskripsi.';
 
-                // --- Status ---
+                //   Status  
                 console.log("DEBUG: Populating status...");
                 if (registrationStatusBadge) {
                     if (data.registration_open) { registrationStatusBadge.textContent = 'Dibuka'; registrationStatusBadge.className = 'px-3 py-1 text-xs font-bold rounded-full bg-green-100 text-green-800'; }
@@ -459,7 +485,7 @@
                     else { winnerNameDisplay.textContent = 'Belum ditentukan'; winnerNameDisplay.classList.remove('font-bold'); }
                 }
 
-                // --- Participants ---
+                //   Participants  
                 console.log("DEBUG: Populating participants...");
                 if (participantList) {
                     participantList.innerHTML = ''; 
@@ -479,6 +505,51 @@
                         if (noParticipantsMessage) noParticipantsMessage.classList.remove('hidden');
                     }
                 } else console.error("DEBUG: participantList element NOT FOUND!");
+
+                // Leaderboard 
+                console.log("DEBUG: Populating leaderboard...");
+                if (leaderboardBody && noLeaderboardMessage && leaderboardContainer) {
+                    leaderboardBody.innerHTML = ''; 
+                    
+                    if (data.leaderboard && Array.isArray(data.leaderboard) && data.leaderboard.length > 0 && data.leaderboard.some(t => t.played > 0)) {
+                        noLeaderboardMessage.classList.add('hidden');
+                        leaderboardContainer.classList.remove('hidden'); // Tampilkan tabel
+                        
+                        let leaderboardHtmlContent = '';
+                        data.leaderboard.forEach((team, index) => {
+                            const logoHtml = team.team_logo 
+                                ? `<img src="${team.team_logo}" alt="Logo ${team.team_name}" class="h-6 w-6 rounded-full object-cover mr-2 flex-shrink-0" onerror="console.warn('DEBUG: Logo failed to load for ${team.team_name}'); this.parentElement.innerHTML = defaultTeamLogoSvg.replace('class=\"w-full h-full', 'class=\"w-6 h-6');">`
+                                : `<div class="h-6 w-6 rounded-full bg-gray-100 mr-2 flex-shrink-0 flex items-center justify-center">${defaultTeamLogoSvg.replace('class="w-full h-full', 'class="w-5 h-5"')}</div>`; // Sedikit lebih kecil untuk di dalam div
+
+                            leaderboardHtmlContent += `
+                                <tr class="hover:bg-gray-50 transition-colors">
+                                    <td class="px-3 py-3 whitespace-nowrap text-sm font-medium text-gray-900 text-center">${index + 1}</td>
+                                    <td class="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">
+                                        <div class="flex items-center">
+                                            ${logoHtml}
+                                            <span class="truncate" title="${team.team_name}">${team.team_name}</span>
+                                        </div>
+                                    </td>
+                                    <td class="px-2 py-3 whitespace-nowrap text-sm text-gray-600 text-center">${team.played}</td>
+                                    <td class="px-2 py-3 whitespace-nowrap text-sm text-gray-600 text-center">${team.wins}</td>
+                                    <td class="px-2 py-3 whitespace-nowrap text-sm text-gray-600 text-center">${team.draws}</td>
+                                    <td class="px-2 py-3 whitespace-nowrap text-sm text-gray-600 text-center">${team.losses}</td>
+                                    <td class="px-2 py-3 whitespace-nowrap text-sm text-gray-600 text-center font-medium">${team.goals_for}</td>
+                                    <td class="px-2 py-3 whitespace-nowrap text-sm text-gray-600 text-center">${team.goals_against}</td>
+                                    <td class="px-2 py-3 whitespace-nowrap text-sm text-gray-600 text-center">${team.goal_difference > 0 ? '+' : ''}${team.goal_difference}</td>
+                                    <td class="px-2 py-3 whitespace-nowrap text-sm text-gray-900 text-center font-bold">${team.points}</td>
+                                </tr>
+                            `;
+                        });
+                        leaderboardBody.innerHTML = leaderboardHtmlContent;
+                    } else {
+                        console.log("DEBUG: No leaderboard data or no matches played.");
+                        noLeaderboardMessage.classList.remove('hidden');
+                        leaderboardContainer.classList.add('hidden'); // Sembunyikan tabel
+                    }
+                } else {
+                    console.error("DEBUG: leaderboardBody, noLeaderboardMessage, or leaderboardContainer element NOT FOUND!");
+                }
 
 
                 // Matches 
