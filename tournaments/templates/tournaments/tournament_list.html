@@ -157,9 +157,9 @@
         const loadingIndicator = document.getElementById('loading-indicator');
         const noTournamentsMessage = document.getElementById('no-tournaments-message');
         const noTournamentsSubtext = document.getElementById('no-tournaments-subtext');
-        const loadMoreBtn = document.getElementById('load-more-btn'); // NEW
+        const loadMoreBtn = document.getElementById('load-more-btn');
 
-        let next_page_to_load = 1; // NEW: Tracks the next page
+        let next_page_to_load = 1; 
         let is_loading = false;
         
         const defaultBannerSvg = `
@@ -189,7 +189,7 @@
             `;
         }
 
-        // --- Main Data Fetching Function (MODIFIED) ---
+        // Main Data Fetching Function 
         async function fetchTournaments(page = 1, isLoadMore = false) {
             if (is_loading) return;
             is_loading = true;
@@ -198,14 +198,12 @@
             noTournamentsMessage.classList.remove('text-red-600');
 
             if (isLoadMore) {
-                // Loading more: only show spinner on button
                 loadMoreBtn.textContent = 'Memuat...';
                 loadMoreBtn.disabled = true;
             } else {
-                // New search/filter: clear container, show main spinner
                 tournamentContainer.innerHTML = '';
                 tournamentContainer.classList.add('hidden');
-                loadMoreBtn.classList.add('hidden'); // Hide button until we know there's a next page
+                loadMoreBtn.classList.add('hidden'); 
                 loadingIndicator.classList.remove('hidden');
             }
             
@@ -214,33 +212,29 @@
             const url = new URL("{% url 'tournaments:get_tournaments_json' %}", window.location.origin);
             if (searchValue) url.searchParams.append('search', searchValue);
             if (statusValue) url.searchParams.append('status', statusValue);
-            url.searchParams.append('page', page); // MODIFIED: Send page number
+            url.searchParams.append('page', page); 
 
             try {
                 const response = await fetch(url);
                 if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
                 
-                // MODIFIED: Expect a JSON object, not an array
                 const responseData = await response.json();
                 const tournaments = responseData.tournaments;
 
                 if (tournaments.length > 0) {
                     tournaments.forEach(tournament => {
                         const cardHtml = createTournamentCardHtml(tournament);
-                        // MODIFIED: Always append, since we clear container for non-load-more calls
                         tournamentContainer.insertAdjacentHTML('beforeend', cardHtml);
                     });
                     tournamentContainer.classList.remove('hidden');
                 }
                 
-                // MODIFIED: Handle "No Tournaments" only on page 1
                 if (page === 1 && tournaments.length === 0) {
                     noTournamentsMessage.querySelector('p:first-child').textContent = 'Tidak ada turnamen yang cocok dengan filter Anda.';
                     noTournamentsSubtext.textContent = 'Coba ubah kriteria pencarian atau filter status.';
                     noTournamentsMessage.classList.remove('hidden');
                 }
                 
-                // MODIFIED: Handle "Load More" button visibility
                 if (responseData.has_next_page) {
                     next_page_to_load = responseData.next_page_number;
                     loadMoreBtn.classList.remove('hidden');
@@ -251,7 +245,7 @@
 
             } catch (error) {
                 console.error("Error fetching tournaments:", error);
-                if (page === 1) { // Only show full-page error on initial load
+                if (page === 1) { 
                      noTournamentsMessage.querySelector('p:first-child').textContent = 'Gagal memuat daftar turnamen.';
                      noTournamentsSubtext.textContent = 'Terjadi kesalahan saat menghubungi server.';
                      noTournamentsMessage.classList.add('text-red-600');
@@ -259,18 +253,16 @@
                 }
                 if (typeof showToast === 'function') showToast('Gagal memuat turnamen.', 'error');
             } finally {
-                loadingIndicator.classList.add('hidden'); // Hide main spinner
+                loadingIndicator.classList.add('hidden'); 
                 if (isLoadMore) {
                     loadMoreBtn.textContent = 'Muat Lebih Banyak';
                     loadMoreBtn.disabled = false;
                 }
-                is_loading = false; // Release lock
+                is_loading = false; 
             }
         }
 
-        // --- Event Listeners (MODIFIED) ---
-
-        // Filters now reset to page 1
+        //Event Listeners
         searchInput.addEventListener('input', () => {
             clearTimeout(searchTimeout);
             searchTimeout = setTimeout(() => fetchTournaments(1, false), 300);
@@ -278,7 +270,6 @@
         
         statusFilter.addEventListener('change', () => fetchTournaments(1, false));
 
-        // NEW: Event listener for the "Load More" button
         loadMoreBtn.addEventListener('click', () => {
             if (next_page_to_load) {
                 fetchTournaments(next_page_to_load, true);
@@ -315,8 +306,6 @@
 
                 if (createForm) {
                     createForm.reset();
-
-                    // --- Clear participant search UI ---
                     if (participantSearchInputCreate) participantSearchInputCreate.value = '';
                     if (participantSearchResultsCreate) {
                         participantSearchResultsCreate.innerHTML = '';
@@ -327,7 +316,6 @@
                     if (hiddenParticipantsSelectCreate) {
                         Array.from(hiddenParticipantsSelectCreate.options).forEach(opt => (opt.selected = false));
                     }
-                    // -----------------------------------
 
                     createForm.querySelectorAll('[id^="error-"]').forEach(el => (el.textContent = ''));
                     createForm.querySelectorAll('.border-red-500').forEach(el => {
