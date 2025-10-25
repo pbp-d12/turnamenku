@@ -5,13 +5,14 @@
 <div class="container mx-auto px-4 py-8">
   <h1 class="text-4xl font-bold mb-8 text-center text-custom-blue-400">Prediksi Pertandingan</h1>
 
-  <div class="flex flex-col sm:flex-row justify-between items-center mb-8 gap-4">
+  <div class="flex flex-col sm:flex-row justify-between items-center mb-8 gap-4 relative">
     <a href="{% url 'predictions:leaderboard' %}"
-       class="bg-custom-blue-100 hover:bg-custom-blue-300 text-white px-6 py-2 rounded-lg font-semibold shadow-md transition duration-300">
+       class="order-1 sm:order-none w-full sm:w-auto text-center bg-custom-blue-100 hover:bg-custom-blue-300 text-white px-6 py-2 rounded-lg font-semibold shadow-md transition duration-300 z-20">
        🏆 Leaderboard
     </a>
 
-    <form method="get" id="filterForm" class="absolute left-1/2 transform -translate-x-1/2 flex items-center gap-2">
+    <form method="get" id="filterForm"
+          class="relative sm:absolute sm:left-1/2 sm:transform sm:-translate-x-1/2 flex items-center gap-2">
       <select name="tournament" class="border border-gray-300 rounded-lg p-2 focus:ring-2 focus:ring-custom-blue-200">
         <option value="">Semua Turnamen</option>
         {% for t in tournaments %}
@@ -28,11 +29,12 @@
 
     {% if user.is_authenticated and user.profile.role in "PENYELENGGARA,ADMIN" %}
     <button id="openAddMatchModal"
-      class="w-full sm:w-auto bg-custom-blue-400 text-white font-bold py-2 px-5 rounded-lg shadow-md hover:bg-custom-blue-300 transition-colors duration-300">
+      class="order-2 sm:order-none w-full sm:w-auto bg-custom-blue-400 text-white font-bold py-2 px-5 rounded-lg shadow-md hover:bg-custom-blue-300 transition-colors duration-300">
       + Tambah Match
     </button>
     {% endif %}
   </div>
+
 
   <div class="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8 mt-16">
 
@@ -164,9 +166,6 @@
 {% block javascript %}
 {{ block.super }}
 <script>
-  // ===================================================================
-  // DEFINISI GLOBAL (Fungsi & Konstanta yang TIDAK butuh HTML)
-  // ===================================================================
   const funMessages = [
     "Tebak siapa yang bakal jadi juara kali ini! ⚽🔥",
     "Prediksi sekarang, buktikan nanti! 🧠🏆",
@@ -178,25 +177,31 @@
   const CURRENT_TOURNAMENT_ID = "{{ current_tournament_id|escapejs }}";
   const CSRF_TOKEN = '{{ csrf_token }}';
   
-  // Ambil peta data tim dari view
+
   const TOURNAMENT_TEAMS_MAP = {{ tournaments_with_teams_json }};
 
-  // Fungsi untuk menjalankan Fun Messages
+
   function applyFunMessages(containerSelector = document) {
     containerSelector.querySelectorAll(".funText").forEach(el => {
       el.textContent = funMessages[Math.floor(Math.random() * funMessages.length)];
     });
   }
 
-  // Fungsi untuk membuka modal pertandingan (Ongoing/Finished)
+
   async function openMatchesModal(type) {
     const modal = document.getElementById("matchesModal");
     const titleEl = document.getElementById("matchesModalTitle");
     const contentEl = document.getElementById("matchesModalContent");
-    const spinner = document.getElementById("matchesLoadingSpinner");
     
-    if (!modal || !spinner) {
-      console.error("Elemen modal (#matchesModal atau #matchesLoadingSpinner) tidak ditemukan.");
+
+    const spinnerHtml = `
+      <div id="matchesLoadingSpinner" class="text-center py-20">
+        <p class="text-lg text-gray-600">Memuat data...</p>
+      </div>
+    `;
+    
+    if (!modal || !contentEl) {
+      console.error("Elemen modal (#matchesModal atau #matchesModalContent) tidak ditemukan.");
       showToast("Gagal membuka modal.", "error");
       return;
     }
@@ -204,9 +209,7 @@
     modal.classList.remove("hidden");
     modal.classList.add("flex");
     
-    contentEl.innerHTML = ''; // Kosongkan dulu
-    contentEl.appendChild(spinner); // Tambahkan spinner-nya
-    spinner.classList.remove("hidden"); // Pastikan terlihat
+    contentEl.innerHTML = spinnerHtml; 
 
     let url = "";
     if (type === 'ongoing') {
@@ -220,7 +223,7 @@
     try {
       const response = await fetch(url);
       const html = await response.text();
-      contentEl.innerHTML = html; // Ganti spinner dengan konten
+      contentEl.innerHTML = html; 
       applyFunMessages(contentEl); 
     } catch (error) {
       contentEl.innerHTML = `<p class="text-center text-red-500">Gagal memuat data. Coba lagi.</p>`;
@@ -228,7 +231,7 @@
     }
   }
 
-  // FUNGSI BARU: Untuk update dropdown tim di modal Add Match
+
   function updateAddMatchTeamDropdowns(tournamentId, homeSelect, awaySelect) {
     const teams = TOURNAMENT_TEAMS_MAP[tournamentId] || [];
     
@@ -242,7 +245,7 @@
       homeSelect.add(new Option('Pilih Tim Home', ''));
       awaySelect.add(new Option('Pilih Tim Away', ''));
 
-      // `team.name` sekarang akan valid
+   
       teams.forEach(team => {
         homeSelect.add(new Option(team.name, team.id));
         awaySelect.add(new Option(team.name, team.id));
@@ -255,12 +258,10 @@
     }
   }
 
-  // ===================================================================
-  // EVENT LISTENERS (Semua di dalam DOMContentLoaded)
-  // ===================================================================
+
   document.addEventListener('DOMContentLoaded', function () {
 
-    // --- Tombol tutup modal pertandingan (PERBAIKAN BUG SPINNER) ---
+    
     const matchesModal = document.getElementById("matchesModal");
     const closeMatchesBtn = document.getElementById("closeMatchesModal");
     
@@ -270,7 +271,7 @@
       
       const contentEl = document.getElementById("matchesModalContent");
       if (contentEl) {
-        // Kembalikan spinner ke dalam content area
+        
         contentEl.innerHTML = `
           <div id="matchesLoadingSpinner" class="text-center py-20">
             <p class="text-lg text-gray-600">Memuat data...</p>
@@ -279,13 +280,13 @@
       }
     });
 
-    // --- Modal tambah match (LOGIKA BARU) ---
+    
     const addModal = document.getElementById("addMatchModal");
     const openAddBtn = document.getElementById("openAddMatchModal");
     const cancelAddBtn = document.getElementById("cancelAddMatch");
     const addForm = document.getElementById("addMatchForm");
     
-    // Ini adalah variabel yang menyebabkan error, sekarang seharusnya sudah ditemukan
+    
     const addMatchTournamentSelect = document.getElementById("addMatchTournamentSelect");
     const addMatchHomeTeamSelect = document.getElementById("addMatchHomeTeamSelect");
     const addMatchAwayTeamSelect = document.getElementById("addMatchAwayTeamSelect");
@@ -295,7 +296,7 @@
       addModal.classList.remove("hidden");
       addForm?.reset(); 
       
-      // Ini adalah kode yang GAGAL sebelumnya. Sekarang akan berhasil.
+      
       addMatchHomeTeamSelect.innerHTML = '<option value="" disabled selected>Pilih turnamen dulu</option>';
       addMatchHomeTeamSelect.disabled = true;
       addMatchAwayTeamSelect.innerHTML = '<option value="" disabled selected>Pilih turnamen dulu</option>';
@@ -304,7 +305,7 @@
     
     cancelAddBtn?.addEventListener("click", () => addModal.classList.add("hidden"));
 
-    // LISTENER BARU: Saat turnamen di modal 'Add Match' diganti
+
     addMatchTournamentSelect?.addEventListener('change', function() {
       const selectedTournamentId = this.value;
       updateAddMatchTeamDropdowns(selectedTournamentId, addMatchHomeTeamSelect, addMatchAwayTeamSelect);
@@ -381,10 +382,10 @@
       }
     });
 
-    // --- Event Delegation untuk tombol DINAMIS ---
+    
     document.body.addEventListener('click', async function(e) {
       
-      // 1. Tombol Prediksi (.team-btn)
+      
       if (e.target.matches('.team-btn')) {
         const btn = e.target;
         const response = await fetch("{% url 'predictions:submit_prediction' %}", {
@@ -397,7 +398,7 @@
         else showToast(data.message, 'error');
       }
 
-      // 2. Tombol Edit Skor (.edit-score-btn)
+      
       if (e.target.matches('.edit-score-btn')) {
         const btn = e.target;
         const matchId = btn.dataset.matchId;
@@ -411,11 +412,41 @@
         editModal.classList.remove("hidden");
       }
 
-      // 3. Tombol Delete Prediksi (.delete-prediction-btn)
+      
       if (e.target.matches('.delete-prediction-btn')) {
         matchIdToDelete = e.target.dataset.matchId;
         deleteModal.classList.remove("hidden");
       }
+
+      
+      if (e.target.matches('#matchesModalContent .page-link')) {
+        e.preventDefault();
+        
+        const url = e.target.getAttribute('href');
+        if (!url) return;
+        
+        const contentEl = document.getElementById("matchesModalContent");
+        if (!contentEl) return;
+
+
+        contentEl.innerHTML = `
+          <div id="matchesLoadingSpinner" class="text-center py-20">
+            <p class="text-lg text-gray-600">Memuat data...</p>
+          </div>
+        `;
+
+        try {
+          const response = await fetch(url);
+          const html = await response.text();
+          contentEl.innerHTML = html;
+          applyFunMessages(contentEl); 
+        } catch (error) {
+          contentEl.innerHTML = `<p class="text-center text-red-500">Gagal memuat halaman. Coba lagi.</p>`;
+          console.error("Fetch pagination error:", error);
+        }
+      }
+    
+
     });
 
     // Terapkan fun messages saat halaman pertama kali dimuat
