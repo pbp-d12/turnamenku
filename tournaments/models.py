@@ -1,5 +1,6 @@
 from django.db import models
 from django.contrib.auth.models import User
+from teams.models import Team 
 
 class Tournament(models.Model):
     name = models.CharField(max_length=255)
@@ -9,6 +10,14 @@ class Tournament(models.Model):
     start_date = models.DateField()
     end_date = models.DateField()
     participants = models.ManyToManyField('teams.Team', related_name='tournaments', blank=True)
+    registration_open = models.BooleanField(default=True) 
+    winner = models.ForeignKey(
+        Team,
+        on_delete=models.SET_NULL,
+        related_name='won_tournaments',
+        null=True,
+        blank=True
+    )
 
     def __str__(self):
         return self.name
