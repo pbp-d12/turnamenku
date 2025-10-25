@@ -40,26 +40,42 @@
     <div id="tournament-content" class="hidden">
         <div id="tournament-banner-container" class="mb-6"></div>
         <h1 id="tournament-name" class="text-3xl md:text-4xl font-bold text-custom-blue-400 mb-2 break-words"></h1>
+
         <div class="flex flex-wrap items-center text-sm text-custom-blue-300 mb-4 space-x-4">
             <span><strong>Penyelenggara:</strong> <a id="organizer-link" href="#" class="hover:underline"></a></span>
             <span>|</span>
             <span><strong>Tanggal:</strong> <span id="tournament-dates"></span></span>
         </div>
+
+        <div id="tournament-status-container" class="mb-4 p-4 bg-gray-50 rounded-lg border border-gray-200 grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+                <span class="block text-sm font-semibold text-gray-700 mb-1">Status Pendaftaran</span>
+                <span id="registration-status-badge" class="px-3 py-1 text-xs font-bold rounded-full"></span>
+            </div>
+            <div>
+                <span class="block text-sm font-semibold text-gray-700 mb-1">Pemenang</span>
+                <span id="winner-name-display" class="text-gray-900"></span>
+            </div>
+        </div>
+
         <p id="tournament-description" class="text-gray-700 mb-6 whitespace-pre-wrap break-words"></p>
 
-        {# --- ADDED: Participants Section --- #}
+        <div id="team-registration-container" class="my-4">
+            </div>
+
+        {# --- Bagian Tim Peserta --- #}
         <hr class="my-6 border-gray-200">
         <h2 class="text-2xl font-bold text-gray-800 mb-4">Tim Peserta</h2>
         <div id="participant-list" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 mb-6">
-            <p id="no-participants-message" class="hidden text-gray-500 italic col-span-full">Belum ada tim peserta.</p>
-             {# Participant cards will be inserted here by JS #}
+            <p id="no-participants-message" class="hidden text-gray-500 italic col-span-full">Belum ada tim yang mendaftar</p>
+             {# Kartu tim peserta akan dimasukkan di sini oleh JavaScript #}
         </div>
         {# ----------------------------------- #}
 
         <hr class="my-6 border-gray-200">
         <h2 class="text-2xl font-bold text-gray-800 mb-4">Jadwal Pertandingan</h2>
         <div id="match-list" class="space-y-4">
-            <p id="no-matches-message" class="hidden text-gray-500">Belum ada jadwal pertandingan.</p>
+            <p id="no-matches-message-display" class="hidden text-gray-500">Belum ada jadwal pertandingan.</p>
         </div>
          <hr class="my-6 border-gray-200">
          <div class="flex flex-col sm:flex-row gap-4 mt-6">
@@ -79,7 +95,7 @@
         <div class="p-6 overflow-y-auto">
             <form id="edit-tournament-form" method="POST" class="space-y-4">
                 {% csrf_token %}
-                {# Fields akan di-prefill oleh JS, pastikan ID-nya benar #}
+                {# Field dasar turnamen #}
                 <div>
                     <label for="id_name" class="block text-sm font-semibold text-gray-700 mb-1">Nama Turnamen <span class="text-red-500">*</span></label>
                     <input type="text" name="name" id="id_name" maxlength="255" required placeholder="Nama Turnamen">
@@ -106,17 +122,28 @@
                     <div id="error-edit-end_date" class="text-red-500 text-sm mt-1 font-medium"></div>
                 </div>
 
-                 {# --- ADDED: Placeholder for participants (future enhancement) --- #}
-                 {# <div class="hidden"> #}
-                 {#    <label for="id_participants" class="block text-sm font-semibold text-gray-700 mb-1">Peserta</label> #}
-                 {#    <select multiple name="participants" id="id_participants"> #}
-                 {#        Options filled dynamically or use a widget #}
-                 {#    </select> #}
-                 {#    <div id="error-edit-participants" class="text-red-500 text-sm mt-1 font-medium"></div> #}
-                 {# </div> #}
-                 {# ---------------------------------------------------------------- #}
+                <div class="flex items-center">
+                    {{ edit_form.registration_open }}
+                    <label for="id_registration_open" class="ml-2 text-sm font-semibold text-gray-700">Buka Pendaftaran Tim</label>
+                </div>
+                <div id="error-edit-registration_open" class="text-red-500 text-sm mt-1 font-medium"></div>
 
+                {# --- Field Peserta (Searchable) --- #}
+                <div class="relative"> {# Use relative positioning for dropdown #}
+                    <label for="participant-search-input" class="block text-sm font-semibold text-gray-700 mb-1">Cari Tim Peserta</label>
+                    <input type="search" id="participant-search-input" placeholder="Ketik nama tim..."
+                    class="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-custom-blue-300 focus:border-custom-blue-300">
+                    <div id="participant-search-results" class="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-48 overflow-y-auto hidden">
+                        {# Hasil pencarian akan dimasukkan di sini oleh JS #}
+                    </div>
+                  {{ edit_form.participants }} {# Renders the <select multiple hidden> #}
 
+                  <div id="selected-participants-display" class="mt-2 space-x-2 space-y-1">
+                      {# Badge tim terpilih akan dimasukkan di sini oleh JS #}
+                  </div>
+                  <div id="error-edit-participants" class="text-red-500 text-sm mt-1 font-medium"></div>
+                </div>
+                {# --------------------- #}
                  <div id="error-edit-non_field_errors" class="text-red-500 text-sm mt-1 font-medium"></div>
 
                  <div class="pt-4 mt-6 border-t border-gray-200">
@@ -157,15 +184,18 @@
 
 <script>
     document.addEventListener('DOMContentLoaded', function () {
+        console.log("DEBUG: DOMContentLoaded fired."); 
+
         const tournamentId = document.body.dataset.tournamentId;
         if (!tournamentId) {
-            console.error("Tournament ID not found in body dataset!");
-            // Display an error message to the user maybe
+            console.error("DEBUG: Tournament ID not found!");
             return;
         }
+        console.log("DEBUG: Tournament ID:", tournamentId); 
 
         let currentTournamentData = null;
 
+        // Elemen Halaman 
         const loadingIndicator = document.getElementById('loading-indicator');
         const errorMessage = document.getElementById('error-message');
         const contentDiv = document.getElementById('tournament-content');
@@ -176,363 +206,624 @@
         const datesEl = document.getElementById('tournament-dates');
         const descriptionEl = document.getElementById('tournament-description');
         const matchList = document.getElementById('match-list');
-        const noMatchesMessage = document.getElementById('no-matches-message');
+        const noMatchesMessageDisplay = document.getElementById('no-matches-message-display');
         const forumLink = document.getElementById('forum-link');
         const predictionsLink = document.getElementById('predictions-link');
         const participantList = document.getElementById('participant-list');
         const noParticipantsMessage = document.getElementById('no-participants-message');
-        // ------------------------------------
+        const registrationStatusBadge = document.getElementById('registration-status-badge');
+        const winnerNameDisplay = document.getElementById('winner-name-display');
+        const teamRegistrationContainer = document.getElementById('team-registration-container');
 
-        const defaultBannerSvg = `
-            <div class="w-full h-48 md:h-64 bg-custom-blue-100 rounded-lg flex items-center justify-center">
-                <svg class="w-16 h-16 text-custom-blue-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 18.657A8 8 0 016.343 7.343S7 9 9 10m0-2.657A8 8 0 0121.657 15S21 13 19 12m0 6.657a8 8 0 01-11.314-11.314m1.414 1.414A6 6 0 0119 12m-2 2a6 6 0 01-5.586 5.586"></path></svg>
-            </div>`;
-
-        const defaultTeamLogoSvg = `<svg class="w-full h-full text-custom-blue-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>`;
-
-        // --- Elemen Modal Edit ---
+        // Elemen Modal Edit
         const editModal = document.getElementById('edit-tournament-modal');
         const closeEditModalBtn = document.getElementById('close-edit-modal-btn');
         const editForm = document.getElementById('edit-tournament-form');
         const editSubmitBtn = document.getElementById('edit-submit-btn');
+        const participantsCheckboxContainer = document.getElementById('id_participants_container');
+        const registrationOpenCheckbox = document.getElementById('id_registration_open');
+        const participantSearchInput = document.getElementById('participant-search-input');
+        const participantSearchResults = document.getElementById('participant-search-results');
+        const selectedParticipantsDisplay = document.getElementById('selected-participants-display');
+        const hiddenParticipantsSelect = document.getElementById('id_participants');
 
-        // --- Elemen Modal Hapus ---
+        // Elemen Modal Hapus
         const deleteModal = document.getElementById('delete-confirm-modal');
         const closeDeleteModalBtn = document.getElementById('close-delete-modal-btn');
         const cancelDeleteBtn = document.getElementById('cancel-delete-btn');
         const confirmDeleteBtn = document.getElementById('confirm-delete-btn');
         const deleteConfirmMessage = document.getElementById('delete-confirm-message');
 
+        const defaultBannerSvg = `<div class="w-full h-48 md:h-64 bg-custom-blue-100 rounded-lg flex items-center justify-center"><svg class="w-16 h-16 text-custom-blue-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 18.657A8 8 0 016.343 7.343S7 9 9 10m0-2.657A8 8 0 0121.657 15S21 13 19 12m0 6.657a8 8 0 01-11.314-11.314m1.414 1.414A6 6 0 0119 12m-2 2a6 6 0 01-5.586 5.586"></path></svg></div>`;
+        const defaultTeamLogoSvg = `<svg class="w-full h-full text-custom-blue-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>`;
 
-        function styleModalForm(formEl) {
-             if (!formEl) return;
-             // Clear existing potentially problematic paragraph tags around fields first
-             formEl.querySelectorAll('p').forEach(p => {
-                 const containsLabel = p.querySelector('label');
-                 const containsInput = p.querySelector('input, textarea, select');
-                 const containsError = p.querySelector('div[id^="error-"]');
-                 if ((containsLabel || containsInput) && !containsError && p.children.length <= 2) {
-                     p.replaceWith(...p.childNodes); // Replace <p> with its children
-                 }
-             });
-             formEl.querySelectorAll('label').forEach(label => {
-                label.classList.add('block', 'text-sm', 'font-semibold', 'text-gray-700', 'mb-1');
-             });
-             formEl.querySelectorAll('input[type="text"], input[type="date"], input[type="url"], textarea').forEach(el => {
-                el.classList.add(
-                    'block', 'w-full', 'px-3', 'py-2', 'mt-1', 'border', 'border-gray-300', 'rounded-md', 'shadow-sm',
-                    'placeholder-gray-400', 'text-gray-900',
-                    'focus:outline-none', 'focus:ring-2', 'focus:ring-custom-blue-300', 'focus:border-custom-blue-300',
-                    'transition', 'duration-150', 'ease-in-out'
-                );
-             });
-             // Hide default help text if needed
-             formEl.querySelectorAll('.helptext').forEach(el => el.classList.add('hidden'));
+        // Safely get element
+        function safeGetElement(id, name) {
+            const el = document.getElementById(id);
+            if (!el) {
+                console.error(`DEBUG: Essential element "${name}" (#${id}) not found!`);
+            }
+            return el;
+        }
+        // Re-verify elements using helper
+         const essentialElements = [
+             loadingIndicator, errorMessage, contentDiv, managementButtonsDiv, bannerContainer, nameEl, organizerLink, datesEl,
+             descriptionEl, matchList, noMatchesMessageDisplay, forumLink, predictionsLink, participantList, noParticipantsMessage,
+             registrationStatusBadge, winnerNameDisplay, teamRegistrationContainer
+         ];
+         if (essentialElements.some(el => !el)) {
+              console.error("DEBUG: Stopping script - one or more essential page elements missing on initial load.");
+              if(errorMessage) { errorMessage.textContent = 'Page structure error.'; errorMessage.classList.remove('hidden'); }
+              if(loadingIndicator) loadingIndicator.classList.add('hidden');
+              return; 
+         }
+         console.log("DEBUG: All essential page elements verified.");
 
-             // Ensure error divs exist
-             formEl.querySelectorAll('input, textarea').forEach(el => {
-                const fieldName = el.name;
-                let errorDiv = document.getElementById(`error-edit-${fieldName}`);
-                if (!errorDiv && fieldName) { // Check if fieldName is not empty
-                    errorDiv = document.createElement('div');
-                    errorDiv.id = `error-edit-${fieldName}`;
-                    errorDiv.className = 'text-red-500 text-sm mt-1 font-medium';
-                    // Insert after the input/textarea itself
-                    el.parentNode.insertBefore(errorDiv, el.nextSibling);
-                }
-             });
+        //Debounce helper
+        function debounce(func, wait) {
+            let timeout;
+            return function executedFunction(...args) {
+                const later = () => {
+                    clearTimeout(timeout);
+                    func(...args);
+                };
+                clearTimeout(timeout);
+                timeout = setTimeout(later, wait);
+            };
         }
 
-        // --- Fungsi untuk Mengisi Halaman dengan Data ---
-        function populatePage(data) {
-            currentTournamentData = data;
-            styleModalForm(editForm);
-
-            // Populate Banner
-            if (data.banner_url) {
-                 bannerContainer.innerHTML = `<img src="${data.banner_url}" alt="Banner ${data.name}" class="w-full h-48 md:h-64 object-cover rounded-lg" onerror="this.parentElement.innerHTML = defaultBannerSvg;">`;
-            } else {
-                 bannerContainer.innerHTML = defaultBannerSvg;
+        // Fetch and display search results
+        const fetchTeamResults = debounce(async (query) => {
+            if (!participantSearchResults || query.length < 2) {
+                if(participantSearchResults) participantSearchResults.classList.add('hidden');
+                return;
             }
+            console.log("DEBUG: Searching teams for:", query);
 
-            // Populate Basic Info
-            nameEl.textContent = data.name;
-            organizerLink.textContent = data.organizer_username;
-            organizerLink.href = data.organizer_profile_url;
-            datesEl.textContent = `${data.start_date_formatted} - ${data.end_date_formatted}`;
-            descriptionEl.innerHTML = data.description ? data.description.replace(/\n/g, '<br>') : 'Tidak ada deskripsi.';
+            const selectedIds = Array.from(hiddenParticipantsSelect.selectedOptions).map(opt => opt.value);
 
-            // --- ADDED: Populate Participants ---
-            participantList.innerHTML = ''; // Clear previous participants
-            if (data.participants && data.participants.length > 0) {
-                noParticipantsMessage.classList.add('hidden');
-                data.participants.forEach(team => {
-                    const logoHtml = team.logo_url
-                        ? `<img src="${team.logo_url}" alt="Logo ${team.name}" class="w-full h-16 object-contain" onerror="this.parentElement.innerHTML = defaultTeamLogoSvg;">`
-                        : `<div class="w-full h-16 flex items-center justify-center bg-gray-100 rounded-t-lg">${defaultTeamLogoSvg}</div>`;
+            try {
+                let searchUrl = `/tournaments/search_teams/?q=${encodeURIComponent(query)}`;
+                // selectedIds.forEach(id => searchUrl += `&exclude_ids[]=${id}`); // Optional exclude
 
-                    const participantHtml = `
-                    <div class="border border-gray-200 rounded-lg shadow-sm overflow-hidden flex flex-col items-center text-center">
-                        <div class="w-full p-2 flex items-center justify-center h-20"> ${logoHtml}</div>
-                        <p class="text-xs font-medium text-gray-700 p-2 truncate w-full bg-gray-50">${team.name}</p>
-                    </div>`;
-                    participantList.insertAdjacentHTML('beforeend', participantHtml);
-                });
-            } else {
-                noParticipantsMessage.classList.remove('hidden');
-            }
-            // ------------------------------------
+                const response = await fetch(searchUrl);
+                if (!response.ok) throw new Error('Search failed');
+                const teams = await response.json();
 
-            // Populate Matches
-            matchList.innerHTML = ''; // Clear previous matches
-            if (data.matches && data.matches.length > 0) {
-                noMatchesMessage.classList.add('hidden');
-                data.matches.forEach(match => {
-                    // Use match_date_formatted if available, otherwise format from match_date
-                    let matchDateFormatted = match.match_date_formatted;
-                    if (!matchDateFormatted && match.match_date) {
-                         try { // Add try-catch for safety
-                            // Ensure match.match_date is treated as UTC if it doesn't have timezone info
-                            let matchDateObj = new Date(match.match_date.endsWith('Z') ? match.match_date : match.match_date + 'Z');
-                            matchDateFormatted = matchDateObj.toLocaleString('id-ID', {
-                                day: '2-digit', month: 'short', year: 'numeric',
-                                hour: '2-digit', minute: '2-digit', timeZoneName: 'short'
-                             });
-                         } catch(e) {
-                             console.error("Error formatting match date:", match.match_date, e);
-                             matchDateFormatted = match.match_date; // Fallback
-                         }
-                    } else if (!matchDateFormatted) {
-                        matchDateFormatted = 'Waktu tidak tersedia';
+                participantSearchResults.innerHTML = ''; 
+                if (teams.length > 0) {
+                    teams.forEach(team => {
+                        if (!selectedIds.includes(team.id.toString())) {
+                        const item = document.createElement('div');
+                        item.textContent = team.name;
+                        item.classList.add('px-3', 'py-2', 'hover:bg-custom-blue-100', 'cursor-pointer', 'text-sm');
+                        item.dataset.teamId = team.id;
+                        item.dataset.teamName = team.name;
+                        item.addEventListener('click', handleTeamSelect);
+                        participantSearchResults.appendChild(item);
+                        }
+                    });
+                    if (participantSearchResults.children.length > 0) { // Only show if there are valid results
+                        participantSearchResults.classList.remove('hidden');
+                    } else {
+                        participantSearchResults.classList.add('hidden');
                     }
+                } else {
+                    participantSearchResults.classList.add('hidden');
+                }
+            } catch (error) {
+                console.error("DEBUG: Error fetching team results:", error);
+                participantSearchResults.classList.add('hidden');
+            }
+        }, 300); 
 
-                    const homeTeamName = match.home_team__name || match.home_team_name || 'N/A';
-                    const awayTeamName = match.away_team__name || match.away_team_name || 'N/A';
+        // Handle selecting a team from results 
+        function handleTeamSelect(event) {
+            const teamId = event.target.dataset.teamId;
+            const teamName = event.target.dataset.teamName;
 
-                    const scoreDisplay = (match.home_score !== null && match.away_score !== null)
-                        ? `<span class="font-bold">${match.home_score} - ${match.away_score}</span>`
-                        : `<span class="text-sm font-normal text-custom-blue-200">Belum Dimulai</span>`;
+            console.log("DEBUG: Selected team:", teamId, teamName);
 
-                    const matchHtml = `
-                    <div class="p-4 border border-custom-blue-100 rounded-lg flex flex-col sm:flex-row justify-between items-center bg-custom-blue-50/30">
-                        <div class="flex-1 mb-2 sm:mb-0 text-center sm:text-left">
-                            <span class="font-semibold text-custom-blue-400">${homeTeamName}</span>
-                            <span class="text-gray-500 mx-1">vs</span>
-                            <span class="font-semibold text-custom-blue-400">${awayTeamName}</span>
-                            <p class="text-xs text-custom-blue-300 mt-1">${matchDateFormatted}</p>
-                        </div>
-                        <div class="text-lg text-custom-blue-400">${scoreDisplay}</div>
-                    </div>`;
-                    matchList.insertAdjacentHTML('beforeend', matchHtml);
-                });
+            const option = hiddenParticipantsSelect.querySelector(`option[value="${teamId}"]`);
+            if (option) {
+                option.selected = true;
             } else {
-                noMatchesMessage.classList.remove('hidden');
+                console.warn("DEBUG: Option for selected team not found in hidden select. Creating.");
+                const newOption = new Option(teamName, teamId, false, true); // text, value, defaultSelected, selected
+                hiddenParticipantsSelect.appendChild(newOption);
             }
 
-            // Populate Links
-            forumLink.href = data.forum_url;
-            predictionsLink.href = data.predictions_url;
 
-            // Populate Management Buttons
-            managementButtonsDiv.innerHTML = ''; // Clear previous buttons
-            if (data.is_organizer_or_admin) {
-                const editButtonHtml = `<button id="open-edit-modal-btn" class="bg-custom-blue-300 text-white font-semibold py-2 px-4 rounded-lg hover:bg-custom-blue-400 transition-colors text-sm">Edit Turnamen</button>`;
-                managementButtonsDiv.insertAdjacentHTML('beforeend', editButtonHtml);
-                const editBtn = document.getElementById('open-edit-modal-btn');
-                if (editBtn) editBtn.addEventListener('click', openEditModal);
+            addSelectedTeamBadge(teamId, teamName);
 
-                const deleteButtonHtml = `<button id="open-delete-modal-btn" class="bg-red-500 text-white font-semibold py-2 px-4 rounded-lg hover:bg-red-600 transition-colors text-sm">Hapus Turnamen</button>`;
-                managementButtonsDiv.insertAdjacentHTML('beforeend', deleteButtonHtml);
-                const openDeleteBtn = document.getElementById('open-delete-modal-btn');
-                if (openDeleteBtn) openDeleteBtn.addEventListener('click', openDeleteModal);
+            if(participantSearchInput) participantSearchInput.value = '';
+            if(participantSearchResults) participantSearchResults.classList.add('hidden');
+        }
+
+        // Add a visual badge for a selected team 
+        function addSelectedTeamBadge(teamId, teamName) {
+            if (!selectedParticipantsDisplay) return;
+            if (selectedParticipantsDisplay.querySelector(`[data-team-id="${teamId}"]`)) return;
+
+            const badge = document.createElement('span');
+            badge.dataset.teamId = teamId;
+            badge.classList.add('inline-flex', 'items-center', 'px-2.5', 'py-0.5', 'rounded-full', 'text-xs', 'font-medium', 'bg-custom-blue-100', 'text-custom-blue-800');
+            badge.textContent = teamName;
+
+            const removeBtn = document.createElement('button');
+            removeBtn.type = 'button';
+            removeBtn.innerHTML = '&times;'; // Multiplication sign 'x'
+            removeBtn.classList.add('ml-1.5', 'text-custom-blue-400', 'hover:text-custom-blue-700', 'focus:outline-none');
+            removeBtn.addEventListener('click', () => handleTeamRemove(teamId));
+
+            badge.appendChild(removeBtn);
+            selectedParticipantsDisplay.appendChild(badge);
+        }
+
+        // --- Handle removing a team badge/selection ---
+        function handleTeamRemove(teamId) {
+            console.log("DEBUG: Removing team:", teamId);
+            // Remove from hidden select
+            const option = hiddenParticipantsSelect.querySelector(`option[value="${teamId}"]`);
+            if (option) {
+                option.selected = false;
             }
 
-            contentDiv.classList.remove('hidden'); // Show content
+            // Remove badge
+            const badge = selectedParticipantsDisplay.querySelector(`[data-team-id="${teamId}"]`);
+            if (badge) {
+                badge.remove();
+            }
+        }
+        function styleModalForm(formEl) {
+             // ... (Styling logic as before - make sure 'let fieldName' fix is here) ...
+             if (!formEl) return;
+             try {
+                 // Reset paragraphs
+                 formEl.querySelectorAll('p').forEach(p => {
+                     const isWrapper = p.querySelector('label') || p.querySelector('input, textarea, select');
+                     if (isWrapper && !p.querySelector('div[id^="error-"]') && p.children.length <= 2) {
+                         p.replaceWith(...p.childNodes);
+                     }
+                 });
+                 // Style labels, inputs
+                 formEl.querySelectorAll('label:not(#id_participants_container label):not([for="id_registration_open"])').forEach(label => label.classList.add('block', 'text-sm', 'font-semibold', 'text-gray-700', 'mb-1'));
+                 formEl.querySelectorAll('input[type="text"], input[type="date"], input[type="url"], textarea').forEach(el => el.classList.add('block', 'w-full', 'px-3', 'py-2', 'mt-1', 'border', 'border-gray-300', 'rounded-md', 'shadow-sm', 'placeholder-gray-400', 'text-gray-900', 'focus:outline-none', 'focus:ring-2', 'focus:ring-custom-blue-300', 'focus:border-custom-blue-300', 'transition', 'duration-150', 'ease-in-out'));
+                 formEl.querySelectorAll('.helptext').forEach(el => el.classList.add('hidden'));
+
+                 // Style participant checkboxes
+                 if (participantsCheckboxContainer) {
+                     const ul = participantsCheckboxContainer.querySelector('ul');
+                     if (ul) {
+                         const items = Array.from(ul.children); participantsCheckboxContainer.innerHTML = '';
+                         items.forEach(li => {
+                             const label = li.querySelector('label');
+                             if (label) {
+                                 label.classList.add('flex', 'items-center', 'text-sm', 'text-gray-700', 'cursor-pointer', 'hover:bg-gray-100', 'p-1', 'rounded');
+                                 const input = label.querySelector('input[type="checkbox"]');
+                                 if (input) { input.classList.add('h-4', 'w-4', 'text-custom-blue-400', 'border-gray-300', 'rounded', 'focus:ring-custom-blue-300', 'mr-2'); }
+                             } participantsCheckboxContainer.appendChild(li);
+                         });
+                     } else { participantsCheckboxContainer.querySelectorAll('label').forEach(label => { /* Fallback */ }); }
+                 }
+                 // Style registration checkbox
+                 if (registrationOpenCheckbox) { registrationOpenCheckbox.classList.add('h-4', 'w-4', 'text-custom-blue-400', 'border-gray-300', 'rounded', 'focus:ring-custom-blue-300'); }
+
+                 // Add error divs if missing
+                 formEl.querySelectorAll('input, textarea, select, #id_participants_container').forEach(el => {
+                    let fieldName = el.id.startsWith('id_') ? el.id.substring(3) : el.name;
+                    if (!fieldName || fieldName === 'csrfmiddlewaretoken') return;
+                    let errorDivId = `error-edit-${fieldName}`;
+                    if (el.id === 'id_participants_container') { fieldName = 'participants'; errorDivId = `error-edit-participants`; }
+                    let errorDiv = document.getElementById(errorDivId);
+                    if (!errorDiv) {
+                        errorDiv = document.createElement('div'); errorDiv.id = errorDivId; errorDiv.className = 'text-red-500 text-sm mt-1 font-medium';
+                        const parent = (el.id === 'id_registration_open') ? el.parentElement : el;
+                        if (parent && parent.parentNode) { parent.parentNode.insertBefore(errorDiv, parent.nextSibling); }
+                        else { console.warn("DEBUG: styleModalForm - Could not find parentNode for errorDiv:", el); }
+                    }
+                 });
+                 console.log("DEBUG: styleModalForm finished.");
+             } catch (e) { console.error("DEBUG: Error in styleModalForm:", e); }
+        }
+
+        function populatePage(data) {
+            console.log("DEBUG: populatePage started.");
+            currentTournamentData = data;
+            try {
+                styleModalForm(editForm); // Style form early
+
+                // --- Banner ---
+                console.log("DEBUG: Populating banner...");
+                if (bannerContainer) {
+                    if (data.banner_url) { bannerContainer.innerHTML = `<img src="${data.banner_url}" alt="Banner ${data.name}" class="w-full h-48 md:h-64 object-cover rounded-lg" onerror="console.warn('DEBUG: Banner image failed to load!'); this.parentElement.innerHTML = defaultBannerSvg;">`; }
+                    else { bannerContainer.innerHTML = defaultBannerSvg; }
+                }
+
+                // --- Basic Info ---
+                console.log("DEBUG: Populating basic info...");
+                if (nameEl) nameEl.textContent = data.name;
+                if (organizerLink) { organizerLink.textContent = data.organizer_username; organizerLink.href = data.organizer_profile_url;}
+                if (datesEl) datesEl.textContent = `${data.start_date_formatted} - ${data.end_date_formatted}`;
+                if (descriptionEl) descriptionEl.innerHTML = data.description ? data.description.replace(/\n/g, '<br>') : 'Tidak ada deskripsi.';
+
+                // --- Status ---
+                console.log("DEBUG: Populating status...");
+                if (registrationStatusBadge) {
+                    if (data.registration_open) { registrationStatusBadge.textContent = 'Dibuka'; registrationStatusBadge.className = 'px-3 py-1 text-xs font-bold rounded-full bg-green-100 text-green-800'; }
+                    else { registrationStatusBadge.textContent = 'Ditutup'; registrationStatusBadge.className = 'px-3 py-1 text-xs font-bold rounded-full bg-red-100 text-red-800'; }
+                }
+                if (winnerNameDisplay) {
+                    if (data.winner_name) { winnerNameDisplay.textContent = data.winner_name; winnerNameDisplay.classList.add('font-bold'); }
+                    else { winnerNameDisplay.textContent = 'Belum ditentukan'; winnerNameDisplay.classList.remove('font-bold'); }
+                }
+
+                // --- Participants ---
+                console.log("DEBUG: Populating participants...");
+                if (participantList) {
+                    participantList.innerHTML = ''; 
+                    if (noParticipantsMessage) noParticipantsMessage.classList.add('hidden');
+
+                    if (data.participants && Array.isArray(data.participants) && data.participants.length > 0) {
+                        console.log(`DEBUG: Found ${data.participants.length} participants. Rendering...`);
+                        let participantsHtmlContent = '';
+                        data.participants.forEach((team) => {
+                            const logoHtml = team.logo_url ? `<img src="${team.logo_url}" alt="Logo ${team.name}" class="h-16 w-auto object-contain mx-auto" onerror="console.warn('DEBUG: Logo failed to load for ${team.name}'); this.parentElement.innerHTML = defaultTeamLogoSvg;">` : `<div class="h-16 w-full flex items-center justify-center bg-gray-100 rounded-t-lg">${defaultTeamLogoSvg}</div>`;
+                            participantsHtmlContent += `<div class="border border-gray-200 rounded-lg shadow-sm overflow-hidden flex flex-col items-center text-center bg-white hover:shadow transition-shadow duration-150 group"><div class="w-full h-20 flex items-center justify-center p-2 bg-gray-50 group-hover:bg-gray-100 transition-colors duration-150 border-b border-gray-100">${logoHtml}</div><p class="text-xs font-medium text-gray-700 p-2 w-full truncate">${team.name || 'N/A'}</p></div>`;
+                        });
+                        participantList.innerHTML = participantsHtmlContent;
+                        console.log("DEBUG: Finished rendering participants.");
+                    } else {
+                        console.log("DEBUG: No participants found.");
+                        if (noParticipantsMessage) noParticipantsMessage.classList.remove('hidden');
+                    }
+                } else console.error("DEBUG: participantList element NOT FOUND!");
+
+
+                // Matches 
+                console.log("DEBUG: Populating matches...");
+                if (matchList) {
+                    matchList.innerHTML = ''; 
+                    const noMatchesMsgEl = noMatchesMessageDisplay;
+
+                    if (data.matches && Array.isArray(data.matches) && data.matches.length > 0) {
+                        console.log(`DEBUG: Found ${data.matches.length} matches. Rendering...`);
+                        if (noMatchesMsgEl) noMatchesMsgEl.classList.add('hidden');
+                        let matchesHtmlContent = '';
+                        data.matches.forEach((match) => {
+                            let matchDateFormatted = match.match_date_formatted || 'N/A';
+                            if (!match.match_date_formatted && match.match_date) { try { let d=new Date(match.match_date.endsWith('Z') ? match.match_date : match.match_date + 'Z'); matchDateFormatted = d.toLocaleString('id-ID',{/*options*/}); } catch(e){console.warn('Match date format error',e);} }
+                            const homeTeamName = match.home_team_name || 'N/A';
+                            const awayTeamName = match.away_team_name || 'N/A';
+                            const scoreDisplay = (match.home_score !== null && match.away_score !== null) ? `<span class="font-bold">${match.home_score} - ${match.away_score}</span>` : `<span class="text-sm ...">Belum Dimulai</span>`;
+                            matchesHtmlContent += `<div class="p-4 border ..."><div ...><span ...>${homeTeamName}</span> vs <span ...>${awayTeamName}</span><p ...>${matchDateFormatted}</p></div><div ...>${scoreDisplay}</div></div>`;
+                        });
+                        matchList.innerHTML = matchesHtmlContent;
+                        console.log("DEBUG: Finished rendering matches.");
+                    } else {
+                        console.log("DEBUG: No matches found.");
+                        if (noMatchesMsgEl) noMatchesMsgEl.classList.remove('hidden');
+                    }
+                } else console.error("DEBUG: matchList element NOT FOUND!");
+
+                // Links
+                console.log("DEBUG: Populating links...");
+                if (forumLink) forumLink.href = data.forum_url || '#';
+                if (predictionsLink) predictionsLink.href = data.predictions_url || '#';
+
+                // Management Buttons
+                console.log("DEBUG: Populating management buttons...");
+                if (managementButtonsDiv) {
+                    managementButtonsDiv.innerHTML = '';
+                    if (data.is_organizer_or_admin) {
+                        console.log("DEBUG: User is organizer/admin, adding buttons.");
+                        // Edit Button
+                        const editButtonHtml = `<button id="open-edit-modal-btn" class="bg-custom-blue-300 text-white font-semibold py-2 px-4 rounded-lg hover:bg-custom-blue-400 transition-colors text-sm">Edit Turnamen</button>`;
+                        managementButtonsDiv.insertAdjacentHTML('beforeend', editButtonHtml);
+                        const editBtn = document.getElementById('open-edit-modal-btn');
+                        if (editBtn && editModal) { 
+                             console.log("DEBUG: Adding editBtn listener.");
+                             editBtn.addEventListener('click', openEditModal);
+                        } else console.warn("DEBUG: Edit button or modal not found for listener.");
+
+                        // Delete Button
+                        const deleteButtonHtml = `<button id="open-delete-modal-btn" class="bg-red-500 text-white font-semibold py-2 px-4 rounded-lg hover:bg-red-600 transition-colors text-sm">Hapus Turnamen</button>`;
+                        managementButtonsDiv.insertAdjacentHTML('beforeend', deleteButtonHtml);
+                        const openDeleteBtn = document.getElementById('open-delete-modal-btn');
+                        if (openDeleteBtn && deleteModal) { 
+                             console.log("DEBUG: Adding openDeleteBtn listener.");
+                             openDeleteBtn.addEventListener('click', openDeleteModal);
+                         } else console.warn("DEBUG: Delete button or modal not found for listener.");
+                    } else { console.log("DEBUG: User is not organizer/admin."); }
+                } else console.error("DEBUG: managementButtonsDiv element NOT FOUND!");
+
+
+                console.log("DEBUG: Showing content div...");
+                if (contentDiv) contentDiv.classList.remove('hidden');
+                console.log("DEBUG: Calling checkCaptainStatus...");
+                checkCaptainStatus(); 
+                console.log("DEBUG: populatePage finished successfully."); 
+            } catch (e) {
+                console.error("DEBUG: CRITICAL Error inside populatePage:", e); 
+                if(errorMessage){ errorMessage.textContent = `Error displaying page data: ${e.message}`; errorMessage.classList.remove('hidden'); }
+            } finally {
+                 if(loadingIndicator) loadingIndicator.classList.add('hidden');
+                 console.log("DEBUG: populatePage finally block executed.");
+            }
         }
 
         async function fetchTournamentDetails() {
-            loadingIndicator.classList.remove('hidden');
-            errorMessage.classList.add('hidden');
-            contentDiv.classList.add('hidden');
+            console.log("DEBUG: fetchTournamentDetails called."); 
+            if(loadingIndicator) loadingIndicator.classList.remove('hidden'); 
+            if(errorMessage) errorMessage.classList.add('hidden');
+            if(contentDiv) contentDiv.classList.add('hidden'); 
             try {
                 const response = await fetch(`/tournaments/json/${tournamentId}/`);
-                if (!response.ok) {
-                    if (response.status === 404) throw new Error('Turnamen tidak ditemukan.');
-                    throw new Error(`Gagal memuat data (Status: ${response.status})`);
-                }
+                console.log("DEBUG: Fetch response status:", response.status); 
+                if (!response.ok) throw new Error(`Server error (Status: ${response.status})`);
                 const data = await response.json();
-                if (data.error) throw new Error(data.error); // Handle errors returned in JSON
+                console.log("DEBUG: Fetched data:", JSON.stringify(data, null, 2)); 
+                if (data.error) throw new Error(data.error);
                 populatePage(data);
             } catch (error) {
-                console.error("Error fetching tournament details:", error);
-                errorMessage.textContent = `Gagal memuat detail: ${error.message}`;
-                errorMessage.classList.remove('hidden');
-                if (typeof showToast === 'function') showToast(`Gagal memuat detail: ${error.message}`, 'error');
+                console.error("DEBUG: Error in fetchTournamentDetails:", error); 
+                if(errorMessage) {
+                    errorMessage.textContent = `Failed to load details: ${error.message}`;
+                    errorMessage.classList.remove('hidden');
+                }
+                if (typeof showToast === 'function') showToast(`Failed to load details: ${error.message}`, 'error');
             } finally {
-                loadingIndicator.classList.add('hidden');
+                if(loadingIndicator) loadingIndicator.classList.add('hidden');
+                console.log("DEBUG: fetchTournamentDetails finally block executed."); 
             }
         }
 
-        // --- Logika Modal Edit ---
+        async function checkCaptainStatus() {
+            console.log("DEBUG: checkCaptainStatus called.");
+            if (!teamRegistrationContainer) { console.warn("DEBUG: teamRegistrationContainer not found."); return; }
+            teamRegistrationContainer.innerHTML = ''; 
+
+            if (!currentTournamentData || !currentTournamentData.registration_open) {
+                console.log("DEBUG: Registration closed or no data, skipping captain check.");
+                return;
+            }
+            try {
+                const response = await fetch(`/tournaments/captain_status/${tournamentId}/`);
+                if (!response.ok) { console.warn("DEBUG: captain_status fetch failed with status:", response.status); return; }
+                const data = await response.json();
+                console.log("DEBUG: Captain status data:", data);
+                if (data.can_register && data.eligible_teams && data.eligible_teams.length > 0) {
+                     console.log("DEBUG: User can register, adding register buttons.");
+                    data.eligible_teams.forEach(team => {
+                        const buttonHtml = `
+                        <button id="register-team-btn-${team.id}"
+                                data-team-id="${team.id}"
+                                class="register-team-btn w-full sm:w-auto bg-green-600 text-white font-bold py-2 px-4 rounded-lg
+                                     hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2
+                                     focus:ring-green-500 transition duration-150 ease-in-out disabled:opacity-50 disabled:cursor-wait mb-2">
+                            Daftarkan Tim: ${team.name}
+                        </button>`;
+                        teamRegistrationContainer.insertAdjacentHTML('beforeend', buttonHtml);
+                    });
+                    document.querySelectorAll('.register-team-btn').forEach(button => {
+                        console.log("DEBUG: Adding listener for register button:", button.id);
+                        button.addEventListener('click', function() {
+                            const teamId = this.dataset.teamId;
+                            handleTeamRegistration(teamId, this);
+                        });
+                    });
+                } else {
+                     console.log("DEBUG: User cannot register or no eligible teams.");
+                }
+            } catch (error) { console.error("DEBUG: Error checking captain status:", error); }
+        }
+
+        async function handleTeamRegistration(teamId, buttonEl) {
+            console.log("DEBUG: handleTeamRegistration called for team ID:", teamId);
+            if(!buttonEl) return; 
+            buttonEl.disabled = true;
+            buttonEl.textContent = 'Mendaftarkan...';
+            const csrfToken = document.querySelector('#edit-tournament-form [name=csrfmiddlewaretoken]')?.value;
+            if (!csrfToken) {
+                 console.error("DEBUG: CSRF token not found for registration!");
+                 if (typeof showToast === 'function') showToast('Kesalahan keamanan, muat ulang.', 'error');
+                 buttonEl.disabled = false; buttonEl.textContent = 'Error: Reload'; return;
+            }
+            const formData = new FormData();
+            formData.append('team_id', teamId); 
+            try {
+                const response = await fetch(`/tournaments/${tournamentId}/register_team/`, {
+                     method: 'POST', headers: { 'X-CSRFToken': csrfToken, 'Accept': 'application/json' }, body: formData
+                 });
+                const data = await response.json();
+                 console.log("DEBUG: Registration response status:", response.status, "Data:", data);
+                if (response.ok && data.status === 'success') {
+                    if (typeof showToast === 'function') showToast(data.message, 'success');
+                    fetchTournamentDetails(); 
+                } else {
+                    throw new Error(data.message || `Server error (${response.status})`);
+                }
+            } catch (error) {
+                 console.error('DEBUG: Error registering team:', error);
+                 if (typeof showToast === 'function') showToast(`Gagal mendaftar: ${error.message}`, 'error');
+                 buttonEl.disabled = false; buttonEl.textContent = `Daftarkan Tim (Gagal)`; // Reset button text on error
+             }
+        }
+
+        // Modal Opening/Closing Functions 
+        function openModal(modalEl) {
+             if (!modalEl) { console.error("DEBUG: Attempted to open a null modal element."); return; }
+             console.log("DEBUG: Opening modal:", modalEl.id);
+             modalEl.classList.remove('hidden');
+             requestAnimationFrame(() => {
+                 modalEl.classList.remove('opacity-0');
+                 const innerDiv = modalEl.querySelector('.transform'); 
+                 if(innerDiv) innerDiv.classList.remove('scale-95');
+             });
+        }
+
+        function closeModal(modalEl) {
+            if (!modalEl) { console.error("DEBUG: Attempted to close a null modal element."); return; }
+            console.log("DEBUG: Closing modal:", modalEl.id);
+            modalEl.classList.add('opacity-0');
+            const innerDiv = modalEl.querySelector('.transform');
+            if(innerDiv) innerDiv.classList.add('scale-95');
+            setTimeout(() => {
+                modalEl.classList.add('hidden');
+                const form = modalEl.querySelector('form');
+                 if(form) {
+                    form.querySelectorAll('[id^="error-edit-"]').forEach(el => el.textContent = '');
+                    form.querySelectorAll('.border-red-500').forEach(el => el.classList.remove('border-red-500'));
+                 }
+            }, 300); 
+        }
+
         function openEditModal() {
-            if (!editModal || !currentTournamentData) return;
-            // Pre-fill form
+            console.log("DEBUG: openEditModal called.");
+            if (!currentTournamentData || !editForm || !hiddenParticipantsSelect || !selectedParticipantsDisplay || !participantSearchInput) {
+                console.error("DEBUG: openEditModal - Missing required elements or data.");
+                return;
+            }
+
+            editForm.querySelectorAll('[id^="error-edit-"]').forEach(el => el.textContent = '');
+            editForm.querySelectorAll('.border-red-500').forEach(el => el.classList.remove('border-red-500'));
+            if (participantsCheckboxContainer) participantsCheckboxContainer.classList.remove('border', 'border-red-500');
+
+
             document.getElementById('id_name').value = currentTournamentData.name || '';
             document.getElementById('id_description').value = currentTournamentData.description || '';
             document.getElementById('id_banner').value = currentTournamentData.banner_url || '';
             document.getElementById('id_start_date').value = currentTournamentData.start_date_raw || '';
             document.getElementById('id_end_date').value = currentTournamentData.end_date_raw || '';
+            if (registrationOpenCheckbox) {
+                registrationOpenCheckbox.checked = currentTournamentData.registration_open;
+            }
 
-            editModal.classList.remove('hidden');
-            setTimeout(() => {
-                editModal.classList.remove('opacity-0');
-                editModal.querySelector('.transform').classList.remove('scale-95');
-            }, 10);
-        }
+            selectedParticipantsDisplay.innerHTML = ''; 
+            Array.from(hiddenParticipantsSelect.options).forEach(opt => opt.selected = false);
+            const noSelectedMsg = document.getElementById('no-selected-participants-msg'); 
 
-        function closeEditModal() {
-            if (!editModal) return;
-            editModal.classList.add('opacity-0');
-            editModal.querySelector('.transform').classList.add('scale-95');
-            setTimeout(() => {
-                editModal.classList.add('hidden');
-                 editForm.querySelectorAll('[id^="error-edit-"]').forEach(el => el.textContent = '');
-                 editForm.querySelectorAll('.border-red-500').forEach(el => {
-                     el.classList.remove('border-red-500', 'focus:border-red-500', 'focus:ring-red-500');
-                     el.classList.add('border-gray-300', 'focus:border-custom-blue-300', 'focus:ring-custom-blue-300');
+            if (currentTournamentData.participants && Array.isArray(currentTournamentData.participants) && currentTournamentData.participants.length > 0) {
+                 console.log("DEBUG: Pre-populating selected participants:", currentTournamentData.participants);
+                 if (noSelectedMsg) noSelectedMsg.classList.add('hidden'); 
+
+                 currentTournamentData.participants.forEach(team => {
+                     const option = hiddenParticipantsSelect.querySelector(`option[value="${team.id}"]`);
+                     if (option) {
+                         option.selected = true; 
+                         addSelectedTeamBadge(team.id, team.name);
+                     } else {     
+                         console.warn(`DEBUG: Option not found for pre-populating existing participant ID ${team.id} (${team.name}). This team might be missing from the form's initial queryset.`);
+                         addSelectedTeamBadge(team.id, team.name);
+                     }
                  });
-            }, 300);
+            } else {
+                 console.log("DEBUG: No participants to pre-populate.");
+                 if (noSelectedMsg) noSelectedMsg.classList.remove('hidden');
+            }
+
+            participantSearchInput.value = '';
+            if(participantSearchResults) participantSearchResults.classList.add('hidden');
+
+
+            openModal(editModal); 
+        }
+        
+        function closeEditModal() { closeModal(editModal); } 
+
+        function openDeleteModal() {
+            console.log("DEBUG: openDeleteModal called.");
+            if (!currentTournamentData || !deleteConfirmMessage) return;
+            const tournamentName = currentTournamentData.name || "turnamen ini";
+            deleteConfirmMessage.textContent = `Apakah Anda yakin ingin menghapus turnamen "${tournamentName}"? Tindakan ini tidak dapat dibatalkan.`;
+            if (confirmDeleteBtn) { confirmDeleteBtn.disabled = false; confirmDeleteBtn.textContent = 'Ya, Hapus'; }
+            openModal(deleteModal); 
         }
 
+        function closeDeleteModal() { closeModal(deleteModal); } 
+
+
+        // Attach Event Listeners 
+        if (participantSearchInput) {
+            participantSearchInput.addEventListener('input', (e) => fetchTeamResults(e.target.value));
+            participantSearchInput.addEventListener('blur', () => {
+                setTimeout(() => {
+                    if(participantSearchResults) participantSearchResults.classList.add('hidden');
+                }, 150); 
+            });
+            participantSearchInput.addEventListener('focus', (e) => {
+                if(e.target.value.length >= 2) fetchTeamResults(e.target.value);
+            });
+
+        } else { console.warn("DEBUG: Participant search input not found."); }
         if (closeEditModalBtn) closeEditModalBtn.addEventListener('click', closeEditModal);
         if (editModal) editModal.addEventListener('click', (event) => { if (event.target === editModal) closeEditModal(); });
-
-        if (editForm) {
+        if (editForm && editSubmitBtn) {
             editForm.addEventListener('submit', async function(e) {
                 e.preventDefault();
-                editSubmitBtn.disabled = true;
-                editSubmitBtn.textContent = 'Menyimpan...';
-
+                editSubmitBtn.disabled = true; editSubmitBtn.textContent = 'Menyimpan...';
                 editForm.querySelectorAll('[id^="error-edit-"]').forEach(el => el.textContent = '');
-                editForm.querySelectorAll('.border-red-500').forEach(el => {
-                     el.classList.remove('border-red-500', 'focus:border-red-500', 'focus:ring-red-500');
-                     el.classList.add('border-gray-300', 'focus:border-custom-blue-300', 'focus:ring-custom-blue-300');
-                });
+                editForm.querySelectorAll('.border-red-500').forEach(el => el.classList.remove('border-red-500'));
 
                 const formData = new FormData(editForm);
                 const csrfToken = formData.get('csrfmiddlewaretoken');
-
                 try {
-                    const response = await fetch(`/tournaments/edit/${tournamentId}/`, {
-                        method: 'POST',
-                        headers: { 'X-CSRFToken': csrfToken, 'Accept': 'application/json' },
-                        body: formData
-                    });
+                    const response = await fetch(`/tournaments/edit/${tournamentId}/`, { method: 'POST', headers: { 'X-CSRFToken': csrfToken, 'Accept': 'application/json' }, body: formData });
                     const data = await response.json();
                     if (response.ok && data.status === 'success') {
                         closeEditModal();
                         if (typeof showToast === 'function') showToast(data.message, 'success');
-                        populatePage(data.tournament); // Update page content
+                        populatePage(data.tournament);
                     } else {
-                         let generalErrorMessage = data.message || 'Terjadi kesalahan validasi.';
+                         let generalErrorMessage = data.message || 'Validation error.';
                          if (data.errors) {
                              Object.keys(data.errors).forEach(fieldName => {
                                  const errorDivId = `error-edit-${fieldName === '__all__' ? 'non_field_errors' : fieldName}`;
                                  const errorDiv = document.getElementById(errorDivId);
-                                 const fieldElId = `id_${fieldName}`;
-                                 const fieldEl = document.getElementById(fieldElId);
-
-                                 if (errorDiv && data.errors[fieldName].length > 0) {
-                                     errorDiv.textContent = data.errors[fieldName][0].message; // Display first message
-                                 }
-                                 if (fieldEl) {
-                                     fieldEl.classList.add('border-red-500', 'focus:border-red-500', 'focus:ring-red-500');
-                                     fieldEl.classList.remove('border-gray-300', 'focus:border-custom-blue-300', 'focus:ring-custom-blue-300');
-                                 }
-                                 if (fieldName === '__all__' && errorDiv) { // Ensure non_field_errors div exists
-                                     generalErrorMessage = data.errors[fieldName][0].message;
-                                 } else if (fieldName === '__all__') {
-                                     // Fallback if the specific non_field_errors div is missing
-                                     generalErrorMessage = data.errors[fieldName][0].message;
-                                 }
+                                 const fieldEl = document.getElementById(`id_${fieldName}`) || editForm.querySelector(`[name="${fieldName}"]`);
+                                 if (errorDiv && data.errors[fieldName].length > 0) { errorDiv.textContent = data.errors[fieldName][0].message; }
+                                 if (fieldEl && fieldName !== 'participants') { fieldEl.classList.add('border-red-500'); }
+                                 else if (fieldName === 'participants' && participantsCheckboxContainer) { participantsCheckboxContainer.classList.add('border', 'border-red-500'); } // Highlight container
+                                 if (fieldName === '__all__') { generalErrorMessage = data.errors[fieldName][0].message; }
                              });
                          }
                          if (typeof showToast === 'function') showToast(generalErrorMessage, 'error');
                     }
                 } catch (error) {
-                    console.error('Error submitting edit form:', error);
-                    if (typeof showToast === 'function') showToast('Gagal terhubung ke server.', 'error');
-                }
-                finally {
-                    editSubmitBtn.disabled = false;
-                    editSubmitBtn.textContent = 'Simpan Perubahan';
+                    console.error('DEBUG: Error submitting edit form:', error);
+                    if (typeof showToast === 'function') showToast('Network error.', 'error');
+                } finally {
+                    editSubmitBtn.disabled = false; editSubmitBtn.textContent = 'Simpan Perubahan';
                 }
             });
-        }
+        } else { console.warn("DEBUG: Edit form or submit button not found for listener."); }
 
-        // --- Logika Modal Hapus ---
-        function openDeleteModal() {
-            if (!deleteModal || !currentTournamentData) return;
-            const tournamentName = currentTournamentData.name || "turnamen ini";
-            deleteConfirmMessage.textContent = `Apakah Anda yakin ingin menghapus turnamen "${tournamentName}"? Tindakan ini tidak dapat dibatalkan.`;
-            confirmDeleteBtn.disabled = false;
-            confirmDeleteBtn.textContent = 'Ya, Hapus';
-            confirmDeleteBtn.classList.remove('opacity-50', 'cursor-wait');
-
-            deleteModal.classList.remove('hidden');
-            setTimeout(() => {
-                deleteModal.classList.remove('opacity-0');
-                deleteModal.querySelector('.transform').classList.remove('scale-95');
-            }, 10);
-        }
-        function closeDeleteModal() {
-            if (!deleteModal) return;
-            deleteModal.classList.add('opacity-0');
-            deleteModal.querySelector('.transform').classList.add('scale-95');
-            setTimeout(() => {
-                deleteModal.classList.add('hidden');
-            }, 300);
-        }
+        // Delete Modal Listeners
+        console.log("DEBUG: Attaching delete modal listeners..."); 
         if (closeDeleteModalBtn) closeDeleteModalBtn.addEventListener('click', closeDeleteModal);
         if (cancelDeleteBtn) cancelDeleteBtn.addEventListener('click', closeDeleteModal);
         if (deleteModal) deleteModal.addEventListener('click', (event) => { if (event.target === deleteModal) closeDeleteModal(); });
         if (confirmDeleteBtn) {
-            confirmDeleteBtn.addEventListener('click', async () => {
-                confirmDeleteBtn.disabled = true;
-                confirmDeleteBtn.textContent = 'Menghapus...';
-                confirmDeleteBtn.classList.add('opacity-50', 'cursor-wait');
-                const csrfTokenInput = document.querySelector('#edit-tournament-form [name=csrfmiddlewaretoken]');
-                if (!csrfTokenInput) {
-                     console.error("CSRF token not found!");
-                     if (typeof showToast === 'function') showToast('Kesalahan: Token keamanan tidak ditemukan.', 'error');
-                     confirmDeleteBtn.disabled = false;
-                     confirmDeleteBtn.textContent = 'Ya, Hapus';
-                     confirmDeleteBtn.classList.remove('opacity-50', 'cursor-wait');
-                     return;
-                }
-                const csrfToken = csrfTokenInput.value;
-                try {
-                    const response = await fetch(`/tournaments/delete/${tournamentId}/`, {
-                        method: 'DELETE',
-                        headers: { 'X-CSRFToken': csrfToken, 'Accept': 'application/json' }
-                    });
-                    const data = await response.json();
-                    if (response.ok && data.status === 'success') {
-                        closeDeleteModal();
-                        if (typeof showToast === 'function') showToast(data.message, 'success');
-                        setTimeout(() => { window.location.href = data.redirect_url; }, 1500);
-                    } else {
-                        throw new Error(data.message || 'Gagal menghapus turnamen.');
-                    }
-                } catch (error) {
-                    console.error("Error deleting tournament:", error);
-                    if (typeof showToast === 'function') showToast(error.message || 'Terjadi kesalahan jaringan saat menghapus.', 'error');
-                    confirmDeleteBtn.disabled = false;
-                    confirmDeleteBtn.textContent = 'Ya, Hapus';
-                    confirmDeleteBtn.classList.remove('opacity-50', 'cursor-wait');
-                }
-            });
-        }
+             confirmDeleteBtn.addEventListener('click', async () => {
+                 confirmDeleteBtn.disabled = true; confirmDeleteBtn.textContent = 'Menghapus...';
+                 const csrfToken = document.querySelector('#edit-tournament-form [name=csrfmiddlewaretoken]')?.value; // Get token from edit form
+                 if (!csrfToken) { /* ... CSRF error ... */ return; }
+                 try {
+                     const response = await fetch(`/tournaments/delete/${tournamentId}/`, { method: 'DELETE', headers: { 'X-CSRFToken': csrfToken, 'Accept': 'application/json' } });
+                     const data = await response.json();
+                     if (response.ok && data.status === 'success') {
+                         closeDeleteModal();
+                         if (typeof showToast === 'function') showToast(data.message, 'success');
+                         setTimeout(() => { window.location.href = data.redirect_url; }, 1500); // Redirect after delay
+                     } else { throw new Error(data.message || 'Failed to delete.'); }
+                 } catch (error) {
+                     console.error("DEBUG: Error deleting tournament:", error);
+                     if (typeof showToast === 'function') showToast(`Error: ${error.message}`, 'error');
+                     confirmDeleteBtn.disabled = false; confirmDeleteBtn.textContent = 'Ya, Hapus';
+                 }
+             });
+        } else { console.warn("DEBUG: Confirm delete button not found for listener."); }
+        console.log("DEBUG: Delete modal listeners attached."); 
 
         fetchTournamentDetails();
     });
