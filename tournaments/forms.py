@@ -1,19 +1,24 @@
 from django import forms
 from .models import Tournament
-from teams.models import Team 
+from teams.models import Team
 
 class TournamentForm(forms.ModelForm):
     participants = forms.ModelMultipleChoiceField(
-        queryset=Team.objects.all().order_by('name'), 
-        widget=forms.CheckboxSelectMultiple(attrs={'class': 'space-y-1'}), #
-        required=False, # Buat opsional, turnamen bisa dibuat tanpa peserta awal
+        queryset=Team.objects.all(), 
+        widget=forms.SelectMultiple(attrs={'hidden': True}),
+        required=False,
         label="Tim Peserta"
+    )
+    registration_open = forms.BooleanField(
+        required=False, 
+        label="Buka Pendaftaran Tim",
+        initial=True,
+        widget=forms.CheckboxInput(attrs={'class': 'h-4 w-4 text-custom-blue-400 border-gray-300 rounded focus:ring-custom-blue-300'})
     )
 
     class Meta:
         model = Tournament
-        fields = ['name', 'description', 'banner', 'start_date', 'end_date', 'participants']
-        # ----------------------------------------------------
+        fields = ['name', 'description', 'banner', 'start_date', 'end_date', 'participants', 'registration_open']
         widgets = {
             'name': forms.TextInput(attrs={'placeholder': 'Nama Turnamen'}),
             'description': forms.Textarea(attrs={'rows': 3, 'placeholder': 'Deskripsi singkat turnamen...'}),
