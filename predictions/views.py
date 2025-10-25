@@ -7,6 +7,7 @@ from django.contrib.auth.decorators import login_required
 from datetime import datetime
 import json
 from django.utils.safestring import mark_safe
+from django.core.paginator import Paginator  
 from predictions.models import Prediction
 from tournaments.models import Match, Tournament
 from teams.models import Team
@@ -37,11 +38,17 @@ def get_ongoing_matches(request):
     if tournament_id:
         matches = matches.filter(tournament_id=tournament_id)
     
-    ongoing_matches = matches.filter(
+    ongoing_matches_list = matches.filter(  
         Q(home_score__isnull=True) | Q(away_score__isnull=True)
     ).order_by('match_date')
     
-    context = {'ongoing_matches': ongoing_matches}
+   
+    paginator = Paginator(ongoing_matches_list, 9) 
+    page_number = request.GET.get('page')
+    ongoing_matches_page = paginator.get_page(page_number)
+
+    
+    context = {'ongoing_matches': ongoing_matches_page} 
     return render(request, 'predictions/_ongoing_matches_partial.html', context)
 
 #Untuk mengambil partial HTML finished matches
@@ -51,11 +58,17 @@ def get_finished_matches(request):
     if tournament_id:
         matches = matches.filter(tournament_id=tournament_id)
 
-    finished_matches = matches.filter(
+    finished_matches_list = matches.filter( 
         home_score__isnull=False, away_score__isnull=False
     ).order_by('-match_date')
     
-    context = {'finished_matches': finished_matches}
+
+    paginator = Paginator(finished_matches_list, 9) 
+    page_number = request.GET.get('page')
+    finished_matches_page = paginator.get_page(page_number)
+
+    
+    context = {'finished_matches': finished_matches_page} 
     return render(request, 'predictions/_finished_matches_partial.html', context)
 
 @login_required
@@ -201,4 +214,3 @@ def delete_prediction(request):
             return JsonResponse({'success': False, 'message': 'Prediksi tidak ditemukan.'})
     
     return JsonResponse({'success': False, 'message': 'Metode tidak valid.'}, status=400)
-
