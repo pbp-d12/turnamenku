@@ -62,8 +62,8 @@
             <li>
                 <a href="{% url 'tournaments:tournament_detail_page' tournament.pk %}"
                     class="block p-3 bg-custom-blue-50 hover:bg-custom-blue-100 rounded-lg transition group">
-                    <h3 class="font-semibold text-custom-blue-400 group-hover:text-custom-blue-300 truncate">{{
-                        tournament.name }}</h3>
+                    <h3 class="font-semibold text-custom-blue-400 group-hover:text-custom-blue-300 truncate">
+                        {{tournament.name }}</h3>
                     <p class="text-xs text-custom-blue-300">Berakhir: {{ tournament.end_date|date:"d M Y" }}</p>
                 </a>
             </li>
