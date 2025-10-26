@@ -26,7 +26,6 @@ def get_tournaments_json(request):
     queryset = Tournament.objects.select_related('organizer').all()
     today = timezone.now().date()
     
-    #   Filtering   
     status_filter = request.GET.get('status', None)
     search_query = request.GET.get('search', None)
 
@@ -41,10 +40,8 @@ def get_tournaments_json(request):
     if search_query:
         queryset = queryset.filter(Q(name__icontains=search_query))
 
-    #   Ordering   
     tournaments_list = queryset.order_by('-start_date', 'name')
     
-    #   Pagination Logic  
     PER_PAGE = 9 
     page_number = request.GET.get('page', 1)
     paginator = Paginator(tournaments_list, PER_PAGE)
@@ -56,7 +53,6 @@ def get_tournaments_json(request):
     except EmptyPage:
         page_obj = paginator.page(paginator.num_pages)
 
-    #   Serialization (now on page_obj)  
     data = []
     for t in page_obj: 
         data.append({
@@ -70,7 +66,6 @@ def get_tournaments_json(request):
             'detail_page_url': reverse('tournaments:tournament_detail_page', args=[t.pk])
         })
     
-    #   Return new JSON object structure  
     return JsonResponse({
         'tournaments': data,
         'has_next_page': page_obj.has_next(),
@@ -295,7 +290,7 @@ def edit_tournament(request, tournament_id):
         # save() handles regular fields and returns the instance
         updated_tournament = form.save()
         # save_m2m() is needed for ManyToManyFields after saving the instance
-        # form.save_m2m() # This is handled automatically by form.save() if commit=True (default)
+        # form.save_m2m() This is handled automatically by form.save() if commit=True (default)
 
         participant_data = [
              {'id': team.pk, 'name': team.name, 'logo_url': team.logo if team.logo else None}
@@ -331,8 +326,8 @@ def edit_tournament(request, tournament_id):
                 'banner_url': updated_tournament.banner,
                 'matches': match_data,
                 'participants': participant_data,
-                'registration_open': updated_tournament.registration_open, # Include updated status
-                'winner_name': updated_tournament.winner.name if updated_tournament.winner else None, # Include winner
+                'registration_open': updated_tournament.registration_open, 
+                'winner_name': updated_tournament.winner.name if updated_tournament.winner else None, 
                 'forum_url': reverse('forums:forum_threads', args=[updated_tournament.pk]),
                 'predictions_url': f"{reverse('predictions:predictions_index')}?tournament={updated_tournament.pk}",
                 'is_organizer_or_admin': True
@@ -384,9 +379,6 @@ def register_team_view(request, tournament_id):
     """Adds the user's captained team to the tournament participants."""
     tournament = get_object_or_404(Tournament, pk=tournament_id)
 
-    if not tournament.registration_open:
-        return JsonResponse({'status': 'error', 'message': 'Pendaftaran untuk turnamen ini sudah ditutup.'}, status=400)
-
     try:
         team_to_register = Team.objects.get(captain=request.user)
     except Team.DoesNotExist:
@@ -396,6 +388,9 @@ def register_team_view(request, tournament_id):
 
     if tournament.participants.filter(pk=team_to_register.pk).exists():
         return JsonResponse({'status': 'error', 'message': f'Tim "{team_to_register.name}" sudah terdaftar.'}, status=400)
+
+    if not tournament.registration_open:
+        return JsonResponse({'status': 'error', 'message': 'Pendaftaran untuk turnamen ini sudah ditutup.'}, status=400)
 
     tournament.participants.add(team_to_register)
 
@@ -443,7 +438,6 @@ def get_user_captain_status(request, tournament_id):
         'is_registration_open': tournament.registration_open
     })
 
-@login_required 
 def search_teams_json(request):
     query = request.GET.get('q', '').strip()
     teams = []
@@ -461,19 +455,12 @@ def deregister_team_view(request, tournament_id):
     tournament = get_object_or_404(Tournament, pk=tournament_id)
     today = timezone.now().date()
 
-    if not tournament.registration_open and tournament.start_date <= today:
-        return JsonResponse({
-            'status': 'error', 
-            'message': 'Pendaftaran sudah ditutup dan turnamen sudah dimulai.'
-        }, status=400)
-
     try:
         team_to_deregister = Team.objects.get(captain=request.user)
     except Team.DoesNotExist:
         return JsonResponse({'status': 'error', 'message': 'Anda bukan kapten tim manapun.'}, status=403)
     except Team.MultipleObjectsReturned:
          team_to_deregister = Team.objects.filter(captain=request.user).first()
-
     if not tournament.participants.filter(pk=team_to_deregister.pk).exists():
         return JsonResponse({'status': 'error', 'message': f'Tim "{team_to_deregister.name}" tidak terdaftar.'}, status=400)
 
@@ -488,6 +475,12 @@ def deregister_team_view(request, tournament_id):
         return JsonResponse({
             'status': 'error', 
             'message': 'Tidak dapat batal mendaftar karena tim Anda sudah memainkan pertandingan.'
+        }, status=400)
+
+    if not tournament.registration_open and tournament.start_date <= today:
+        return JsonResponse({
+            'status': 'error', 
+            'message': 'Pendaftaran sudah ditutup dan turnamen sudah dimulai.'
         }, status=400)
 
     tournament.participants.remove(team_to_deregister)

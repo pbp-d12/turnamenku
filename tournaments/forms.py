@@ -34,6 +34,16 @@ class TournamentForm(forms.ModelForm):
             'end_date': 'Tanggal Selesai',
         }
 
+    def clean_registration_open(self):
+        """
+        Fix for default 'registration_open' value on creation.
+        """
+        data = self.cleaned_data.get('registration_open')
+        if not self.instance.pk and 'registration_open' not in self.data:
+            return True
+            
+        return data
+    
     def clean(self):
         cleaned_data = super().clean()
         start_date = cleaned_data.get("start_date")
