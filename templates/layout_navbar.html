@@ -23,7 +23,7 @@
                 <li><a href="{% url 'forums:forum_index' %}"
                         class="text-custom-blue-50 hover:text-white font-medium">Forums</a></li>
             </ul>
- 
+
             <div class="flex items-center space-x-3">
 
                 <div class="hidden md:flex items-center space-x-3">
@@ -79,17 +79,17 @@
 
         <div id="mobile-menu" class="md:hidden hidden">
             <ul class="pt-2 pb-4 space-y-1 px-2">
-                <li><a href="{% url 'forums:forum_index' %}"
-                        class="block px-3 py-2 rounded-md text-base font-medium text-custom-blue-50 hover:text-white hover:bg-custom-blue-300">Forums</a>
-                </li>
-                <li><a href="{% url 'predictions:predictions_index' %}"
-                        class="block px-3 py-2 rounded-md text-base font-medium text-custom-blue-50 hover:text-white hover:bg-custom-blue-300">Predictions</a>
+                <li><a href="{% url 'tournaments:tournament_home' %}"
+                        class="block px-3 py-2 rounded-md text-base font-medium text-custom-blue-50 hover:text-white hover:bg-custom-blue-300">Tournaments</a>
                 </li>
                 <li><a href="{% url 'teams:show_main_teams' %}"
                         class="block px-3 py-2 rounded-md text-base font-medium text-custom-blue-50 hover:text-white hover:bg-custom-blue-300">Teams</a>
                 </li>
-                <li><a href="{% url 'tournaments:tournament_home' %}"
-                        class="block px-3 py-2 rounded-md text-base font-medium text-custom-blue-50 hover:text-white hover:bg-custom-blue-300">Tournaments</a>
+                <li><a href="{% url 'predictions:predictions_index' %}"
+                        class="block px-3 py-2 rounded-md text-base font-medium text-custom-blue-50 hover:text-white hover:bg-custom-blue-300">Predictions</a>
+                </li>
+                <li><a href="{% url 'forums:forum_index' %}"
+                        class="block px-3 py-2 rounded-md text-base font-medium text-custom-blue-50 hover:text-white hover:bg-custom-blue-300">Forums</a>
                 </li>
                 <hr class="border-custom-blue-300 my-2"> {# Pemisah #}
                 {% if not user.is_authenticated %}
@@ -193,13 +193,13 @@
 
         if (menuButton && dropdownMenu) {
             menuButton.addEventListener('click', function (event) {
-                event.stopPropagation(); 
+                event.stopPropagation();
                 dropdownMenu.classList.toggle('hidden');
             });
 
             window.addEventListener('click', function (event) {
                 if (!menuButton.contains(event.target) && !dropdownMenu.contains(event.target)) {
-                    dropdownMenu.classList.add('hidden'); 
+                    dropdownMenu.classList.add('hidden');
                 }
             });
         }
@@ -213,7 +213,7 @@
 
         if (hamburgerButton && mobileMenu) {
             hamburgerButton.addEventListener('click', function () {
-                mobileMenu.classList.toggle('hidden'); 
+                mobileMenu.classList.toggle('hidden');
             });
         }
     });
