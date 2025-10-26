@@ -58,7 +58,7 @@ def get_tournaments_json(request):
 
     #   Serialization (now on page_obj)  
     data = []
-    for t in page_obj: # Iterate over the paginated results
+    for t in page_obj: 
         data.append({
             'id': t.pk,
             'name': t.name,
@@ -406,26 +406,40 @@ def register_team_view(request, tournament_id):
 
 
 def get_user_captain_status(request, tournament_id):
-    """Checks which teams the logged-in user captains and if they can register for this tournament."""
+    """
+    Checks which teams the logged-in user captains, which are eligible to register,
+    and which are already registered.
+    """
     tournament = get_object_or_404(Tournament, pk=tournament_id)
 
     eligible_teams = []
+    registered_teams = [] 
+    
     if request.user.is_authenticated:
         captained_teams = Team.objects.filter(captain=request.user)
         if captained_teams.exists():
             registered_team_ids = tournament.participants.values_list('id', flat=True)
             for team in captained_teams:
-                if team.id not in registered_team_ids:
+                if team.id in registered_team_ids:
+                    registered_teams.append({
+                        'id': team.id,
+                        'name': team.name
+                    })
+                else:
                     eligible_teams.append({
                         'id': team.id,
                         'name': team.name
                     })
 
     can_register = tournament.registration_open and len(eligible_teams) > 0
+    
+    can_deregister = len(registered_teams) > 0
 
     return JsonResponse({
         'can_register': can_register,
         'eligible_teams': eligible_teams, 
+        'registered_teams': registered_teams, 
+        'can_deregister': can_deregister,     
         'is_registration_open': tournament.registration_open
     })
 
@@ -437,3 +451,93 @@ def search_teams_json(request):
         teams = Team.objects.filter(name__icontains=query).order_by('name')[:10] 
     data = [{'id': team.pk, 'name': team.name} for team in teams]
     return JsonResponse(data, safe=False)
+
+@login_required
+@require_POST
+def deregister_team_view(request, tournament_id):
+    """
+    Allows a team captain to de-register their *own* team from a tournament.
+    """
+    tournament = get_object_or_404(Tournament, pk=tournament_id)
+    today = timezone.now().date()
+
+    if not tournament.registration_open and tournament.start_date <= today:
+        return JsonResponse({
+            'status': 'error', 
+            'message': 'Pendaftaran sudah ditutup dan turnamen sudah dimulai.'
+        }, status=400)
+
+    try:
+        team_to_deregister = Team.objects.get(captain=request.user)
+    except Team.DoesNotExist:
+        return JsonResponse({'status': 'error', 'message': 'Anda bukan kapten tim manapun.'}, status=403)
+    except Team.MultipleObjectsReturned:
+         team_to_deregister = Team.objects.filter(captain=request.user).first()
+
+    if not tournament.participants.filter(pk=team_to_deregister.pk).exists():
+        return JsonResponse({'status': 'error', 'message': f'Tim "{team_to_deregister.name}" tidak terdaftar.'}, status=400)
+
+    matches_played = Match.objects.filter(
+        tournament=tournament,
+        home_score__isnull=False, 
+    ).filter(
+        Q(home_team=team_to_deregister) | Q(away_team=team_to_deregister)
+    )
+
+    if matches_played.exists():
+        return JsonResponse({
+            'status': 'error', 
+            'message': 'Tidak dapat batal mendaftar karena tim Anda sudah memainkan pertandingan.'
+        }, status=400)
+
+    tournament.participants.remove(team_to_deregister)
+
+    return JsonResponse({
+        'status': 'success',
+        'message': f'Tim "{team_to_deregister.name}" berhasil dibatalkan pendaftarannya!'
+    }, status=200)
+
+
+@login_required
+@require_POST
+def remove_team_view(request, tournament_id, team_id):
+    """
+    Allows an Organizer or Admin to remove *any* team from a tournament.
+    We use @require_POST to be consistent, though this could be @require_http_methods(["DELETE"])
+    """
+    tournament = get_object_or_404(Tournament, pk=tournament_id)
+    
+    profile = getattr(request.user, 'profile', None)
+    is_admin = profile and profile.role == 'ADMIN'
+    is_organizer = request.user == tournament.organizer
+
+    if not (is_organizer or is_admin):
+        return JsonResponse({
+            'status': 'error',
+            'message': 'Akses ditolak: Hanya organizer atau admin yang dapat melakukan ini.'
+        }, status=403)
+
+    team_to_remove = get_object_or_404(Team, pk=team_id)
+
+    if not tournament.participants.filter(pk=team_to_remove.pk).exists():
+        return JsonResponse({'status': 'error', 'message': f'Tim "{team_to_remove.name}" tidak terdaftar.'}, status=400)
+
+    matches_played = Match.objects.filter(
+        tournament=tournament,
+        home_score__isnull=False,
+    ).filter(
+        Q(home_team=team_to_remove) | Q(away_team=team_to_remove)
+    )
+
+    if matches_played.exists():
+        return JsonResponse({
+            'status': 'error', 
+            'message': f'Tim "{team_to_remove.name}" sudah memainkan pertandingan. Menghapusnya akan merusak leaderboard.'
+        }, status=400)
+
+    tournament.participants.remove(team_to_remove)
+
+    return JsonResponse({
+        'status': 'success',
+        'message': f'Tim "{team_to_remove.name}" berhasil dihapus dari turnamen.'
+    }, status=200)
