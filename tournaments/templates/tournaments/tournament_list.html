@@ -49,17 +49,17 @@
         <p class="mt-2">Memuat turnamen...</p>
     </div>
 
-    <div id="tournament-list-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 hidden">
+    <div id="tournament-list-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 hidden animate-on-scroll" style="transition-delay: 300ms;">
     </div>
 
-    <div id="no-tournaments-message" class="hidden text-center p-10 bg-white rounded-lg shadow-lg text-custom-blue-300">
+    <div id="no-tournaments-message" class="hidden text-center p-10 bg-white rounded-lg shadow-lg text-custom-blue-300 ">
         <p class="text-lg font-semibold">Belum ada turnamen yang tersedia.</p>
         <p id="no-tournaments-subtext" class="mt-2"></p> 
     </div>
 
-    <div id="pagination-controls" class="text-center mt-8 mb-4">
+    <div id="pagination-controls" class="text-center mt-8 mb-4 animate-on-scroll" style="transition-delay: 100ms;">
         <button id="load-more-btn"
-                class="bg-custom-blue-400 text-white font-bold py-2 px-6 rounded-lg shadow-md hover:bg-custom-blue-300 transition-colors duration-300 disabled:opacity-50 disabled:cursor-wait hidden">
+                class="bg-custom-blue-400 text-white font-bold py-2 px-6 rounded-lg shadow-md hover:bg-custom-blue-300 transition-colors duration-300 disabled:opacity-50 disabled:cursor-wait hidden animate-on-scroll">
             Muat Lebih Banyak
         </button>
     </div>
