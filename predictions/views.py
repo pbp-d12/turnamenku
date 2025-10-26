@@ -78,6 +78,13 @@ def add_match(request):
 
     if request.method == 'POST':
         tournament = get_object_or_404(Tournament, id=request.POST['tournament'])
+        
+        if not tournament.registration_open:
+            return JsonResponse({
+                'success': False,
+                'message': 'Turnamen ini sudah selesai. Tidak bisa menambah match baru.'
+            }, status=400)
+            
         home_team = get_object_or_404(Team, id=request.POST['home_team'])
         away_team = get_object_or_404(Team, id=request.POST['away_team'])
         
