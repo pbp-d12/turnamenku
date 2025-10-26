@@ -77,7 +77,9 @@
             </div>
         </div>
 
-        <div id="mobile-menu" class="md:hidden hidden">
+        {# ---- PERUBAHAN MENU SELULER ---- #}
+        {# Dihapus 'hidden', ditambahkan kelas transisi #}
+        <div id="mobile-menu" class="md:hidden transition-all duration-300 ease-in-out max-h-0 opacity-0 overflow-hidden">
             <ul class="pt-2 pb-4 space-y-1 px-2">
                 <li><a href="{% url 'tournaments:tournament_home' %}"
                         class="block px-3 py-2 rounded-md text-base font-medium text-custom-blue-50 hover:text-white hover:bg-custom-blue-300">Tournaments</a>
@@ -88,7 +90,7 @@
                 <li><a href="{% url 'predictions:predictions_index' %}"
                         class="block px-3 py-2 rounded-md text-base font-medium text-custom-blue-50 hover:text-white hover:bg-custom-blue-300">Predictions</a>
                 </li>
-                <li><a href="{% url 'forums:forum_index' %}"
+<li><a href="{% url 'forums:forum_index' %}"
                         class="block px-3 py-2 rounded-md text-base font-medium text-custom-blue-50 hover:text-white hover:bg-custom-blue-300">Forums</a>
                 </li>
                 <hr class="border-custom-blue-300 my-2"> {# Pemisah #}
@@ -155,7 +157,50 @@
     {% block main_content %}
     {% endblock main_content %}
 </main>
+<footer class="bg-custom-blue-400 text-custom-blue-50 mt-16 shadow-inner">
+    <div class="container mx-auto px-4 py-12">
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-8">
+            
+            <div class="md:col-span-2">
+                <a href="{% url 'main:home' %}" class="text-3xl font-bold mb-4 inline-block">
+                    <span class="text-white">TURNAMEN</span>
+                    <span class="text-custom-blue-100">KU</span>
+                </a>
+                <p class="text-sm text-custom-blue-100 max-w-md">
+                    Platform terpusat untuk mengelola, mengikuti, dan berdiskusi seputar turnamen olahraga favorit Anda. 🏆
+                </p>
+            </div>
+            
+            <div>
+                <h3 class="text-lg font-semibold text-white mb-4">Navigasi</h3>
+                <ul class="space-y-2">
+                    <li><a href="{% url 'tournaments:tournament_home' %}" class="text-custom-blue-50 hover:text-white transition-colors text-sm">Tournaments</a></li>
+                    <li><a href="{% url 'teams:show_main_teams' %}" class="text-custom-blue-50 hover:text-white transition-colors text-sm">Teams</a></li>
+                    <li><a href="{% url 'predictions:predictions_index' %}" class="text-custom-blue-50 hover:text-white transition-colors text-sm">Predictions</a></li>
+                    <li><a href="{% url 'forums:forum_index' %}" class="text-custom-blue-50 hover:text-white transition-colors text-sm">Forums</a></li>
+                </ul>
+            </div>
 
+            <div>
+                <h3 class="text-lg font-semibold text-white mb-4">Kontak Kami</h3>
+                <div class="flex space-x-4 mb-4">
+                    <a href="https://api.whatsapp.com/send/?phone=6281574044497&text&type=phone_number&app_absent=0" class="text-custom-blue-100 hover:text-white transition-colors">
+                        <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><path d="M19,3H5C3.89,3 3,3.89 3,5V19C3,20.11 3.89,21 5,21H19C20.11,21 21,20.11 21,19V5C21,3.89 20.11,3 19,3M19,5V19H5V5H19M7,7V9H9V7H7M11,7V9H13V7H11M15,7V9H17V7H15M7,11V13H9V11H7M11,11V13H13V11H11M15,11V13H17V11H15M7,15V17H9V15H7M11,15V17H13V15H11M15,15V17H17V15H15Z"></path></svg>
+                        Gibran Lynardi - Lead Dev
+                    </a>
+                </div>
+                
+            </div>
+
+        </div>
+
+        <div class="border-t border-custom-blue-300 mt-8 pt-6 text-center">
+            <p class="text-sm text-custom-blue-100">
+               {% now "Y" %} TURNAMENKU. made by pbp d12 and coffee and speedruns.
+            </p>
+        </div>
+    </div>
+</footer>
 <script>
     document.addEventListener('DOMContentLoaded', function () {
         const handleLogout = async (button) => {
@@ -186,20 +231,70 @@
     });
 </script>
 
+{# ---- SKRIP DROPDOWN PROFIL YANG DIMODIFIKASI ---- #}
 <script>
     document.addEventListener('DOMContentLoaded', function () {
         const menuButton = document.getElementById('profile-menu-button');
         const dropdownMenu = document.getElementById('profile-menu-dropdown');
 
         if (menuButton && dropdownMenu) {
+            // Hapus 'hidden' jika ada (sekarang kita kelola via opacity/scale)
+            dropdownMenu.classList.remove('hidden');
+
             menuButton.addEventListener('click', function (event) {
                 event.stopPropagation();
-                dropdownMenu.classList.toggle('hidden');
+                if (dropdownMenu.classList.contains('opacity-0')) {
+                    // Buka menu
+                    dropdownMenu.classList.remove('opacity-0', 'scale-95', 'pointer-events-none');
+                    dropdownMenu.classList.add('opacity-100', 'scale-100');
+                } else {
+                    // Tutup menu
+                    dropdownMenu.classList.add('opacity-0', 'scale-95', 'pointer-events-none');
+                    dropdownMenu.classList.remove('opacity-100', 'scale-100');
+                }
             });
 
             window.addEventListener('click', function (event) {
                 if (!menuButton.contains(event.target) && !dropdownMenu.contains(event.target)) {
-                    dropdownMenu.classList.add('hidden');
+                    // Tutup menu jika klik di luar
+                    dropdownMenu.classList.add('opacity-0', 'scale-95', 'pointer-events-none');
+                    dropdownMenu.classList.remove('opacity-100', 'scale-100');
+                }
+            });
+            
+            // Pastikan menu tertutup saat halaman dimuat
+            dropdownMenu.classList.add('opacity-0', 'scale-95', 'pointer-events-none');
+        }
+    });
+</script>
+
+{# ---- SKRIP MENU HAMBURGER YANG DIMODIFIKASI ---- #}
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const hamburgerButton = document.getElementById('hamburger-button');
+        const mobileMenu = document.getElementById('mobile-menu');
+
+        if (hamburgerButton && mobileMenu) {
+            // Hapus 'hidden' untuk mengelola visibilitas dengan max-height/opacity
+            mobileMenu.classList.remove('hidden');
+
+            hamburgerButton.addEventListener('click', function () {
+                if (mobileMenu.classList.contains('max-h-0')) {
+                    // Buka menu
+                    mobileMenu.classList.remove('max-h-0', 'opacity-0');
+                    // Atur max-height sesuai dengan tinggi kontennya
+                    mobileMenu.style.maxHeight = mobileMenu.scrollHeight + "px";
+                    mobileMenu.classList.add('opacity-100');
+                } else {
+                    // Tutup menu
+                    mobileMenu.style.maxHeight = "0px";
+                    mobileMenu.classList.add('opacity-0');
+                    // Opsional: atur ulang ke max-h-0 setelah transisi selesai
+                    setTimeout(() => {
+                        if (mobileMenu.style.maxHeight === "0px") {
+                             mobileMenu.classList.add('max-h-0');
+                        }
+                    }, 300); // Harus cocok dengan durasi transisi (duration-300)
                 }
             });
         }
@@ -208,14 +303,33 @@
 
 <script>
     document.addEventListener('DOMContentLoaded', function () {
-        const hamburgerButton = document.getElementById('hamburger-button');
-        const mobileMenu = document.getElementById('mobile-menu');
+        // --- This is the new "Magic" script ---
 
-        if (hamburgerButton && mobileMenu) {
-            hamburgerButton.addEventListener('click', function () {
-                mobileMenu.classList.toggle('hidden');
+        // 1. Incantation: Intersection Observer for scroll animations
+        // This finds all elements with the .animate-on-scroll class
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    // When it's in view, add the .is-visible class
+                    entry.target.classList.add('is-visible');
+                    observer.unobserve(entry.target); // Stop observing, it's done
+                }
             });
-        }
+        }, {
+            threshold: 0.1 // Trigger when 10% of the element is visible
+        });
+
+        const targets = document.querySelectorAll('.animate-on-scroll');
+        targets.forEach(target => observer.observe(target));
+
+        // 2. Incantation: Staggered Hero Animation
+        // This finds all elements with .hero-stagger (which we'll add in Step 2)
+        const heroElements = document.querySelectorAll('.hero-stagger');
+        heroElements.forEach((el, index) => {
+            // Apply the CSS animation with a delay based on its order
+            el.style.animation = `fadeInUp 0.6s ease-out ${index * 0.15}s backwards`;
+        });
+
     });
 </script>
 {% endblock content %}
