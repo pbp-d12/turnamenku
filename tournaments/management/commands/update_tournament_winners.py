@@ -97,9 +97,11 @@ class Command(BaseCommand):
                 if top_team:
                     if top_team.played > 0:
                         tournament.winner = top_team
-                        tournament.save(update_fields=['winner']) 
+                        tournament.registration_open = False  
+                        tournament.save(update_fields=['winner', 'registration_open']) 
+                        
                         updated_count += 1
-                        self.stdout.write(self.style.SUCCESS(f'Successfully set winner for "{tournament.name}" to "{top_team.name}".'))
+                        self.stdout.write(self.style.SUCCESS(f'Successfully set winner for "{tournament.name}" to "{top_team.name}" and closed registration.'))
                     else:
                         self.stdout.write(self.style.WARNING(f'Skipping "{tournament.name}": No matches were played, no winner assigned.'))
                 else:
