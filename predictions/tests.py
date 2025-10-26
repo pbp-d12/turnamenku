@@ -16,12 +16,15 @@ class PredictionViewTests(TestCase):
         # Users
         self.user = User.objects.create_user(username='user', password='pass')
         self.admin = User.objects.create_user(username='admin', password='pass')
+        self.organizer = User.objects.create_user(username='organizer', password='pass')
 
         # Buat role di profile
         self.user.profile.role = 'USER'
         self.user.profile.save()
         self.admin.profile.role = 'ADMIN'
         self.admin.profile.save()
+        self.organizer.profile.role = 'PENYELENGGARA'
+        self.organizer.profile.save()
 
         # Teams
         self.teamA = Team.objects.create(name='Team A')
@@ -36,6 +39,23 @@ class PredictionViewTests(TestCase):
             end_date=timezone.now().date() + timedelta(days=5)
         )
         self.tournament.participants.add(self.teamA, self.teamB)
+        
+        self.tournament_closed = Tournament.objects.create(
+        name='Closed Cup',
+        organizer=self.organizer,
+        registration_open=False,  # turnamen ditutup
+        start_date=timezone.now().date(),
+        end_date=timezone.now().date() + timedelta(days=5)
+    )
+        self.tournament_closed.participants.add(self.teamA, self.teamB)
+
+        self.url = reverse('predictions:add_match')
+        self.post_data_closed_tournament = {
+            'tournament': self.tournament_closed.id,
+            'home_team': self.teamA.id,
+            'away_team': self.teamB.id,
+            'match_date': (timezone.now() + timedelta(days=1)).strftime("%Y-%m-%dT%H:%M")
+        }
 
         # Match
         self.match = Match.objects.create(
@@ -230,3 +250,31 @@ class PredictionViewTests(TestCase):
         self.assertEqual(response.status_code, 200)
         response = self.client.get(reverse('predictions:leaderboard') + '?sort=asc')
         self.assertEqual(response.status_code, 200)
+        
+    def test_penyelenggara_cannot_add_match_to_closed_tournament(self):
+        
+        self.client.login(username='organizer', password='pass')
+        response = self.client.post(self.url, self.post_data_closed_tournament)
+        self.assertEqual(Match.objects.count(), 1)
+        self.assertEqual(response.status_code, 400)
+        
+        response_data = response.json()
+        self.assertFalse(response_data['success'])
+        self.assertEqual(
+            response_data['message'], 
+            'Turnamen ini sudah selesai. Tidak bisa menambah match baru.'
+        )
+
+    def test_admin_cannot_add_match_to_closed_tournament(self):
+        
+        self.client.login(username='admin', password='pass')
+        response = self.client.post(self.url, self.post_data_closed_tournament)        
+        self.assertEqual(Match.objects.count(), 1)
+        self.assertEqual(response.status_code, 400)
+        
+        response_data = response.json()
+        self.assertFalse(response_data['success'])
+        self.assertEqual(
+            response_data['message'], 
+            'Turnamen ini sudah selesai. Tidak bisa menambah match baru.'
+        )
