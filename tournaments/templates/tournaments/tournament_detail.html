@@ -207,6 +207,26 @@
     </div>
 </div>
 
+<div id="deregister-team-modal" class="fixed inset-0 bg-gray-900 bg-opacity-75 flex items-center justify-center z-50 hidden p-4 transition-opacity duration-300 opacity-0">
+    <div class="bg-white rounded-xl shadow-xl w-full max-w-md transform scale-95 transition-all duration-300">
+        <div class="flex justify-between items-center p-5 border-b border-gray-200">
+            <h2 class="text-xl font-bold text-red-600">Konfirmasi Batal Mendaftar</h2>
+            <button id="close-deregister-modal-btn" class="text-gray-400 hover:text-gray-700 text-3xl leading-none">&times;</button>
+        </div>
+        <div class="p-6">
+            <p id="deregister-confirm-message" class="text-gray-700 mb-6">Apakah Anda yakin ingin membatalkan pendaftaran tim Anda dari turnamen ini?</p>
+            <div class="flex justify-end gap-3">
+                <button id="cancel-deregister-btn" class="px-4 py-2 bg-gray-200 text-gray-800 font-semibold rounded-lg hover:bg-gray-300 transition-colors">
+                    Batal
+                </button>
+                <button id="confirm-deregister-btn" class="px-4 py-2 bg-red-600 text-white font-semibold rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-wait">
+                    Ya, Batal Mendaftar
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 
 <script>
     document.addEventListener('DOMContentLoaded', function () {
@@ -270,6 +290,12 @@
         const confirmRemoveTeamBtn = document.getElementById('confirm-remove-team-btn');
         const removeTeamConfirmMessage = document.getElementById('remove-team-confirm-message');
 
+        // Elemen Modal Batal Mendaftar (Kapten)
+        const deregisterTeamModal = document.getElementById('deregister-team-modal');
+        const closeDeregisterModalBtn = document.getElementById('close-deregister-modal-btn');
+        const cancelDeregisterBtn = document.getElementById('cancel-deregister-btn');
+        const confirmDeregisterBtn = document.getElementById('confirm-deregister-btn');
+        const deregisterConfirmMessage = document.getElementById('deregister-confirm-message');
         const defaultBannerSvg = `<div class="w-full h-48 md:h-64 bg-custom-blue-100 rounded-lg flex items-center justify-center"><svg class="w-16 h-16 text-custom-blue-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 18.657A8 8 0 016.343 7.343S7 9 9 10m0-2.657A8 8 0 0121.657 15S21 13 19 12m0 6.657a8 8 0 01-11.314-11.314m1.414 1.414A6 6 0 0119 12m-2 2a6 6 0 01-5.586 5.586"></path></svg></div>`;
         const defaultTeamLogoSvg = `<svg class="w-full h-full text-custom-blue-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>`;
 
@@ -759,50 +785,29 @@
              }
         }
 
-        async function handleTeamDeregistration(teamId, teamName, buttonEl) {
-            console.log("DEBUG: handleTeamDeregistration called for team ID:", teamId);
-
-            if (!confirm(`Apakah Anda yakin ingin membatalkan pendaftaran tim "${teamName}" dari turnamen ini?`)) {
+        function handleTeamDeregistration(teamId, teamName, buttonEl) {
+            console.log("DEBUG: Opening deregister modal for team ID:", teamId);
+            
+            if (!deregisterTeamModal || !deregisterConfirmMessage || !confirmDeregisterBtn) {
+                console.error("DEBUG: Deregister modal elements not found!");
+                if (confirm(`MODAL ERROR. Fallback: Apakah Anda yakin ingin membatalkan pendaftaran tim "${teamName}"?`)) {
+                     if (typeof showToast === 'function') showToast('Page error, please reload.', 'error');
+                }
                 return;
             }
+            
+            deregisterConfirmMessage.textContent = `Apakah Anda yakin ingin membatalkan pendaftaran tim "${teamName}" dari turnamen ini?`;
+            
+            deregisterTeamModal.dataset.teamId = teamId;
+            deregisterTeamModal.dataset.teamName = teamName;
+            deregisterTeamModal.dataset.buttonId = buttonEl.id;
 
-            if(!buttonEl) return; 
-            buttonEl.disabled = true;
-            buttonEl.textContent = 'Membatalkan...';
-            
-            const csrfToken = document.querySelector('#edit-tournament-form [name=csrfmiddlewaretoken]')?.value;
-            if (!csrfToken) {
-                 console.error("DEBUG: CSRF token not found for de-registration!");
-                 if (typeof showToast === 'function') showToast('Kesalahan keamanan, muat ulang.', 'error');
-                 buttonEl.disabled = false; buttonEl.textContent = 'Error: Reload'; return;
-            }
-            
-            try {
-                const response = await fetch(`/tournaments/${tournamentId}/deregister_team/`, {
-                     method: 'POST', 
-                     headers: { 
-                         'X-CSRFToken': csrfToken, 
-                         'Accept': 'application/json' 
-                     },
-                 });
-                const data = await response.json();
-                 console.log("DEBUG: De-registration response status:", response.status, "Data:", data);
-                
-                if (response.ok && data.status === 'success') {
-                    if (typeof showToast === 'function') showToast(data.message, 'success');
-                    fetchTournamentDetails(); 
-                } else {
-                    throw new Error(data.message || `Server error (${response.status})`);
-                }
-            } catch (error) {
-                 console.error('DEBUG: Error de-registering team:', error);
-                 if (typeof showToast === 'function') showToast(`Gagal batal mendaftar: ${error.message}`, 'error');
-                 buttonEl.disabled = false; 
-                 buttonEl.textContent = `Batal Mendaftar: ${teamName}`; 
-             }
+            confirmDeregisterBtn.disabled = false;
+            confirmDeregisterBtn.textContent = 'Ya, Batal Mendaftar';
+            openModal(deregisterTeamModal);
         }
 
-        // Modal Opening/Closing Functions 
+
         function openModal(modalEl) {
              if (!modalEl) { console.error("DEBUG: Attempted to open a null modal element."); return; }
              console.log("DEBUG: Opening modal:", modalEl.id);
@@ -1014,6 +1019,81 @@
                  }
              });
         } else { console.warn("DEBUG: Confirm remove team button not found for listener."); }
+
+        if (closeDeregisterModalBtn) {
+            closeDeregisterModalBtn.addEventListener('click', () => closeModal(deregisterTeamModal));
+        }
+        if (cancelDeregisterBtn) {
+            cancelDeregisterBtn.addEventListener('click', () => closeModal(deregisterTeamModal));
+        }
+        if (deregisterTeamModal) {
+            deregisterTeamModal.addEventListener('click', (event) => { 
+                if (event.target === deregisterTeamModal) closeModal(deregisterTeamModal); 
+            });
+        }
+
+        if (confirmDeregisterBtn) {
+            confirmDeregisterBtn.addEventListener('click', async () => {
+                const teamId = deregisterTeamModal.dataset.teamId;
+                const teamName = deregisterTeamModal.dataset.teamName;
+                const buttonId = deregisterTeamModal.dataset.buttonId;
+
+                if (!teamId || !buttonId || !teamName) {
+                    console.error("DEBUG: Deregister modal is missing context (teamId, teamName, or buttonId)!");
+                    return;
+                }
+
+                const buttonEl = document.getElementById(buttonId);
+                
+                confirmDeregisterBtn.disabled = true;
+                confirmDeregisterBtn.textContent = 'Membatalkan...';
+                if (buttonEl) {
+                    buttonEl.disabled = true;
+                    buttonEl.textContent = 'Membatalkan...';
+                }
+
+                const csrfToken = document.querySelector('#edit-tournament-form [name=csrfmiddlewaretoken]')?.value;
+                if (!csrfToken) {
+                     console.error("DEBUG: CSRF token not found for de-registration!");
+                     if (typeof showToast === 'function') showToast('Kesalahan keamanan, muat ulang.', 'error');
+                     confirmDeregisterBtn.disabled = false; 
+                     return;
+                }
+
+                try {
+                    const response = await fetch(`/tournaments/${tournamentId}/deregister_team/`, {
+                         method: 'POST', 
+                         headers: { 
+                             'X-CSRFToken': csrfToken, 
+                             'Accept': 'application/json' 
+                         },
+                     });
+                    const data = await response.json();
+                     console.log("DEBUG: De-registration response status:", response.status, "Data:", data);
+                    
+                    if (response.ok && data.status === 'success') {
+                        if (typeof showToast === 'function') showToast(data.message, 'success');
+                        closeModal(deregisterTeamModal); 
+                        fetchTournamentDetails(); 
+                    } else {
+                        throw new Error(data.message || `Server error (${response.status})`);
+                    }
+                } catch (error) {
+                     console.error('DEBUG: Error de-registering team:', error);
+                     if (typeof showToast === 'function') showToast(`Gagal batal mendaftar: ${error.message}`, 'error');
+                     
+                     confirmDeregisterBtn.disabled = false; 
+                     confirmDeregisterBtn.textContent = 'Ya, Batal Mendaftar';
+                     
+                     if (buttonEl) {
+                         buttonEl.disabled = false; 
+                         buttonEl.textContent = `Batal Mendaftar: ${teamName}`; 
+                     }
+                 }
+            });
+        } else {
+            console.warn("DEBUG: Confirm deregister button not found for listener.");
+        }
 
         // Delete Modal Listeners
         console.log("DEBUG: Attaching delete modal listeners..."); 
