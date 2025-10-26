@@ -14,4 +14,6 @@ urlpatterns = [
     path('<int:tournament_id>/register_team/', views.register_team_view, name='register_team'),
     path('captain_status/<int:tournament_id>/', views.get_user_captain_status, name='get_user_captain_status'),
     path('search_teams/', views.search_teams_json, name='search_teams_json'),
+    path('<int:tournament_id>/deregister_team/', views.deregister_team_view, name='deregister_team'),
+    path('<int:tournament_id>/remove_team/<int:team_id>/', views.remove_team_view, name='remove_team'),
 ]
