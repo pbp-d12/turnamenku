@@ -1,10 +1,12 @@
 asgiref==3.10.0
 coverage==7.11.0
+crispy-tailwind==1.0.3
 Django==5.2.7
+django-cors-headers==4.9.0
+django-crispy-forms==2.4
 pillow==12.0.0
 psycopg2-binary==2.9.11
 python-dotenv==1.1.1
 sqlparse==0.5.3
 tzdata==2025.2
 whitenoise==6.11.0
-gunicorn
