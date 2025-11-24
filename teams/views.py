@@ -6,6 +6,7 @@ from django.db.models import Q, Count
 from django.core.paginator import Paginator, EmptyPage
 from django.views.decorators.csrf import csrf_exempt
 from .models import Team
+import json
 
 def show_main_teams(request):
     teams = Team.objects.all()
@@ -195,3 +196,82 @@ def team_detail_json(request, team_id):
         'members_count': team.members.count(),
     }
     return JsonResponse(data)
+
+@csrf_exempt
+def team_flutter_api(request):
+    """
+    API Endpoint khusus untuk Flutter/External Apps.
+    Method GET: Mengembalikan list team.
+    Method POST: Membuat team baru.
+    """
+    
+    # --- HANDLE GET REQUEST (READ DATA) ---
+    if request.method == 'GET':
+        teams = Team.objects.all()
+        
+        # Kita format datanya menjadi list of dictionaries
+        data = []
+        for team in teams:
+            data.append({
+                'id': team.id,
+                'name': team.name,
+                'logo': team.logo if team.logo else "", # Handle null/None
+                'captain': team.captain.username if team.captain else "No Captain",
+                'members_count': team.members.count(),
+                # Kirim list member username juga jika perlu
+                'members': [member.username for member in team.members.all()]
+            })
+            
+        return JsonResponse({
+            'status': 'success',
+            'data': data
+        }, safe=False)
+
+    # --- HANDLE POST REQUEST (CREATE DATA) ---
+    elif request.method == 'POST':
+        try:
+            # 1. Baca data JSON dari body request (karena Flutter kirim JSON)
+            data = json.loads(request.body)
+            
+            # 2. Validasi input
+            name = data.get('name')
+            logo = data.get('logo', '') # Default string kosong jika tidak ada
+            
+            if not name:
+                return JsonResponse({
+                    'status': 'error', 
+                    'message': 'Nama tim harus diisi!'
+                }, status=400)
+
+            # 3. Cek User (PENTING: Flutter harus handle login cookie/token)
+            if not request.user.is_authenticated:
+                return JsonResponse({
+                    'status': 'error', 
+                    'message': 'User belum login.'
+                }, status=401)
+
+            # 4. Buat Team
+            new_team = Team.objects.create(
+                name=name,
+                logo=logo,
+                captain=request.user
+            )
+            
+            # Tambahkan pembuat sebagai member
+            new_team.members.add(request.user)
+            new_team.save()
+
+            return JsonResponse({
+                'status': 'success',
+                'message': 'Tim berhasil dibuat via Flutter!',
+                'team_id': new_team.id,
+                'team_name': new_team.name
+            }, status=201)
+
+        except json.JSONDecodeError:
+            return JsonResponse({'status': 'error', 'message': 'Invalid JSON format'}, status=400)
+        except Exception as e:
+            return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
+
+    # --- METHOD NOT ALLOWED ---
+    return JsonResponse({'status': 'error', 'message': 'Method not allowed'}, status=405)
