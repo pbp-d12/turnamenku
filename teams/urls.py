@@ -14,4 +14,5 @@ urlpatterns = [
     path('search/', search_teams, name='search_teams'),
     path('json/', show_json, name='show_json'),
     path('json/<int:team_id>/', team_detail_json, name='show_json_specific'),
+    path('api/teams/', team_flutter_api, name='team_flutter_api'),
 ]
