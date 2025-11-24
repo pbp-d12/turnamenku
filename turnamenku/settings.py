@@ -26,10 +26,16 @@ DEBUG = os.getenv('DEBUG', 'True').lower() == 'true'
 # Sesuaikan ini dengan host production kamu nanti
 ALLOWED_HOSTS = ["localhost", "127.0.0.1"]
 
+CORS_ALLOW_ALL_ORIGINS = True
+CORS_ALLOW_CREDENTIALS = True
+
 if not DEBUG:
     ALLOWED_HOSTS.append('gibran-tegar-turnamenku.pbp.cs.ui.ac.id')
     CSRF_TRUSTED_ORIGINS = [
         'https://gibran-tegar-turnamenku.pbp.cs.ui.ac.id'
+        'http://localhost',
+        'http://127.0.0.1',
+        'http://10.0.2.2',
     ]
 
 # Logic untuk menentukan mode production (dari file .env kamu)
@@ -40,6 +46,7 @@ PRODUCTION = os.getenv('PRODUCTION', 'False').lower() == 'true'
 # =================================================================
 
 INSTALLED_APPS = [
+    'corsheaders',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -55,6 +62,7 @@ INSTALLED_APPS = [
 ]
 
 MIDDLEWARE = [
+    'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
