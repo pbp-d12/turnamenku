@@ -32,7 +32,7 @@ CORS_ALLOW_CREDENTIALS = True
 if not DEBUG:
     ALLOWED_HOSTS.append('gibran-tegar-turnamenku.pbp.cs.ui.ac.id')
     CSRF_TRUSTED_ORIGINS = [
-        'https://gibran-tegar-turnamenku.pbp.cs.ui.ac.id'
+        'https://gibran-tegar-turnamenku.pbp.cs.ui.ac.id',
         'http://localhost',
         'http://127.0.0.1',
         'http://10.0.2.2',
