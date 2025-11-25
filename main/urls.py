@@ -3,6 +3,7 @@ from . import views
 from django.contrib.auth import views as auth_views
 from .views import CustomPasswordChangeView
 from django.contrib.auth.decorators import login_required
+from .views import login_flutter, register_flutter, logout_flutter
 
 app_name = 'main'
 
@@ -16,7 +17,9 @@ urlpatterns = [
     path('profile/edit/<str:username>/',
          views.edit_user_profile_view, name='edit_user_profile'),
     path('profile/u/<str:username>/', views.profile_view, name='profile'),
-
+    path('auth/login/', login_flutter, name='login_flutter'),
+    path('auth/register/', register_flutter, name='register_flutter'),
+    path('auth/logout/', logout_flutter, name='logout_flutter'),
     path('change_password/',
          CustomPasswordChangeView.as_view(),
          name='change_password'),

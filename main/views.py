@@ -1,3 +1,13 @@
+from .forms import (
+    UserRegisterForm,
+    CustomLoginForm as LoginForm,
+    UserUpdateForm,
+    ProfileUpdateForm,
+    CustomPasswordChangeForm
+)
+from django.views.decorators.csrf import csrf_exempt
+import json
+from .models import Profile
 from django.shortcuts import render, redirect, get_object_or_404
 from django.http import JsonResponse, HttpResponseRedirect
 from django.contrib.auth import authenticate, login, logout, update_session_auth_hash
@@ -11,10 +21,10 @@ import datetime
 from django.db.models import Sum
 from teams.models import Team
 from predictions.models import Prediction
-from tournaments.models import Tournament, Match 
-from forums.models import Thread 
-from predictions.models import Prediction 
-from django.db.models import Count, F 
+from tournaments.models import Tournament, Match
+from forums.models import Thread
+from predictions.models import Prediction
+from django.db.models import Count, F
 from django.utils import timezone
 
 
@@ -28,8 +38,8 @@ def home_view(request):
     ).order_by('-start_date')[:3]
 
     upcoming_matches_for_prediction = Match.objects.filter(
-        match_date__gte=now_datetime, 
-        home_score__isnull=True,      
+        match_date__gte=now_datetime,
+        home_score__isnull=True,
         away_score__isnull=True
     ).select_related('tournament', 'home_team', 'away_team').order_by('match_date')[:3]
 
@@ -54,30 +64,22 @@ def home_view(request):
             .count()
         user_rank = higher_ranked_users + 1
 
-        user_teams = request.user.teams.all()[:2] 
+        user_teams = request.user.teams.all()[:2]
 
     context = {
         'ongoing_tournaments': ongoing_tournaments,
         'upcoming_matches': upcoming_matches_for_prediction,
         'recent_threads': recent_threads,
         'top_predictors': top_predictors,
-        'user_rank': user_rank, 
+        'user_rank': user_rank,
         'user_total_points': user_total_points if request.user.is_authenticated else 0,
-        'user_teams': user_teams, 
+        'user_teams': user_teams,
     }
     return render(request, 'main/home.html', context)
 
-from .forms import (
-    UserRegisterForm,
-    CustomLoginForm as LoginForm,
-    UserUpdateForm,
-    ProfileUpdateForm,
-    CustomPasswordChangeForm
-)
-from .models import Profile
-
 
 def is_superuser(user): return user.is_superuser
+
 
 def register_view(request):
     if request.user.is_authenticated:
@@ -243,3 +245,66 @@ class CustomPasswordChangeView(LoginRequiredMixin, DjangoPasswordChangeView):
 
     def get(self, request, *args, **kwargs): form = self.get_form(
     ); return render(request, self.template_name, {'form': form})
+
+
+@csrf_exempt
+def login_flutter(request):
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+            username = data.get('username')
+            password = data.get('password')
+
+            user = authenticate(request, username=username, password=password)
+
+            if user is not None:
+                login(request, user)
+                return JsonResponse({
+                    "status": True,
+                    "message": "Berhasil login!",
+                    "username": username,
+                }, status=200)
+            else:
+                return JsonResponse({
+                    "status": False,
+                    "message": "Username atau password salah.",
+                }, status=401)
+        except Exception as e:
+            return JsonResponse({"status": False, "message": "Terjadi kesalahan decoding JSON."}, status=400)
+
+    return JsonResponse({"status": False, "message": "Method not allowed"}, status=405)
+
+
+@csrf_exempt
+def register_flutter(request):
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+            username = data.get('username')
+            password = data.get('password')
+            password_confirmation = data.get('password_confirmation')
+
+            if password != password_confirmation:
+                return JsonResponse({"status": False, "message": "Password tidak sama."}, status=400)
+
+            if User.objects.filter(username=username).exists():
+                return JsonResponse({"status": False, "message": "Username sudah digunakan."}, status=409)
+
+            user = User.objects.create_user(
+                username=username, password=password)
+            user.save()
+
+            return JsonResponse({"status": True, "message": "Akun berhasil dibuat!"}, status=201)
+        except:
+            return JsonResponse({"status": False, "message": "Terjadi kesalahan server."}, status=400)
+
+    return JsonResponse({"status": False, "message": "Method not allowed"}, status=405)
+
+
+@csrf_exempt
+def logout_flutter(request):
+    logout(request)
+    return JsonResponse({
+        "status": True,
+        "message": "Berhasil logout!",
+    }, status=200)
