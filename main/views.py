@@ -497,25 +497,24 @@ def update_profile_flutter(request):
             target_user = request.user
 
         requester_role = getattr(request.user.profile, 'role', 'PENGGUNA')
-        target_role = getattr(target_user.profile, 'role', 'PENGGUNA')
-
         is_self = (request.user.pk == target_user.pk)
         is_admin = (requester_role == 'ADMIN')
 
         if not (is_self or is_admin):
-            return JsonResponse({'status': 'error', 'message': 'Anda tidak punya izin edit.'}, status=403)
+            return JsonResponse({'status': 'error', 'message': 'Izin ditolak.'}, status=403)
 
         new_username = data.get('username')
         new_email = data.get('email')
         new_bio = data.get('bio')
+        new_profile_pic = data.get('profile_picture')
+        new_role = data.get('role')
 
         if new_username and new_username != target_user.username:
+            target_role = getattr(target_user.profile, 'role', 'PENGGUNA')
             if target_role == 'ADMIN':
                 return JsonResponse({'status': 'error', 'message': 'Username Admin tidak bisa diubah.'}, status=403)
-
             if User.objects.filter(username=new_username).exclude(pk=target_user.pk).exists():
-                return JsonResponse({'status': 'error', 'message': f'Username "{new_username}" sudah dipakai.'}, status=400)
-
+                return JsonResponse({'status': 'error', 'message': 'Username sudah dipakai.'}, status=400)
             target_user.username = new_username
 
         if new_email is not None:
@@ -523,12 +522,22 @@ def update_profile_flutter(request):
 
         target_user.save()
 
-        if new_bio is not None:
-            if not hasattr(target_user, 'profile'):
-                Profile.objects.create(user=target_user, role='PENGGUNA')
+        if not hasattr(target_user, 'profile'):
+            Profile.objects.create(user=target_user)
 
-            target_user.profile.bio = new_bio
-            target_user.profile.save()
+        profile = target_user.profile
+
+        if new_bio is not None:
+            profile.bio = new_bio
+
+        if new_profile_pic is not None:
+            profile.profile_picture = new_profile_pic
+
+        if new_role is not None:
+            if new_role in ['ADMIN', 'PENYELENGGARA', 'PEMAIN']:
+                profile.role = new_role
+
+        profile.save()
 
         return JsonResponse({'status': 'success', 'message': 'Profil berhasil diperbarui!'})
 
