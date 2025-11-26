@@ -250,7 +250,7 @@ class CustomPasswordChangeView(LoginRequiredMixin, DjangoPasswordChangeView):
 
 
 @csrf_exempt  # Gunakan ini jika error CSRF masih membandel saat testing awal
-def login_user(request):
+def login_flutter(request):
     if request.method == 'POST':
         try:
             data = json.loads(request.body)
