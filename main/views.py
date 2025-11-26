@@ -473,9 +473,13 @@ def get_profile_json(request):
     try:
         profile = target_user.profile
         role = profile.role
+        bio = profile.bio
+        profile_picture = profile.profile_picture
     except:
         profile = None
         role = 'PENGGUNA'
+        bio = ''
+        profile_picture = None
 
     can_edit = False
     if request.user.is_authenticated:
@@ -492,10 +496,10 @@ def get_profile_json(request):
     data = {
         'id': target_user.id,
         'username': target_user.username,
-        'name': profile.name if profile else '',
-        'email': profile.email if profile else '',
+        'email': target_user.email,
         'role': role,
-        'profile_picture': profile.profile_picture if profile else None,
+        'bio': bio if bio else '',
+        'profile_picture': profile_picture,
         'can_edit': can_edit,
     }
     return JsonResponse({'status': 'success', 'data': data})
@@ -523,29 +527,32 @@ def update_profile_flutter(request):
         is_admin = (requester_role == 'ADMIN')
 
         if not (is_self or is_admin):
-            return JsonResponse({'status': 'error', 'message': 'Anda tidak punya izin edit profil ini.'}, status=403)
+            return JsonResponse({'status': 'error', 'message': 'Anda tidak punya izin edit.'}, status=403)
 
         new_username = data.get('username')
-        new_name = data.get('name')
         new_email = data.get('email')
+        new_bio = data.get('bio')
 
         if new_username and new_username != target_user.username:
             if target_role == 'ADMIN':
-                return JsonResponse({'status': 'error', 'message': 'Username Admin bersifat PERMANEN dan tidak bisa diubah.'}, status=403)
+                return JsonResponse({'status': 'error', 'message': 'Username Admin tidak bisa diubah.'}, status=403)
 
             if User.objects.filter(username=new_username).exclude(pk=target_user.pk).exists():
-                return JsonResponse({'status': 'error', 'message': f'Username "{new_username}" sudah dipakai orang lain.'}, status=400)
+                return JsonResponse({'status': 'error', 'message': f'Username "{new_username}" sudah dipakai.'}, status=400)
 
             target_user.username = new_username
 
-        if new_email:
+        if new_email is not None:
             target_user.email = new_email
 
-        if new_name:
-            target_user.profile.name = new_name
-            target_user.profile.save()
-
         target_user.save()
+
+        if new_bio is not None:
+            if not hasattr(target_user, 'profile'):
+                Profile.objects.create(user=target_user, role='PENGGUNA')
+
+            target_user.profile.bio = new_bio
+            target_user.profile.save()
 
         return JsonResponse({'status': 'success', 'message': 'Profil berhasil diperbarui!'})
 
