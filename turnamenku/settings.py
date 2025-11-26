@@ -26,6 +26,8 @@ DEBUG = os.getenv('DEBUG', 'True').lower() == 'true'
 # Sesuaikan ini dengan host production kamu nanti
 ALLOWED_HOSTS = ["localhost", "127.0.0.1"]
 
+CORS_ALLOW_ALL_ORIGINS = True
+CORS_ALLOW_CREDENTIALS = True
 CSRF_COOKIE_SECURE = False
 SESSION_COOKIE_SECURE = False
 CSRF_COOKIE_SAMESITE = 'Lax'
