@@ -11,6 +11,7 @@ from django.core.paginator import Paginator
 from predictions.models import Prediction
 from tournaments.models import Match, Tournament
 from teams.models import Team
+from django.views.decorators.csrf import csrf_exempt
 
 
 def predictions_index(request):
@@ -221,3 +222,85 @@ def delete_prediction(request):
             return JsonResponse({'success': False, 'message': 'Prediksi tidak ditemukan.'})
     
     return JsonResponse({'success': False, 'message': 'Metode tidak valid.'}, status=400)
+
+
+def get_matches_json(request):
+    """
+    API untuk mengambil daftar pertandingan dan status prediksi user.
+    """
+    # Ambil semua match
+    matches = Match.objects.select_related('home_team', 'away_team', 'tournament').all().order_by('match_date')
+    
+    # --- PERBAIKAN DI SINI ---
+    # Kita harus inisialisasi map kosong dulu
+    user_prediction_map = {}
+
+    # Hanya ambil data prediksi JIKA user sudah login (is_authenticated)
+    # Jika Guest (AnonymousUser), blok ini dilewati agar tidak Error 500
+    if request.user.is_authenticated:
+        user_predictions = Prediction.objects.filter(user=request.user)
+        user_prediction_map = {pred.match.id: pred.predicted_winner.id for pred in user_predictions}
+    
+    data = []
+    for match in matches:
+        is_finished = match.home_score is not None and match.away_score is not None
+        data.append({
+            'id': match.id,
+            'tournament': match.tournament.name,
+            'home_team': match.home_team.name,
+            'home_team_id': match.home_team.id,
+            'away_team': match.away_team.name,
+            'away_team_id': match.away_team.id,
+            'match_date': match.match_date.strftime("%Y-%m-%d %H:%M"),
+            'home_score': match.home_score if match.home_score is not None else 0,
+            'away_score': match.away_score if match.away_score is not None else 0,
+            'is_finished': is_finished,
+            # Jika map kosong (Guest), ini akan otomatis return None
+            'user_prediction_team_id': user_prediction_map.get(match.id) 
+        })
+    
+    return JsonResponse(data, safe=False)
+
+
+def get_leaderboard_json(request):
+    """
+    API untuk mengambil data leaderboard.
+    """
+    leaderboard_data = (
+        Prediction.objects.values('user__username')
+        .annotate(total_points=Sum('points_awarded'))
+        .order_by('-total_points')
+    )
+    return JsonResponse(list(leaderboard_data), safe=False)
+
+
+@login_required
+def submit_prediction_flutter(request):
+    """
+    API untuk melakukan voting prediksi dari Flutter.
+    """
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+            match_id = int(data.get('match_id'))
+            team_id = int(data.get('team_id'))
+
+            match = Match.objects.get(pk=match_id)
+            team = Team.objects.get(pk=team_id)
+
+            # Validasi tim
+            if team not in [match.home_team, match.away_team]:
+                return JsonResponse({'status': 'error', 'message': 'Tim tidak valid untuk match ini.'}, status=400)
+
+            # Simpan atau update prediksi
+            prediction, created = Prediction.objects.update_or_create(
+                user=request.user,
+                match=match,
+                defaults={'predicted_winner': team}
+            )
+
+            return JsonResponse({'status': 'success', 'message': f'Berhasil memilih {team.name}!'})
+        except Exception as e:
+            return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
+    
+    return JsonResponse({'status': 'error', 'message': 'Invalid method'}, status=405)

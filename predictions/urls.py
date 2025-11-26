@@ -14,4 +14,7 @@ urlpatterns = [
     path('delete_prediction/', views.delete_prediction, name='delete_prediction'),
     path('get-ongoing-matches/', views.get_ongoing_matches, name='get_ongoing_matches'),
     path('get-finished-matches/', views.get_finished_matches, name='get_finished_matches'),
+    path('api/matches/', views.get_matches_json, name='get_matches_json'),
+    path('api/leaderboard/', views.get_leaderboard_json, name='get_leaderboard_json'),
+    path('api/submit/', views.submit_prediction_flutter, name='submit_prediction_flutter'),
 ]
