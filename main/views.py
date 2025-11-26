@@ -26,6 +26,7 @@ from forums.models import Thread
 from predictions.models import Prediction
 from django.db.models import Count, F
 from django.utils import timezone
+from django.views.decorators.http import require_GET
 
 
 def home_view(request):
@@ -308,3 +309,102 @@ def logout_flutter(request):
         "status": True,
         "message": "Berhasil logout!",
     }, status=200)
+
+
+@csrf_exempt
+@require_GET
+def show_home_json(request):
+    now_datetime = timezone.now()
+    now_date = now_datetime.date()
+
+    ongoing_tournaments = Tournament.objects.filter(
+        start_date__lte=now_date,
+        end_date__gte=now_date
+    ).order_by('-start_date')[:3]
+
+    ongoing_list = []
+    for t in ongoing_tournaments:
+        ongoing_list.append({
+            'id': t.pk,
+            'name': t.name,
+            'end_date': t.end_date.strftime("%d %b %Y")
+        })
+
+    upcoming_matches = Match.objects.filter(
+        match_date__gte=now_datetime,
+        home_score__isnull=True,
+        away_score__isnull=True
+    ).select_related('tournament', 'home_team', 'away_team').order_by('match_date')[:3]
+
+    match_list = []
+    for m in upcoming_matches:
+        match_list.append({
+            'home_team': m.home_team.name,
+            'away_team': m.away_team.name,
+            'tournament_name': m.tournament.name,
+            'date': m.match_date.strftime("%d %b, %H:%M")
+        })
+
+    recent_threads = Thread.objects.select_related('tournament', 'author')\
+        .annotate(post_count=Count('posts'))\
+        .order_by('-created_at')[:3]
+
+    thread_list = []
+    for th in recent_threads:
+        thread_list.append({
+            'id': th.pk,
+            'title': th.title,
+            'author': th.author.username,
+            'tournament': th.tournament.name,
+            'reply_count': max(0, th.post_count - 1)
+        })
+
+    top_predictors = Prediction.objects.values('user__username')\
+        .annotate(total_points=Sum('points_awarded'))\
+        .filter(total_points__gt=0)\
+        .order_by('-total_points')[:3]
+
+    predictor_list = list(top_predictors)
+
+    user_data = None
+    if request.user.is_authenticated:
+        user_total_points = Prediction.objects.filter(user=request.user)\
+            .aggregate(total=Sum('points_awarded'))['total'] or 0
+
+        higher_ranked_users = Prediction.objects.values('user')\
+            .annotate(total_points=Sum('points_awarded'))\
+            .filter(total_points__gt=user_total_points)\
+            .count()
+        user_rank = higher_ranked_users + 1
+
+        my_teams = request.user.teams.all()[:2]
+        team_list = []
+        for team in my_teams:
+            team_list.append({
+                'name': team.name,
+                'logo': team.logo if team.logo else "https://img.icons8.com/?size=100&id=uMMzE4KzgxCO&format=png&color=000000"
+            })
+
+        user_data = {
+            'username': request.user.username,
+            'rank': user_rank,
+            'total_points': user_total_points,
+            'teams': team_list
+        }
+
+    stats = {
+        'tournaments_count': Tournament.objects.filter(start_date__lte=now_date, end_date__gte=now_date).count(),
+        'matches_count': Match.objects.filter(match_date__gte=now_datetime).count(),
+        'threads_count': Thread.objects.count(),
+        'predictors_count': Prediction.objects.values('user').distinct().count()
+    }
+
+    return JsonResponse({
+        'status': True,
+        'ongoing_tournaments': ongoing_list,
+        'upcoming_matches': match_list,
+        'recent_threads': thread_list,
+        'top_predictors': predictor_list,
+        'user_data': user_data,
+        'stats': stats
+    })

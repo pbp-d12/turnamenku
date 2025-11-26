@@ -3,7 +3,7 @@ from . import views
 from django.contrib.auth import views as auth_views
 from .views import CustomPasswordChangeView
 from django.contrib.auth.decorators import login_required
-from .views import login_flutter, register_flutter, logout_flutter
+from .views import login_flutter, register_flutter, logout_flutter, show_home_json
 
 app_name = 'main'
 
@@ -23,4 +23,5 @@ urlpatterns = [
     path('change_password/',
          CustomPasswordChangeView.as_view(),
          name='change_password'),
+    path('api/home/', show_home_json, name='show_home_json'),
 ]
