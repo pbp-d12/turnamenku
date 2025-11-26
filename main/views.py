@@ -288,20 +288,31 @@ def register_flutter(request):
             username = data.get('username')
             password = data.get('password')
             password_confirmation = data.get('password_confirmation')
+            email = data.get('email')
+            role = data.get('role')
 
             if password != password_confirmation:
                 return JsonResponse({"status": False, "message": "Password tidak sama."}, status=400)
+
+            if not email or not role:
+                return JsonResponse({"status": False, "message": "Email dan peran akun wajib diisi."}, status=400)
 
             if User.objects.filter(username=username).exists():
                 return JsonResponse({"status": False, "message": "Username sudah digunakan."}, status=409)
 
             user = User.objects.create_user(
-                username=username, password=password)
+                username=username,
+                password=password,
+                email=email,
+            )
             user.save()
 
+            user.profile.role = role
+            user.profile.save()
+
             return JsonResponse({"status": True, "message": "Akun berhasil dibuat!"}, status=201)
-        except:
-            return JsonResponse({"status": False, "message": "Terjadi kesalahan server."}, status=400)
+        except Exception as e:
+            return JsonResponse({"status": False, "message": f"Terjadi kesalahan server: {str(e)}"}, status=500)
 
     return JsonResponse({"status": False, "message": "Method not allowed"}, status=405)
 
