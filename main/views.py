@@ -436,30 +436,6 @@ def show_home_json(request):
     })
 
 
-@csrf_exempt
-def show_profile_json(request):
-    if not request.user.is_authenticated:
-        return JsonResponse({'status': False, 'message': 'Belum login'}, status=401)
-
-    user = request.user
-    try:
-        profile = user.profile
-
-        data = {
-            'status': True,
-            'username': user.username,
-            'email': user.email,
-            'role': profile.role,
-            'bio': profile.bio if profile.bio else "-",
-            'profile_picture': profile.profile_picture if profile.profile_picture else "",
-            'date_joined': user.date_joined.strftime("%d %B %Y"),
-            'last_login': user.last_login.strftime("%d %B %Y") if user.last_login else "-",
-        }
-        return JsonResponse(data, status=200)
-    except Exception as e:
-        return JsonResponse({'status': False, 'message': str(e)}, status=500)
-
-
 def get_profile_json(request):
     target_id = request.GET.get('id')
 
