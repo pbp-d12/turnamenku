@@ -266,6 +266,9 @@ def login_flutter(request):
                 if not request.session.session_key:
                     request.session.create()
 
+                request.session.modified = True
+                request.session.save()
+
                 return JsonResponse({
                     "status": True,
                     "message": "Berhasil login!",
@@ -279,7 +282,7 @@ def login_flutter(request):
                     "message": "Username atau password salah.",
                 }, status=401)
         except Exception as e:
-            return JsonResponse({"status": False, "message": "Terjadi kesalahan decoding JSON."}, status=400)
+            return JsonResponse({"status": False, "message": "Error processing login."}, status=400)
 
     return JsonResponse({"status": False, "message": "Method not allowed"}, status=405)
 
