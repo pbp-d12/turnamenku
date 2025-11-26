@@ -385,8 +385,19 @@ def show_home_json(request):
                 'logo': team.logo if team.logo else "https://img.icons8.com/?size=100&id=uMMzE4KzgxCO&format=png&color=000000"
             })
 
+        try:
+            profile = request.user.profile
+            role = profile.role
+            profile_pic = profile.profile_picture if profile.profile_picture else ""
+        except:
+            role = "Member"
+            profile_pic = ""
+
         user_data = {
             'username': request.user.username,
+            'email': request.user.email,
+            'role': role,
+            'profile_picture': profile_pic,
             'rank': user_rank,
             'total_points': user_total_points,
             'teams': team_list
