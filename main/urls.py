@@ -24,4 +24,5 @@ urlpatterns = [
          CustomPasswordChangeView.as_view(),
          name='change_password'),
     path('api/home/', show_home_json, name='show_home_json'),
+    path('api/profile/', views.show_profile_json, name='show_profile_json'),
 ]
