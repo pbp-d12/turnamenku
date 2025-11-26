@@ -458,16 +458,23 @@ def get_profile_json(request):
         profile_picture = None
 
     can_edit = False
+    can_edit_username = False
+
     if request.user.is_authenticated:
         is_self = request.user.pk == target_user.pk
-        is_admin = False
+
         try:
-            is_admin = request.user.profile.role == 'ADMIN'
+            requester_role = request.user.profile.role
         except:
-            pass
+            requester_role = 'PENGGUNA'
+
+        is_admin = (requester_role == 'ADMIN')
 
         if is_self or is_admin:
             can_edit = True
+
+        if is_admin and role != 'ADMIN':
+            can_edit_username = True
 
     data = {
         'id': target_user.id,
@@ -477,6 +484,7 @@ def get_profile_json(request):
         'bio': bio if bio else '',
         'profile_picture': profile_picture,
         'can_edit': can_edit,
+        'can_edit_username': can_edit_username,
     }
     return JsonResponse({'status': 'success', 'data': data})
 
@@ -496,7 +504,11 @@ def update_profile_flutter(request):
         else:
             target_user = request.user
 
-        requester_role = getattr(request.user.profile, 'role', 'PENGGUNA')
+        try:
+            requester_role = request.user.profile.role
+        except:
+            requester_role = 'PENGGUNA'
+
         is_self = (request.user.pk == target_user.pk)
         is_admin = (requester_role == 'ADMIN')
 
@@ -511,10 +523,16 @@ def update_profile_flutter(request):
 
         if new_username and new_username != target_user.username:
             target_role = getattr(target_user.profile, 'role', 'PENGGUNA')
+
+            if not is_admin:
+                return JsonResponse({'status': 'error', 'message': 'Hanya Admin yang dapat mengubah username.'}, status=403)
+
             if target_role == 'ADMIN':
                 return JsonResponse({'status': 'error', 'message': 'Username Admin tidak bisa diubah.'}, status=403)
+
             if User.objects.filter(username=new_username).exclude(pk=target_user.pk).exists():
                 return JsonResponse({'status': 'error', 'message': 'Username sudah dipakai.'}, status=400)
+
             target_user.username = new_username
 
         if new_email is not None:
@@ -535,14 +553,10 @@ def update_profile_flutter(request):
 
         if new_role is not None:
             current_role = profile.role
-
-            if current_role == 'ADMIN':
-                if new_role != 'ADMIN':
-                    return JsonResponse({'status': 'error', 'message': 'Role Admin bersifat permanen.'}, status=403)
-
+            if current_role == 'ADMIN' and new_role != 'ADMIN':
+                return JsonResponse({'status': 'error', 'message': 'Role Admin bersifat permanen.'}, status=403)
             elif new_role == 'ADMIN':
                 return JsonResponse({'status': 'error', 'message': 'Tidak dapat mengubah role menjadi Admin.'}, status=403)
-
             else:
                 if new_role in ['PENYELENGGARA', 'PEMAIN']:
                     profile.role = new_role
