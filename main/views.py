@@ -27,6 +27,7 @@ from predictions.models import Prediction
 from django.db.models import Count, F
 from django.utils import timezone
 from django.views.decorators.http import require_GET
+from django.middleware.csrf import get_token
 
 
 def home_view(request):
@@ -260,10 +261,17 @@ def login_flutter(request):
 
             if user is not None:
                 login(request, user)
+
+                # FIX: KIRIM SESSION KEY DI BODY
+                if not request.session.session_key:
+                    request.session.create()
+
                 return JsonResponse({
                     "status": True,
                     "message": "Berhasil login!",
                     "username": username,
+                    "sessionid": request.session.session_key,
+                    "csrftoken": get_token(request),
                 }, status=200)
             else:
                 return JsonResponse({
