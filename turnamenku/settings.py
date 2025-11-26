@@ -26,8 +26,12 @@ DEBUG = os.getenv('DEBUG', 'True').lower() == 'true'
 # Sesuaikan ini dengan host production kamu nanti
 ALLOWED_HOSTS = ["localhost", "127.0.0.1"]
 
-CORS_ALLOW_ALL_ORIGINS = True
-CORS_ALLOW_CREDENTIALS = True
+CSRF_COOKIE_SECURE = False
+SESSION_COOKIE_SECURE = False
+CSRF_COOKIE_SAMESITE = 'Lax'
+SESSION_COOKIE_SAMESITE = 'Lax'
+CSRF_COOKIE_HTTPONLY = False
+SESSION_COOKIE_HTTPONLY = True
 
 if not DEBUG:
     ALLOWED_HOSTS.append('gibran-tegar-turnamenku.pbp.cs.ui.ac.id')
