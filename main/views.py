@@ -314,16 +314,6 @@ def logout_flutter(request):
 @csrf_exempt
 @require_GET
 def show_home_json(request):
-    if not request.user.is_authenticated:
-        print("!!! USER TERDETEKSI GUEST. MENCOBA FORCE LOGIN (DEBUG MODE) !!!")
-        try:
-            forced_user = User.objects.first()
-            if forced_user:
-                login(request, forced_user)
-                print(
-                    f"!!! FORCE LOGIN SUKSES SEBAGAI: {forced_user.username} !!!")
-        except Exception as e:
-            print(f"!!! Gagal Force Login: {e}")
     now_datetime = timezone.now()
     now_date = now_datetime.date()
 
