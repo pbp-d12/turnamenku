@@ -534,8 +534,18 @@ def update_profile_flutter(request):
             profile.profile_picture = new_profile_pic
 
         if new_role is not None:
-            if new_role in ['ADMIN', 'PENYELENGGARA', 'PEMAIN']:
-                profile.role = new_role
+            current_role = profile.role
+
+            if current_role == 'ADMIN':
+                if new_role != 'ADMIN':
+                    return JsonResponse({'status': 'error', 'message': 'Role Admin bersifat permanen.'}, status=403)
+
+            elif new_role == 'ADMIN':
+                return JsonResponse({'status': 'error', 'message': 'Tidak dapat mengubah role menjadi Admin.'}, status=403)
+
+            else:
+                if new_role in ['PENYELENGGARA', 'PEMAIN']:
+                    profile.role = new_role
 
         profile.save()
 
