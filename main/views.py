@@ -26,7 +26,7 @@ from forums.models import Thread
 from predictions.models import Prediction
 from django.db.models import Count, F
 from django.utils import timezone
-from django.views.decorators.http import require_GET
+from django.views.decorators.http import require_GET, require_POST
 from django.middleware.csrf import get_token
 
 
@@ -458,3 +458,96 @@ def show_profile_json(request):
         return JsonResponse(data, status=200)
     except Exception as e:
         return JsonResponse({'status': False, 'message': str(e)}, status=500)
+
+
+def get_profile_json(request):
+    target_id = request.GET.get('id')
+
+    if target_id:
+        target_user = get_object_or_404(User, pk=target_id)
+    else:
+        if not request.user.is_authenticated:
+            return JsonResponse({'status': 'error', 'message': 'Not logged in'}, status=401)
+        target_user = request.user
+
+    try:
+        profile = target_user.profile
+        role = profile.role
+    except:
+        profile = None
+        role = 'PENGGUNA'
+
+    can_edit = False
+    if request.user.is_authenticated:
+        is_self = request.user.pk == target_user.pk
+        is_admin = False
+        try:
+            is_admin = request.user.profile.role == 'ADMIN'
+        except:
+            pass
+
+        if is_self or is_admin:
+            can_edit = True
+
+    data = {
+        'id': target_user.id,
+        'username': target_user.username,
+        'name': profile.name if profile else '',
+        'email': profile.email if profile else '',
+        'role': role,
+        'profile_picture': profile.profile_picture if profile else None,
+        'can_edit': can_edit,
+    }
+    return JsonResponse({'status': 'success', 'data': data})
+
+
+@csrf_exempt
+@require_POST
+def update_profile_flutter(request):
+    if not request.user.is_authenticated:
+        return JsonResponse({'status': 'error', 'message': 'Unauthorized'}, status=401)
+
+    try:
+        data = json.loads(request.body)
+        target_id = data.get('id')
+
+        if target_id:
+            target_user = get_object_or_404(User, pk=target_id)
+        else:
+            target_user = request.user
+
+        requester_role = getattr(request.user.profile, 'role', 'PENGGUNA')
+        target_role = getattr(target_user.profile, 'role', 'PENGGUNA')
+
+        is_self = (request.user.pk == target_user.pk)
+        is_admin = (requester_role == 'ADMIN')
+
+        if not (is_self or is_admin):
+            return JsonResponse({'status': 'error', 'message': 'Anda tidak punya izin edit profil ini.'}, status=403)
+
+        new_username = data.get('username')
+        new_name = data.get('name')
+        new_email = data.get('email')
+
+        if new_username and new_username != target_user.username:
+            if target_role == 'ADMIN':
+                return JsonResponse({'status': 'error', 'message': 'Username Admin bersifat PERMANEN dan tidak bisa diubah.'}, status=403)
+
+            if User.objects.filter(username=new_username).exclude(pk=target_user.pk).exists():
+                return JsonResponse({'status': 'error', 'message': f'Username "{new_username}" sudah dipakai orang lain.'}, status=400)
+
+            target_user.username = new_username
+
+        if new_email:
+            target_user.email = new_email
+
+        if new_name:
+            target_user.profile.name = new_name
+            target_user.profile.save()
+
+        target_user.save()
+
+        return JsonResponse({'status': 'success', 'message': 'Profil berhasil diperbarui!'})
+
+    except Exception as e:
+        return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
