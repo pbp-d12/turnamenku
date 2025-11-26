@@ -249,7 +249,7 @@ class CustomPasswordChangeView(LoginRequiredMixin, DjangoPasswordChangeView):
     ); return render(request, self.template_name, {'form': form})
 
 
-@csrf_exempt
+@csrf_exempt  # Gunakan ini jika error CSRF masih membandel saat testing awal
 def login_flutter(request):
     if request.method == 'POST':
         try:
@@ -257,21 +257,14 @@ def login_flutter(request):
             username = data.get('username')
             password = data.get('password')
 
-            user = authenticate(request, username=username, password=password)
+            user = authenticate(username=username, password=password)
 
             if user is not None:
-                login(request, user)
-
-                # FIX: KIRIM SESSION KEY DI BODY
-                if not request.session.session_key:
-                    request.session.create()
-
+                login(request, user)  # <--- PENTING: Membuat session cookie
                 return JsonResponse({
                     "status": True,
                     "message": "Berhasil login!",
                     "username": username,
-                    "sessionid": request.session.session_key,
-                    "csrftoken": get_token(request),
                 }, status=200)
             else:
                 return JsonResponse({
@@ -279,7 +272,10 @@ def login_flutter(request):
                     "message": "Username atau password salah.",
                 }, status=401)
         except Exception as e:
-            return JsonResponse({"status": False, "message": "Terjadi kesalahan decoding JSON."}, status=400)
+            return JsonResponse({
+                "status": False,
+                "message": f"Error processing request: {str(e)}",
+            }, status=500)
 
     return JsonResponse({"status": False, "message": "Method not allowed"}, status=405)
 
