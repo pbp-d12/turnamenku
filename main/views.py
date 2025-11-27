@@ -28,6 +28,7 @@ from django.db.models import Count, F
 from django.utils import timezone
 from django.views.decorators.http import require_GET, require_POST
 from django.middleware.csrf import get_token
+from django.db.models import Q
 
 
 def home_view(request):
@@ -594,3 +595,30 @@ def update_profile_flutter(request):
 
     except Exception as e:
         return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
+
+
+def search_profiles(request):
+    query = request.GET.get('q', '')
+    if not query:
+        return JsonResponse({'status': 'success', 'data': []})
+
+    users = User.objects.filter(username__icontains=query).select_related(
+        'profile')[:20]
+
+    results = []
+    for user in users:
+        try:
+            profile_pic = user.profile.profile_picture
+            role = user.profile.role
+        except:
+            profile_pic = None
+            role = 'PENGGUNA'
+
+        results.append({
+            'id': user.id,
+            'username': user.username,
+            'role': role,
+            'profile_picture': profile_pic
+        })
+
+    return JsonResponse({'status': 'success', 'data': results})
