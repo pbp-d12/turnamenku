@@ -26,7 +26,7 @@ from forums.models import Thread
 from predictions.models import Prediction
 from django.db.models import Count, F
 from django.utils import timezone
-from django.views.decorators.http import require_GET
+from django.views.decorators.http import require_GET, require_POST
 from django.middleware.csrf import get_token
 
 
@@ -288,20 +288,31 @@ def register_flutter(request):
             username = data.get('username')
             password = data.get('password')
             password_confirmation = data.get('password_confirmation')
+            email = data.get('email')
+            role = data.get('role')
 
             if password != password_confirmation:
                 return JsonResponse({"status": False, "message": "Password tidak sama."}, status=400)
+
+            if not email or not role:
+                return JsonResponse({"status": False, "message": "Email dan peran akun wajib diisi."}, status=400)
 
             if User.objects.filter(username=username).exists():
                 return JsonResponse({"status": False, "message": "Username sudah digunakan."}, status=409)
 
             user = User.objects.create_user(
-                username=username, password=password)
+                username=username,
+                password=password,
+                email=email,
+            )
             user.save()
 
+            user.profile.role = role
+            user.profile.save()
+
             return JsonResponse({"status": True, "message": "Akun berhasil dibuat!"}, status=201)
-        except:
-            return JsonResponse({"status": False, "message": "Terjadi kesalahan server."}, status=400)
+        except Exception as e:
+            return JsonResponse({"status": False, "message": f"Terjadi kesalahan server: {str(e)}"}, status=500)
 
     return JsonResponse({"status": False, "message": "Method not allowed"}, status=405)
 
@@ -425,25 +436,134 @@ def show_home_json(request):
     })
 
 
-@csrf_exempt
-def show_profile_json(request):
-    if not request.user.is_authenticated:
-        return JsonResponse({'status': False, 'message': 'Belum login'}, status=401)
+def get_profile_json(request):
+    target_id = request.GET.get('id')
 
-    user = request.user
+    if target_id:
+        target_user = get_object_or_404(User, pk=target_id)
+    else:
+        if not request.user.is_authenticated:
+            return JsonResponse({'status': 'error', 'message': 'Not logged in'}, status=401)
+        target_user = request.user
+
     try:
-        profile = user.profile
+        profile = target_user.profile
+        role = profile.role
+        bio = profile.bio
+        profile_picture = profile.profile_picture
+    except:
+        profile = None
+        role = 'PENGGUNA'
+        bio = ''
+        profile_picture = None
 
-        data = {
-            'status': True,
-            'username': user.username,
-            'email': user.email,
-            'role': profile.role,
-            'bio': profile.bio if profile.bio else "-",
-            'profile_picture': profile.profile_picture if profile.profile_picture else "",
-            'date_joined': user.date_joined.strftime("%d %B %Y"),
-            'last_login': user.last_login.strftime("%d %B %Y") if user.last_login else "-",
-        }
-        return JsonResponse(data, status=200)
+    can_edit = False
+    can_edit_username = False
+
+    if request.user.is_authenticated:
+        is_self = request.user.pk == target_user.pk
+
+        try:
+            requester_role = request.user.profile.role
+        except:
+            requester_role = 'PENGGUNA'
+
+        is_admin = (requester_role == 'ADMIN')
+
+        if is_self or is_admin:
+            can_edit = True
+
+        if is_admin and role != 'ADMIN':
+            can_edit_username = True
+
+    data = {
+        'id': target_user.id,
+        'username': target_user.username,
+        'email': target_user.email,
+        'role': role,
+        'bio': bio if bio else '',
+        'profile_picture': profile_picture,
+        'can_edit': can_edit,
+        'can_edit_username': can_edit_username,
+    }
+    return JsonResponse({'status': 'success', 'data': data})
+
+
+@csrf_exempt
+@require_POST
+def update_profile_flutter(request):
+    if not request.user.is_authenticated:
+        return JsonResponse({'status': 'error', 'message': 'Unauthorized'}, status=401)
+
+    try:
+        data = json.loads(request.body)
+        target_id = data.get('id')
+
+        if target_id:
+            target_user = get_object_or_404(User, pk=target_id)
+        else:
+            target_user = request.user
+
+        try:
+            requester_role = request.user.profile.role
+        except:
+            requester_role = 'PENGGUNA'
+
+        is_self = (request.user.pk == target_user.pk)
+        is_admin = (requester_role == 'ADMIN')
+
+        if not (is_self or is_admin):
+            return JsonResponse({'status': 'error', 'message': 'Izin ditolak.'}, status=403)
+
+        new_username = data.get('username')
+        new_email = data.get('email')
+        new_bio = data.get('bio')
+        new_profile_pic = data.get('profile_picture')
+        new_role = data.get('role')
+
+        if new_username and new_username != target_user.username:
+            target_role = getattr(target_user.profile, 'role', 'PENGGUNA')
+
+            if not is_admin:
+                return JsonResponse({'status': 'error', 'message': 'Hanya Admin yang dapat mengubah username.'}, status=403)
+
+            if target_role == 'ADMIN':
+                return JsonResponse({'status': 'error', 'message': 'Username Admin tidak bisa diubah.'}, status=403)
+
+            if User.objects.filter(username=new_username).exclude(pk=target_user.pk).exists():
+                return JsonResponse({'status': 'error', 'message': 'Username sudah dipakai.'}, status=400)
+
+            target_user.username = new_username
+
+        if new_email is not None:
+            target_user.email = new_email
+
+        target_user.save()
+
+        if not hasattr(target_user, 'profile'):
+            Profile.objects.create(user=target_user)
+
+        profile = target_user.profile
+
+        if new_bio is not None:
+            profile.bio = new_bio
+
+        if new_profile_pic is not None:
+            profile.profile_picture = new_profile_pic
+
+        if new_role is not None:
+            current_role = profile.role
+            if current_role == 'ADMIN' and new_role != 'ADMIN':
+                return JsonResponse({'status': 'error', 'message': 'Role Admin bersifat permanen.'}, status=403)
+            elif new_role == 'ADMIN':
+                return JsonResponse({'status': 'error', 'message': 'Tidak dapat mengubah role menjadi Admin.'}, status=403)
+            else:
+                if new_role in ['PENYELENGGARA', 'PEMAIN']:
+                    profile.role = new_role
+
+        profile.save()
+
+        return JsonResponse({'status': 'success', 'message': 'Profil berhasil diperbarui!'})
+
     except Exception as e:
-        return JsonResponse({'status': False, 'message': str(e)}, status=500)
+        return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
