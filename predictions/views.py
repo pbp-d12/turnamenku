@@ -231,12 +231,9 @@ def get_matches_json(request):
     # Ambil semua match
     matches = Match.objects.select_related('home_team', 'away_team', 'tournament').all().order_by('match_date')
     
-    # --- PERBAIKAN DI SINI ---
-    # Kita harus inisialisasi map kosong dulu
+
     user_prediction_map = {}
 
-    # Hanya ambil data prediksi JIKA user sudah login (is_authenticated)
-    # Jika Guest (AnonymousUser), blok ini dilewati agar tidak Error 500
     if request.user.is_authenticated:
         user_predictions = Prediction.objects.filter(user=request.user)
         user_prediction_map = {pred.match.id: pred.predicted_winner.id for pred in user_predictions}
@@ -274,33 +271,147 @@ def get_leaderboard_json(request):
     return JsonResponse(list(leaderboard_data), safe=False)
 
 
-@login_required
+@csrf_exempt 
 def submit_prediction_flutter(request):
     """
     API untuk melakukan voting prediksi dari Flutter.
     """
+
+    if not request.user.is_authenticated:
+        return JsonResponse({
+            'status': 'error', 
+            'message': 'Sesi Anda telah berakhir. Silakan login kembali.'
+        }, status=401)
+
     if request.method == 'POST':
         try:
+            # Parse data dari Flutter
             data = json.loads(request.body)
             match_id = int(data.get('match_id'))
             team_id = int(data.get('team_id'))
 
+            # Ambil objek Match dan Team
             match = Match.objects.get(pk=match_id)
             team = Team.objects.get(pk=team_id)
 
-            # Validasi tim
-            if team not in [match.home_team, match.away_team]:
-                return JsonResponse({'status': 'error', 'message': 'Tim tidak valid untuk match ini.'}, status=400)
 
-            # Simpan atau update prediksi
+            if team not in [match.home_team, match.away_team]:
+                return JsonResponse({
+                    'status': 'error', 
+                    'message': 'Tim tidak valid untuk pertandingan ini.'
+                }, status=400)
+                
             prediction, created = Prediction.objects.update_or_create(
                 user=request.user,
                 match=match,
                 defaults={'predicted_winner': team}
             )
 
-            return JsonResponse({'status': 'success', 'message': f'Berhasil memilih {team.name}!'})
+            action_text = "memilih" if created else "mengubah pilihan ke"
+            return JsonResponse({
+                'status': 'success', 
+                'message': f'Berhasil {action_text} {team.name}!'
+            })
+
+        except Match.DoesNotExist:
+            return JsonResponse({'status': 'error', 'message': 'Pertandingan tidak ditemukan.'}, status=404)
+        except Team.DoesNotExist:
+            return JsonResponse({'status': 'error', 'message': 'Tim tidak ditemukan.'}, status=404)
         except Exception as e:
             return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
     
     return JsonResponse({'status': 'error', 'message': 'Invalid method'}, status=405)
+
+def get_form_data(request):
+    # 1. Ambil turnamen beserta relasi participants-nya
+    tournaments = Tournament.objects.prefetch_related('participants').all()
+    
+    tournaments_data = []
+    teams_by_tournament = {}
+
+    for t in tournaments:
+        # Data untuk Dropdown Turnamen
+        tournaments_data.append({
+            'id': t.id,
+            'name': t.name
+        })
+        
+        # 2. Ambil tim KHUSUS untuk turnamen ini saja (dari relasi participants)
+        # Gunakan t.participants.all(), BUKAN Team.objects.all()
+        specific_teams = list(t.participants.all().values('id', 'name'))
+        
+        # Simpan ke map dengan Key ID Turnamen (String agar aman di JSON)
+        teams_by_tournament[str(t.id)] = specific_teams
+    
+    return JsonResponse({
+        'tournaments': tournaments_data,
+        'teams_by_tournament': teams_by_tournament
+    }, safe=False)
+
+@csrf_exempt
+@require_POST
+def create_match_flutter(request):
+    """
+    API untuk membuat Match baru dari Flutter (menerima JSON).
+    """
+    # 1. Cek Autentikasi
+    if not request.user.is_authenticated:
+        return JsonResponse({'status': 'error', 'message': 'Anda harus login.'}, status=401)
+
+    # 2. Cek Role (Hanya Admin/Penyelenggara)
+    try:
+        role = request.user.profile.role
+    except AttributeError:
+        role = 'USER'
+    
+    if role not in ('PENYELENGGARA', 'ADMIN'):
+        return JsonResponse({'status': 'error', 'message': 'Anda tidak memiliki izin.'}, status=403)
+
+    try:
+        # 3. Parse Data JSON
+        data = json.loads(request.body)
+        
+        tournament_id = data.get('tournament')
+        home_team_id = data.get('home_team')
+        away_team_id = data.get('away_team')
+        match_date_str = data.get('match_date') # Format dari Flutter: YYYY-MM-DD
+
+        # 4. Validasi Input Dasar
+        if not all([tournament_id, home_team_id, away_team_id, match_date_str]):
+            return JsonResponse({'status': 'error', 'message': 'Data tidak lengkap.'}, status=400)
+
+        # 5. Ambil Objek dari Database
+        tournament = get_object_or_404(Tournament, pk=tournament_id)
+        home_team = get_object_or_404(Team, pk=home_team_id)
+        away_team = get_object_or_404(Team, pk=away_team_id)
+
+        # 6. Validasi Logika Bisnis
+        if home_team.id == away_team.id:
+            return JsonResponse({'status': 'error', 'message': 'Tim Home dan Away tidak boleh sama.'}, status=400)
+        
+        # Cek apakah tim terdaftar di turnamen tersebut
+        # Kita filter berdasarkan ID untuk memastikan tim memang participant
+        if not tournament.participants.filter(id=home_team.id).exists():
+             return JsonResponse({'status': 'error', 'message': f'{home_team.name} tidak terdaftar di turnamen ini.'}, status=400)
+        
+        if not tournament.participants.filter(id=away_team.id).exists():
+             return JsonResponse({'status': 'error', 'message': f'{away_team.name} tidak terdaftar di turnamen ini.'}, status=400)
+
+        # 7. Konversi Tanggal dan Buat Match
+        # Flutter mengirim YYYY-MM-DD, kita convert ke object datetime
+        match_date = datetime.strptime(match_date_str, "%Y-%m-%d")
+        
+        # Simpan ke Database
+        Match.objects.create(
+            tournament=tournament,
+            home_team=home_team,
+            away_team=away_team,
+            match_date=match_date
+        )
+
+        return JsonResponse({'status': 'success', 'message': 'Pertandingan berhasil dibuat!'})
+
+    except json.JSONDecodeError:
+        return JsonResponse({'status': 'error', 'message': 'Invalid JSON format.'}, status=400)
+    except Exception as e:
+        return JsonResponse({'status': 'error', 'message': str(e)}, status=500)

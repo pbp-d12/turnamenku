@@ -17,4 +17,6 @@ urlpatterns = [
     path('api/matches/', views.get_matches_json, name='get_matches_json'),
     path('api/leaderboard/', views.get_leaderboard_json, name='get_leaderboard_json'),
     path('api/submit/', views.submit_prediction_flutter, name='submit_prediction_flutter'),
+    path('api/get-form-data/', views.get_form_data, name='get_form_data'),
+    path('api/create-match/', views.create_match_flutter, name='create_match_flutter'),
 ]
