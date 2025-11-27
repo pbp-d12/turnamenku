@@ -457,12 +457,36 @@ def get_profile_json(request):
         bio = ''
         profile_picture = None
 
+    user_teams = []
+    if hasattr(target_user, 'teams'):
+        for team in target_user.teams.all():
+            user_teams.append({
+                'name': team.name,
+                'logo': team.logo if team.logo else None,
+            })
+
+    user_predictions = []
+    predictions_qs = Prediction.objects.filter(user=target_user).select_related(
+        'match', 'predicted_winner').order_by('-created_at')[:5]
+
+    for pred in predictions_qs:
+        match_str = f"{pred.match.home_team.name} vs {pred.match.away_team.name}"
+        user_predictions.append({
+            'match': match_str,
+            'predicted_winner': pred.predicted_winner.name,
+            'points_awarded': pred.points_awarded,
+            'date': pred.created_at.strftime("%d %b %Y, %H:%M"),
+            'is_correct': pred.points_awarded > 0,
+        })
+
+    total_points = Prediction.objects.filter(user=target_user).aggregate(
+        Sum('points_awarded'))['points_awarded__sum'] or 0
+
     can_edit = False
     can_edit_username = False
 
     if request.user.is_authenticated:
         is_self = request.user.pk == target_user.pk
-
         try:
             requester_role = request.user.profile.role
         except:
@@ -485,6 +509,9 @@ def get_profile_json(request):
         'profile_picture': profile_picture,
         'can_edit': can_edit,
         'can_edit_username': can_edit_username,
+        'user_teams': user_teams,
+        'user_predictions': user_predictions,
+        'total_points': total_points,
     }
     return JsonResponse({'status': 'success', 'data': data})
 
