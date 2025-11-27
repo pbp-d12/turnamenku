@@ -19,4 +19,6 @@ urlpatterns = [
     path('api/submit/', views.submit_prediction_flutter, name='submit_prediction_flutter'),
     path('api/get-form-data/', views.get_form_data, name='get_form_data'),
     path('api/create-match/', views.create_match_flutter, name='create_match_flutter'),
+    path('api/edit-score/', views.edit_match_score_flutter, name='edit_match_score_flutter'),
+    path('api/delete-prediction/', views.delete_prediction_flutter, name='delete_prediction_flutter'),
 ]

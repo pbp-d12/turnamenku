@@ -415,3 +415,66 @@ def create_match_flutter(request):
         return JsonResponse({'status': 'error', 'message': 'Invalid JSON format.'}, status=400)
     except Exception as e:
         return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
+
+@csrf_exempt
+@require_POST
+def edit_match_score_flutter(request):
+    # 1. Cek Login
+    if not request.user.is_authenticated:
+        return JsonResponse({'status': 'error', 'message': 'Anda harus login.'}, status=401)
+
+    # 2. Cek Role (Admin/Penyelenggara)
+    try:
+        role = request.user.profile.role
+    except AttributeError:
+        return JsonResponse({'status': 'error', 'message': 'User profile bermasalah.'}, status=400)
+
+    if role not in ('PENYELENGGARA', 'ADMIN'):
+        return JsonResponse({'status': 'error', 'message': 'Anda tidak memiliki izin.'}, status=403)
+
+    try:
+        # 3. Parse JSON
+        data = json.loads(request.body)
+        match_id = data.get("match_id")
+        home_score = data.get("home_score")
+        away_score = data.get("away_score")
+
+        # 4. Update Database
+        match = Match.objects.get(pk=match_id)
+        match.home_score = int(home_score)
+        match.away_score = int(away_score)
+        match.save()
+
+        return JsonResponse({"status": "success", "message": "Skor berhasil diperbarui!"})
+
+    except Match.DoesNotExist:
+        return JsonResponse({"status": "error", "message": "Pertandingan tidak ditemukan."}, status=404)
+    except ValueError:
+        return JsonResponse({"status": "error", "message": "Format skor tidak valid."}, status=400)
+    except Exception as e:
+        return JsonResponse({"status": "error", "message": str(e)}, status=500)
+
+
+@csrf_exempt
+@require_POST
+def delete_prediction_flutter(request):
+    if not request.user.is_authenticated:
+        return JsonResponse({'status': 'error', 'message': 'Anda harus login.'}, status=401)
+
+    if request.user.profile.role not in ('PENYELENGGARA', 'ADMIN'):
+        return JsonResponse({'status': 'error', 'message': 'Anda tidak memiliki izin.'}, status=403)
+
+    try:
+        data = json.loads(request.body)
+        match_id = data.get("match_id")
+
+        # Hapus prediksi
+        deleted_count, _ = Prediction.objects.filter(match_id=match_id).delete()
+
+        if deleted_count > 0:
+            return JsonResponse({"status": "success", "message": "Semua prediksi untuk match ini berhasil direset!"})
+        else:
+            return JsonResponse({"status": "error", "message": "Tidak ada prediksi yang ditemukan untuk dihapus."})
+
+    except Exception as e:
+        return JsonResponse({"status": "error", "message": str(e)}, status=500)
