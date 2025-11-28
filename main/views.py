@@ -485,6 +485,7 @@ def get_profile_json(request):
 
     can_edit = False
     can_edit_username = False
+    is_self = False
 
     if request.user.is_authenticated:
         is_self = request.user.pk == target_user.pk
@@ -510,10 +511,12 @@ def get_profile_json(request):
         'profile_picture': profile_picture,
         'can_edit': can_edit,
         'can_edit_username': can_edit_username,
+        'is_self': is_self,
         'user_teams': user_teams,
         'user_predictions': user_predictions,
         'total_points': total_points,
     }
+
     return JsonResponse({'status': 'success', 'data': data})
 
 
