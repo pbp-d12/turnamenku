@@ -4,7 +4,7 @@ from django.contrib.auth import views as auth_views
 from .views import CustomPasswordChangeView
 from django.contrib.auth.decorators import login_required
 from .views import login_flutter, register_flutter, logout_flutter, show_home_json
-from main.views import get_profile_json, update_profile_flutter, search_profiles
+from main.views import get_profile_json, update_profile_flutter, search_profiles, change_password_flutter
 
 app_name = 'main'
 
@@ -29,4 +29,6 @@ urlpatterns = [
     path('api/profile/update/', update_profile_flutter,
          name='update_profile_flutter'),
     path('api/search/', search_profiles, name='search_profiles'),
+    path('api/change-password/', change_password_flutter,
+         name='change_password_flutter'),
 ]

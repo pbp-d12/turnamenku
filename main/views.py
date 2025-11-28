@@ -622,3 +622,32 @@ def search_profiles(request):
         })
 
     return JsonResponse({'status': 'success', 'data': results})
+
+
+@csrf_exempt
+@require_POST
+def change_password_flutter(request):
+    if not request.user.is_authenticated:
+        return JsonResponse({'status': 'error', 'message': 'Unauthorized'}, status=401)
+
+    try:
+        data = json.loads(request.body)
+        old_password = data.get('old_password')
+        new_password = data.get('new_password')
+        confirm_password = data.get('confirm_password')
+
+        if not request.user.check_password(old_password):
+            return JsonResponse({'status': 'error', 'message': 'Password lama salah.'}, status=400)
+
+        if new_password != confirm_password:
+            return JsonResponse({'status': 'error', 'message': 'Password baru tidak cocok.'}, status=400)
+
+        request.user.set_password(new_password)
+        request.user.save()
+
+        from django.contrib.auth import update_session_auth_hash
+        update_session_auth_hash(request, request.user)
+
+        return JsonResponse({'status': 'success', 'message': 'Password berhasil diubah!'})
+    except Exception as e:
+        return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
