@@ -10,6 +10,7 @@ from django.views.decorators.http import require_POST, require_http_methods
 from django.http import HttpResponseRedirect
 from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
 import traceback 
+import json
 
 from .models import Tournament, Match
 from .forms import TournamentForm
@@ -84,7 +85,12 @@ def create_tournament(request):
             'message': 'Akses ditolak: Hanya Penyelenggara atau Admin yang dapat membuat turnamen.'
         }, status=403)
 
-    form = TournamentForm(request.POST)
+    try:
+        data = json.loads(request.body)
+    except json.JSONDecodeError:
+        data = request.POST
+    
+    form = TournamentForm(data)
 
     if form.is_valid():
         tournament = form.save(commit=False)
@@ -284,7 +290,12 @@ def edit_tournament(request, tournament_id):
             'message': 'Akses ditolak: Hanya organizer atau admin yang dapat mengedit turnamen ini.'
         }, status=403)
 
-    form = TournamentForm(request.POST, instance=tournament)
+    try:
+        data = json.loads(request.body)
+    except json.JSONDecodeError:
+        data = request.POST
+        
+    form = TournamentForm(data, instance=tournament)
 
     if form.is_valid():
         # save() handles regular fields and returns the instance
