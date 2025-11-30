@@ -530,3 +530,93 @@ def search_tournaments(request):
     except Exception as e:
         print(f"Error in search_tournaments: {e}")
         return JsonResponse({'error': 'Terjadi kesalahan pada server.'}, status=500)
+    
+def api_search_forums(request):
+    try:
+        query = request.GET.get('q', '').strip()
+
+        base_queryset = Tournament.objects.select_related('organizer').annotate(
+            thread_count=Count('threads', filter=Q(threads__is_deleted=False)),
+            post_count=Count('threads__posts', filter=Q(threads__posts__is_deleted=False))
+        )
+
+        if query:
+            base_queryset = base_queryset.filter(
+                Q(name__icontains=query) | Q(description__icontains=query)
+            )
+
+        tournaments_data = []
+        for tournament in base_queryset:
+            tournaments_data.append({
+                'id': tournament.id,
+                'name': tournament.name,
+                'description': tournament.description or "Tidak ada deskripsi",
+                'thread_count': tournament.thread_count,
+                'post_count': tournament.post_count,
+                'organizer_username': tournament.organizer.username if tournament.organizer else 'Tidak diketahui'
+            })
+
+        return JsonResponse({'tournaments': tournaments_data})
+
+    except Exception as e:
+        print(f"Error in api_search_forums: {e}")
+        return JsonResponse({'error': 'Terjadi kesalahan pada server.'}, status=500)
+    
+def api_get_tournament_threads(request, tournament_id):
+    try:
+        tournament = get_object_or_404(Tournament, pk=tournament_id)
+
+        base_queryset = tournament.threads.filter(is_deleted=False).select_related('author').annotate(
+             reply_count_agg=Coalesce(Count('posts', filter=Q(posts__is_deleted=False)), 0) - 1
+        )
+
+        threads_data = []
+        for thread in base_queryset:
+            reply_count = max(0, thread.reply_count_agg)
+            threads_data.append({
+                'id': thread.id,
+                'title': thread.title,
+                'author_username': thread.author.username if thread.author else 'Unknown',
+                'created_at': timezone.localtime(thread.created_at).strftime('%d %b %Y, %H:%M'),
+                'reply_count': reply_count,
+            })
+
+        return JsonResponse({'threads': threads_data})
+
+    except Exception as e:
+        print(f"Error in api_get_tournament_threads: {e}")
+        return JsonResponse({'error': 'Terjadi kesalahan pada server.'}, status=500)
+    
+def api_get_thread_posts(request, thread_id):
+    try:
+        thread = get_object_or_404(Thread.objects.select_related('author', 'tournament'), pk=thread_id)
+
+        if thread.is_deleted:
+            return JsonResponse({'error': 'Thread tidak ditemukan.'}, status=404)
+
+        all_posts = thread.posts.filter(is_deleted=False).select_related('author').order_by('created_at')
+
+        posts_data = []
+
+        reply_counts_query = Post.objects.filter(thread=thread, parent__isnull=False, is_deleted=False)\
+                               .values('parent_id').annotate(count=Count('id'))
+        reply_count_map = {item['parent_id']: item['count'] for item in reply_counts_query}
+
+        for post in all_posts:
+            posts_data.append({
+                "id": post.pk,
+                "author_username": post.author.username,
+                "body": post.body,
+                "created_at": timezone.localtime(post.created_at).strftime('%d %b %Y, %H:%M'),
+                "image_url": post.image,
+                "parent_id": post.parent.pk if post.parent else None,
+                "is_thread_author": post.author == thread.author,
+                "reply_count": reply_count_map.get(post.pk, 0),
+                "is_edited": post.is_edited,
+            })
+
+        return JsonResponse({'posts': posts_data})
+
+    except Exception as e:
+        print(f"Error in api_get_thread_posts: {e}")
+        return JsonResponse({'error': 'Terjadi kesalahan pada server.'}, status=500)
