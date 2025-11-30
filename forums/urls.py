@@ -14,4 +14,7 @@ urlpatterns = [
     path('thread/<int:thread_id>/delete/', views.delete_thread, name='delete_thread'),
     path('post/<int:post_id>/edit/', views.edit_post, name='edit_post'),
     path('post/<int:post_id>/delete/', views.delete_post, name='delete_post'),
+    path('api/search/', views.api_search_forums, name='api_search_forums'),
+    path('api/tournament/<int:tournament_id>/threads/', views.api_get_tournament_threads, name='api_get_tournament_threads'),
+    path('api/thread/<int:thread_id>/posts/', views.api_get_thread_posts, name='api_get_thread_posts'),
 ]
