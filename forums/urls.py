@@ -17,4 +17,6 @@ urlpatterns = [
     path('api/search/', views.api_search_forums, name='api_search_forums'),
     path('api/tournament/<int:tournament_id>/threads/', views.api_get_tournament_threads, name='api_get_tournament_threads'),
     path('api/thread/<int:thread_id>/posts/', views.api_get_thread_posts, name='api_get_thread_posts'),
+    path('api/tournament/<int:tournament_id>/create_thread/', views.api_create_thread, name='api_create_thread'),
+    path('api/thread/<int:thread_id>/reply/', views.api_reply_to_thread, name='api_reply_to_thread'),
 ]
