@@ -620,3 +620,82 @@ def api_get_thread_posts(request, thread_id):
     except Exception as e:
         print(f"Error in api_get_thread_posts: {e}")
         return JsonResponse({'error': 'Terjadi kesalahan pada server.'}, status=500)
+    
+def api_create_thread(request, tournament_id):
+    if request.method != 'POST' or request.headers.get('X-Requested-With') != 'XMLHttpRequest':
+        return JsonResponse({'success': False, 'error': 'Invalid request method.'}, status=405)
+
+    if not request.user.is_authenticated:
+        return JsonResponse({'success': False, 'error': 'Authentication required.', 'login_url': reverse('main:login')}, status=401)
+
+    tournament = get_object_or_404(Tournament, pk=tournament_id)
+
+    form = ThreadCreateForm(request.POST)
+    if form.is_valid():
+        try:
+            title = form.cleaned_data['title']
+            body = form.cleaned_data['body']
+            image_url = form.cleaned_data.get('image')
+            image_url = None if not image_url else image_url
+            thread = Thread.objects.create(tournament=tournament, title=title, author=request.user)
+            Post.objects.create(thread=thread, author=request.user, body=body, image=image_url, parent=None)
+            thread_url = reverse('forums:thread_posts', args=[thread.id])
+            return JsonResponse({'success': True, 'thread_url': thread_url}, status=201)
+        except Exception as e:
+            print(f"Error in api_create_thread: {e}")
+            return JsonResponse({'success': False, 'error': 'Terjadi kesalahan pada server.'}, status=500)
+    else:
+        error_dict = {field: error[0] for field, error in form.errors.items()}
+        return JsonResponse({'success': False, 'error': 'Validation failed', 'errors': error_dict}, status=400)
+
+def api_reply_to_thread(request, thread_id):
+    if request.method != 'POST' or request.headers.get('X-Requested-With') != 'XMLHttpRequest':
+        return JsonResponse({'success': False, 'error': 'Invalid request method.'}, status=405)
+
+    if not request.user.is_authenticated:
+        return JsonResponse({'success': False, 'error': 'Authentication required.', 'login_url': reverse('main:login')}, status=401)
+
+    thread = get_object_or_404(Thread, pk=thread_id)
+
+    form = PostReplyForm(request.POST)
+    if form.is_valid():
+        post = form.save(commit=False)
+        post.thread = thread
+        post.author = request.user
+        parent_id = request.POST.get('parent_id')
+        parent_post = None
+        if parent_id:
+            try:
+                parent_post = Post.objects.get(pk=parent_id, thread=thread, is_deleted=False)
+                post.parent = parent_post
+            except Post.DoesNotExist:
+                post.parent = None
+        else:
+             post.parent = None
+        post.save() 
+
+        depth = 0
+        temp_parent = parent_post
+        while temp_parent:
+            depth += 1
+            temp_parent = temp_parent.parent
+
+        response_data = {
+            'success': True,
+            'post': {
+                'id': post.pk,
+                'author_username': post.author.username,
+                'body': post.body,
+                'created_at': timezone.localtime(post.created_at).strftime('%d %b %Y, %H:%M'),
+                'image_url': post.image,
+                'parent_id': post.parent.pk if post.parent else None,
+                'is_thread_author': post.author == thread.author,
+                'reply_count': 0, 
+                'is_edited': post.is_edited,
+                'depth': depth,
+            }
+        }
+        return JsonResponse(response_data, status=201)
+    else:
+        error_dict = {field: error[0] for field, error in form.errors.items()}
+        return JsonResponse({'success': False, 'error': 'Validation failed', 'errors': error_dict}, status=400)
