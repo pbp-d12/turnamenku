@@ -82,6 +82,7 @@ def search_teams(request):
         }
     })
 
+@csrf_exempt
 @require_POST
 @login_required
 def create_team(request):
@@ -95,6 +96,7 @@ def create_team(request):
     team.members.add(request.user)
     return JsonResponse({'status': 'success', 'team_id': team.id})
 
+@csrf_exempt
 @require_POST
 @login_required
 def join_team(request, team_id):
@@ -106,6 +108,7 @@ def join_team(request, team_id):
     team.members.add(request.user)
     return JsonResponse({'status': 'success'})
 
+@csrf_exempt
 @require_POST
 @login_required
 def edit_team(request, team_id):
@@ -121,6 +124,7 @@ def edit_team(request, team_id):
 
     return JsonResponse({'status': 'success'})
 
+@csrf_exempt
 @require_POST
 @login_required
 def delete_team(request, team_id):
@@ -134,6 +138,7 @@ def delete_team(request, team_id):
 # def delete_member(request, team_id, member_id):
 #     ...
 
+@csrf_exempt
 @require_POST
 @login_required
 def delete_member(request, team_id, member_username):
@@ -157,6 +162,7 @@ def delete_member(request, team_id, member_username):
         'members': updated_members
     })
 
+@csrf_exempt
 @require_POST
 @login_required
 def leave_team(request, team_id):
@@ -205,11 +211,8 @@ def team_flutter_api(request):
     Method POST: Membuat team baru.
     """
     
-    # --- HANDLE GET REQUEST (READ DATA) ---
     if request.method == 'GET':
         teams = Team.objects.all()
-        
-        # Kita format datanya menjadi list of dictionaries
         data = []
         for team in teams:
             data.append({
@@ -218,7 +221,6 @@ def team_flutter_api(request):
                 'logo': team.logo if team.logo else "", # Handle null/None
                 'captain': team.captain.username if team.captain else "No Captain",
                 'members_count': team.members.count(),
-                # Kirim list member username juga jika perlu
                 'members': [member.username for member in team.members.all()]
             })
             
@@ -227,15 +229,11 @@ def team_flutter_api(request):
             'data': data
         }, safe=False)
 
-    # --- HANDLE POST REQUEST (CREATE DATA) ---
     elif request.method == 'POST':
         try:
-            # 1. Baca data JSON dari body request (karena Flutter kirim JSON)
             data = json.loads(request.body)
-            
-            # 2. Validasi input
             name = data.get('name')
-            logo = data.get('logo', '') # Default string kosong jika tidak ada
+            logo = data.get('logo', '')
             
             if not name:
                 return JsonResponse({
@@ -243,21 +241,18 @@ def team_flutter_api(request):
                     'message': 'Nama tim harus diisi!'
                 }, status=400)
 
-            # 3. Cek User (PENTING: Flutter harus handle login cookie/token)
             if not request.user.is_authenticated:
                 return JsonResponse({
                     'status': 'error', 
                     'message': 'User belum login.'
                 }, status=401)
 
-            # 4. Buat Team
             new_team = Team.objects.create(
                 name=name,
                 logo=logo,
                 captain=request.user
             )
             
-            # Tambahkan pembuat sebagai member
             new_team.members.add(request.user)
             new_team.save()
 
@@ -273,5 +268,4 @@ def team_flutter_api(request):
         except Exception as e:
             return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
 
-    # --- METHOD NOT ALLOWED ---
     return JsonResponse({'status': 'error', 'message': 'Method not allowed'}, status=405)
