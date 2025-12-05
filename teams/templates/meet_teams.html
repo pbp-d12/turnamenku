@@ -189,53 +189,67 @@
     const confirmYes = document.getElementById("confirmLeaveYes");
     const confirmNo = document.getElementById("confirmLeaveNo");
 
-    // Fungsi global agar bisa dipanggil dari onclick
-    window.leaveTeamConfirm = (teamId, teamName) => {
-      if (!confirmOverlay || !confirmName || !confirmYes || !confirmNo) {
-        console.error('Elemen konfirmasi leave tidak ditemukan');
-        return;
-      }
+  window.leaveTeamConfirm = (teamId, teamName) => {
+      const confirmOverlay = document.getElementById("leave-confirm-overlay");
+      const confirmName = document.getElementById("leave-confirm-team-name");
+      const confirmYes = document.getElementById("confirmLeaveYes");
+      const confirmNo = document.getElementById("confirmLeaveNo");
+      const modalDetail = document.getElementById("modal-meet-detail"); // Modal detail utama
+
+      if (!confirmOverlay) return;
 
       confirmName.textContent = teamName;
       confirmOverlay.classList.remove('hidden');
-      confirmOverlay.classList.add('flex'); // Tampilkan overlay
+      confirmOverlay.classList.add('flex');
 
-      // Ganti listener agar tidak duplikat
-      const newConfirmYes = confirmYes.cloneNode(true);
-      confirmYes.parentNode.replaceChild(newConfirmYes, confirmYes);
-      const newConfirmNo = confirmNo.cloneNode(true);
-      confirmNo.parentNode.replaceChild(newConfirmNo, confirmNo);
-
-      newConfirmNo.onclick = () => {
+      confirmNo.onclick = () => {
         confirmOverlay.classList.add('hidden');
         confirmOverlay.classList.remove('flex');
       };
 
+      const newConfirmYes = confirmYes.cloneNode(true);
+      confirmYes.parentNode.replaceChild(newConfirmYes, confirmYes);
+
       newConfirmYes.onclick = async () => {
+        newConfirmYes.disabled = true;
+        newConfirmYes.textContent = "Keluar...";
+
         try {
-          const response = await fetch(`/teams/${teamId}/leave/`, {
-            method: "POST",
-            headers: { "X-CSRFToken": getCSRFToken(), "X-Requested-With": "XMLHttpRequest" },
+          // Pake helper fetchJson yang udah kita bikin sebelumnya
+          const data = await fetchJson(`/teams/${teamId}/leave/`, {
+              method: "POST",
+              body: {}
           });
-          const data = await response.json();
+
           if (data.status === "success") {
-            if (typeof showToast === 'function') showToast("Kamu berhasil kabur dari tim", "success");
-            if (modal) {
-              modal.classList.add('hidden');
-              modal.classList.remove('flex');
-            }
+            if (typeof showToast === 'function') showToast("Kamu berhasil kabur dari tim 👋", "success");
+            
+            // Tutup Overlay Konfirmasi
             confirmOverlay.classList.add('hidden');
             confirmOverlay.classList.remove('flex');
+            
+            // Tutup Modal Detail Tim juga (biar balik ke list)
+            if (modalDetail) {
+              modalDetail.classList.add('hidden');
+              modalDetail.classList.remove('flex');
+            }
+
+            // Refresh List
             if (typeof searchMeetTeams === 'function') searchMeetTeams(1);
+            if (typeof searchJoinTeams === 'function') searchJoinTeams(1); // Siapa tau mau join lagi
           } else {
-            if (typeof showToast === 'function') showToast(data.message || "Gagal keluar dari tim", "error");
+            if (typeof showToast === 'function') showToast(data.message || "Gagal keluar", "error");
             confirmOverlay.classList.add('hidden');
             confirmOverlay.classList.remove('flex');
           }
         } catch (error) {
-          if (typeof showToast === 'function') showToast("Terjadi kesalahan saat keluar tim", "error");
+          console.error("Leave error:", error);
+          if (typeof showToast === 'function') showToast("Error koneksi.", "error");
           confirmOverlay.classList.add('hidden');
           confirmOverlay.classList.remove('flex');
+        } finally {
+          newConfirmYes.disabled = false;
+          newConfirmYes.textContent = "Ya, Keluar";
         }
       };
     };
