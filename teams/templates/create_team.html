@@ -45,16 +45,16 @@
     const nameInput = document.getElementById('team-name');
     const previewImg = document.getElementById('logo-preview');
 
+    // Logic Preview Gambar
     if (logoInput) {
       logoInput.addEventListener('input', (e) => {
         const url = e.target.value.trim();
         if (url) {
           previewImg.src = url;
           previewImg.classList.remove('hidden');
-          // Tambah error handling untuk preview
           previewImg.onerror = () => {
-            previewImg.src = ''; // Hapus src jika error
-            previewImg.classList.add('hidden'); // Sembunyikan jika error
+            previewImg.src = ''; 
+            previewImg.classList.add('hidden'); 
           };
         } else {
           previewImg.src = '';
@@ -63,15 +63,16 @@
       });
     }
 
+    // Logic Submit Form
     if (formCreateTeam) {
       formCreateTeam.addEventListener('submit', async function (ev) {
-        ev.preventDefault();
+        ev.preventDefault(); // Stop reload bawaan form
 
         const submitBtn = document.getElementById('submit-create-team');
         const originalText = submitBtn.textContent;
         const errorContainer = document.getElementById('create-team-error-container');
 
-        // Reset error state
+        // Reset error styling
         errorContainer.innerHTML = '';
         document.querySelectorAll('#create-team-form input').forEach(input => {
           input.classList.remove('border-red-500', 'focus:ring-red-500');
@@ -84,60 +85,67 @@
 
         try {
           const csrf = document.querySelector('#create-team-form input[name="csrfmiddlewaretoken"]').value;
+          
+          // --- PERUBAHAN UTAMA DI SINI ---
+          // Kita kirim sebagai JSON, bukan Form Data.
+          // Ini biar Django view balikin JsonResponse, bukan Redirect HTML.
+          const payload = {
+            name: nameInput.value.trim(),
+            logo: logoInput.value.trim()
+          };
 
-          // Kirim sebagai FORM-URLENCODED agar request.POST di Django bisa baca
-          const payload = new URLSearchParams();
-          payload.append('name', nameInput.value.trim());
-          payload.append('logo', logoInput.value.trim());
-
-          const resp = await fetch("create/", {
+          const resp = await fetch("{% url 'teams:team_flutter_api' %}", { // Arahkan ke endpoint API yang sama
             method: "POST",
             headers: {
-              "Content-Type": "application/x-www-form-urlencoded",
+              "Content-Type": "application/json", // Header JSON
               "X-CSRFToken": csrf,
               "X-Requested-With": "XMLHttpRequest"
             },
-            body: payload.toString() // Kirim sebagai string
+            body: JSON.stringify(payload) // Body JSON String
           });
 
+          // Sekarang responsenya pasti JSON, jadi aman di-decode
           const data = await resp.json();
 
           if (resp.ok && data.status === 'success') {
-            if (typeof showToast === 'function') showToast(data.message || 'Tim berhasil dibentuk!', 'success');
+            // 1. Tampilkan Toast Sukses
+            if (typeof showToast === 'function') {
+                showToast(data.message || 'Tim berhasil dibentuk!', 'success');
+            } else {
+                alert("Tim berhasil dibentuk!"); // Fallback kalau ga ada fungsi toast
+            }
+
+            // 2. Reset Form
             formCreateTeam.reset();
             previewImg.src = '';
             previewImg.classList.add('hidden');
-            if (typeof closeModal === 'function') closeModal('modal-create-team');
 
-            // Refresh daftar tim di modal lain (jika fungsi ada)
+            // 3. Tutup Modal
+            if (typeof closeModal === 'function') {
+                closeModal('modal-create-team');
+            }
+
+            // 4. Refresh List di Modal Lain (Join/Manage) tanpa reload halaman utama
             if (typeof searchJoinTeams === 'function') searchJoinTeams(1);
             if (typeof searchManageTeams === 'function') searchManageTeams(1);
             if (typeof searchMeetTeams === 'function') searchMeetTeams(1);
-          }
-          else if (!resp.ok || data.status === 'error') {
-            const message = data && data.message ? data.message : 'Gagal membuat tim.';
-
+            
+            // Catatan: List utama di halaman (background) tidak akan berubah 
+            // sampai di-reload manual, karena kita request "No Reload".
+          } 
+          else {
+            // Handle Error
+            const message = data.message || 'Gagal membuat tim.';
             if (typeof showToast === 'function') showToast(message, 'error');
 
-            // Tampilkan error spesifik per field
-            if (data.errors && typeof data.errors === 'object') {
-              Object.keys(data.errors).forEach(fieldName => {
-                const fieldErrorDiv = document.getElementById(`error-${fieldName}`);
-                const inputElement = document.getElementById(`team-${fieldName}`);
-
-                if (inputElement) {
-                  inputElement.classList.add('border-red-500', 'focus:ring-red-500');
-                  inputElement.focus();
-                }
-                if (fieldErrorDiv && data.errors[fieldName].length > 0) {
-                  fieldErrorDiv.textContent = data.errors[fieldName][0].message; // Ambil pesan error pertama
-                }
-              });
+            if (data.errors) {
+               // Tampilkan error field (jika ada struktur error detail)
             }
           }
+
         } catch (err) {
           console.error('Create team error:', err);
-          if (typeof showToast === 'function') showToast('Terjadi kesalahan jaringan atau server (500).', 'error');
+          if (typeof showToast === 'function') showToast('Terjadi kesalahan sistem.', 'error');
         } finally {
           submitBtn.disabled = false;
           submitBtn.textContent = originalText;
