@@ -12,9 +12,8 @@ from django.core.paginator import Paginator
 from django.contrib import messages
 from .forms import ThreadCreateForm, PostReplyForm, ThreadEditForm, PostEditForm
 from datetime import datetime
-from django.views.decorators.csrf import csrf_protect
 from django.utils import timezone 
-
+from django.views.decorators.csrf import csrf_exempt
 
 def can_edit_thread(user, thread):
     """Check if user can edit thread"""
@@ -441,7 +440,13 @@ def search_tournaments(request):
         page_number = request.GET.get('page', 1)
 
         base_queryset = Tournament.objects.select_related('organizer').annotate(
-            participant_count=Count('participants', distinct=True)
+            participant_count=Count(
+                'threads__posts__author', 
+                filter=Q(threads__posts__is_deleted=False) & Q(threads__is_deleted=False), 
+                distinct=True
+            ),
+            thread_count=Count('threads', filter=Q(threads__is_deleted=False), distinct=True),
+            post_count=Count('threads__posts', filter=Q(threads__posts__is_deleted=False), distinct=True)
         )
 
         filters = Q()
@@ -474,10 +479,8 @@ def search_tournaments(request):
         base_queryset = base_queryset.filter(filters)
 
         filter_count = len(active_filter_keys)
-
         sort_direction_prefix = '-' if sort_param.startswith('-') else ''
-        sort_key_actual = 'name' 
-
+        
         if filter_count > 1:
              sort_key_actual = 'name' 
         elif filter_count == 1:
@@ -512,10 +515,21 @@ def search_tournaments(request):
 
         tournaments_data = []
         for tournament in page_obj.object_list:
+            try:
+                related_images = list(tournament.participants.all().values_list('logo', flat=True)[:10])
+            except Exception:
+                related_images = []
+
             tournaments_data.append({
-                'id': tournament.id, 'name': tournament.name,
+                'id': tournament.id, 
+                'name': tournament.name,
                 'description': tournament.description or "Tidak ada deskripsi",
                 'participant_count': tournament.participant_count,
+                'thread_count': tournament.thread_count,
+                'post_count': tournament.post_count,
+                'related_images': related_images,
+                'banner': tournament.banner if tournament.banner else None,
+                
                 'url': reverse('forums:forum_threads', args=[tournament.id]),
                 'start_date': tournament.start_date.strftime('%d %b %Y') if tournament.start_date else 'Belum ditentukan',
                 'end_date': tournament.end_date.strftime('%d %b %Y') if tournament.end_date else 'Belum ditentukan',
@@ -531,98 +545,82 @@ def search_tournaments(request):
         print(f"Error in search_tournaments: {e}")
         return JsonResponse({'error': 'Terjadi kesalahan pada server.'}, status=500)
     
-def api_search_forums(request):
-    try:
-        query = request.GET.get('q', '').strip()
-
-        base_queryset = Tournament.objects.select_related('organizer').annotate(
-            thread_count=Count('threads', filter=Q(threads__is_deleted=False)),
-            post_count=Count('threads__posts', filter=Q(threads__posts__is_deleted=False))
-        )
-
-        if query:
-            base_queryset = base_queryset.filter(
-                Q(name__icontains=query) | Q(description__icontains=query)
-            )
-
-        tournaments_data = []
-        for tournament in base_queryset:
-            tournaments_data.append({
-                'id': tournament.id,
-                'name': tournament.name,
-                'description': tournament.description or "Tidak ada deskripsi",
-                'thread_count': tournament.thread_count,
-                'post_count': tournament.post_count,
-                'organizer_username': tournament.organizer.username if tournament.organizer else 'Tidak diketahui'
-            })
-
-        return JsonResponse({'tournaments': tournaments_data})
-
-    except Exception as e:
-        print(f"Error in api_search_forums: {e}")
-        return JsonResponse({'error': 'Terjadi kesalahan pada server.'}, status=500)
-    
 def api_get_tournament_threads(request, tournament_id):
     try:
         tournament = get_object_or_404(Tournament, pk=tournament_id)
+
+        query = request.GET.get('q', '').strip()
+        author_query = request.GET.get('author', '').strip()
+        sort_param = request.GET.get('sort', '-created_at')
+        page_number = request.GET.get('page', 1)
 
         base_queryset = tournament.threads.filter(is_deleted=False).select_related('author').annotate(
              reply_count_agg=Coalesce(Count('posts', filter=Q(posts__is_deleted=False)), 0) - 1
         )
 
+        filters = Q()
+        if query:
+            filters &= Q(title__icontains=query)
+        if author_query:
+            filters &= Q(author__username__icontains=author_query)
+
+        base_queryset = base_queryset.filter(filters)
+
+        valid_sort_fields = {
+            'created_at': 'created_at',
+            'popularity': 'reply_count_agg',
+            'title': 'title',
+            'author': 'author__username'
+        }
+        sort_key = sort_param.lstrip('-')
+        sort_direction = '-' if sort_param.startswith('-') else ''
+
+        order_field_name = valid_sort_fields.get(sort_key, 'created_at') 
+        final_order_field = sort_direction + order_field_name
+
+        if 'reply_count_agg' in final_order_field:
+            if final_order_field.startswith('-'):
+                 base_queryset = base_queryset.order_by(F('reply_count_agg').desc(nulls_last=True), '-created_at') 
+            else:
+                 base_queryset = base_queryset.order_by(F('reply_count_agg').asc(nulls_first=True), 'created_at') 
+        else:
+             base_queryset = base_queryset.order_by(final_order_field)
+
+        paginator = Paginator(base_queryset, 15)
+        page_obj = paginator.get_page(page_number)
+
         threads_data = []
-        for thread in base_queryset:
+        for thread in page_obj.object_list:
             reply_count = max(0, thread.reply_count_agg)
             threads_data.append({
                 'id': thread.id,
                 'title': thread.title,
                 'author_username': thread.author.username if thread.author else 'Unknown',
                 'created_at': timezone.localtime(thread.created_at).strftime('%d %b %Y, %H:%M'),
+                'created_date': timezone.localtime(thread.created_at).strftime('%d %b %Y'),
+                'created_time': timezone.localtime(thread.created_at).strftime('%H:%M'),
                 'reply_count': reply_count,
+                'can_edit': can_edit_thread(request.user, thread),
+                'can_delete': can_delete_thread(request.user, thread),
             })
 
-        return JsonResponse({'threads': threads_data})
+        return JsonResponse({
+            'threads': threads_data,
+            'pagination': {
+                'current_page': page_obj.number,
+                'has_next': page_obj.has_next(),
+                'total_pages': paginator.num_pages,
+                'total_count': paginator.count,
+            }
+        })
 
     except Exception as e:
         print(f"Error in api_get_tournament_threads: {e}")
         return JsonResponse({'error': 'Terjadi kesalahan pada server.'}, status=500)
-    
-def api_get_thread_posts(request, thread_id):
-    try:
-        thread = get_object_or_404(Thread.objects.select_related('author', 'tournament'), pk=thread_id)
 
-        if thread.is_deleted:
-            return JsonResponse({'error': 'Thread tidak ditemukan.'}, status=404)
-
-        all_posts = thread.posts.filter(is_deleted=False).select_related('author').order_by('created_at')
-
-        posts_data = []
-
-        reply_counts_query = Post.objects.filter(thread=thread, parent__isnull=False, is_deleted=False)\
-                               .values('parent_id').annotate(count=Count('id'))
-        reply_count_map = {item['parent_id']: item['count'] for item in reply_counts_query}
-
-        for post in all_posts:
-            posts_data.append({
-                "id": post.pk,
-                "author_username": post.author.username,
-                "body": post.body,
-                "created_at": timezone.localtime(post.created_at).strftime('%d %b %Y, %H:%M'),
-                "image_url": post.image,
-                "parent_id": post.parent.pk if post.parent else None,
-                "is_thread_author": post.author == thread.author,
-                "reply_count": reply_count_map.get(post.pk, 0),
-                "is_edited": post.is_edited,
-            })
-
-        return JsonResponse({'posts': posts_data})
-
-    except Exception as e:
-        print(f"Error in api_get_thread_posts: {e}")
-        return JsonResponse({'error': 'Terjadi kesalahan pada server.'}, status=500)
-    
+@csrf_exempt
 def api_create_thread(request, tournament_id):
-    if request.method != 'POST' or request.headers.get('X-Requested-With') != 'XMLHttpRequest':
+    if request.method != 'POST':
         return JsonResponse({'success': False, 'error': 'Invalid request method.'}, status=405)
 
     if not request.user.is_authenticated:
@@ -630,15 +628,23 @@ def api_create_thread(request, tournament_id):
 
     tournament = get_object_or_404(Tournament, pk=tournament_id)
 
-    form = ThreadCreateForm(request.POST)
+    try:
+        data = json.loads(request.body)
+    except json.JSONDecodeError:
+        data = request.POST
+
+    form = ThreadCreateForm(data)
+    
     if form.is_valid():
         try:
             title = form.cleaned_data['title']
             body = form.cleaned_data['body']
             image_url = form.cleaned_data.get('image')
             image_url = None if not image_url else image_url
+            
             thread = Thread.objects.create(tournament=tournament, title=title, author=request.user)
             Post.objects.create(thread=thread, author=request.user, body=body, image=image_url, parent=None)
+            
             thread_url = reverse('forums:thread_posts', args=[thread.id])
             return JsonResponse({'success': True, 'thread_url': thread_url}, status=201)
         except Exception as e:
@@ -648,8 +654,9 @@ def api_create_thread(request, tournament_id):
         error_dict = {field: error[0] for field, error in form.errors.items()}
         return JsonResponse({'success': False, 'error': 'Validation failed', 'errors': error_dict}, status=400)
 
+@csrf_exempt  
 def api_reply_to_thread(request, thread_id):
-    if request.method != 'POST' or request.headers.get('X-Requested-With') != 'XMLHttpRequest':
+    if request.method != 'POST':
         return JsonResponse({'success': False, 'error': 'Invalid request method.'}, status=405)
 
     if not request.user.is_authenticated:
@@ -663,6 +670,7 @@ def api_reply_to_thread(request, thread_id):
         post.thread = thread
         post.author = request.user
         parent_id = request.POST.get('parent_id')
+        
         parent_post = None
         if parent_id:
             try:
@@ -699,3 +707,124 @@ def api_reply_to_thread(request, thread_id):
     else:
         error_dict = {field: error[0] for field, error in form.errors.items()}
         return JsonResponse({'success': False, 'error': 'Validation failed', 'errors': error_dict}, status=400)
+    
+def api_thread_posts(request, thread_id):
+    try:
+        thread = get_object_or_404(Thread, pk=thread_id)
+        
+        all_posts = thread.posts.filter(is_deleted=False).select_related('author').order_by('created_at')
+
+        reply_counts_query = Post.objects.filter(thread=thread, parent__isnull=False, is_deleted=False)\
+                               .values('parent_id').annotate(count=Count('id'))
+        reply_count_map = {item['parent_id']: item['count'] for item in reply_counts_query}
+
+        parent_map = {p.id: p.parent_id for p in all_posts}
+
+        posts_data = []
+
+        for post in all_posts:
+            depth = 0
+            current_parent_id = parent_map.get(post.id)
+            
+            while current_parent_id is not None:
+                depth += 1
+                current_parent_id = parent_map.get(current_parent_id)
+                if depth > 50: break 
+
+            posts_data.append({
+                "id": post.pk,
+                "author_username": post.author.username,
+                "body": post.body,
+                "created_at": timezone.localtime(post.created_at).strftime('%d %b %Y, %H:%M'),
+                "image_url": post.image, 
+                
+                "parent_id": post.parent_id, 
+                
+                "is_thread_author": post.author == thread.author,
+                "reply_count": reply_count_map.get(post.pk, 0),
+                "is_edited": post.is_edited,
+                "can_edit": can_edit_post(request.user, post),
+                "can_delete": can_delete_post(request.user, post),
+                
+                "depth": depth, 
+            })
+
+        return JsonResponse({'posts': posts_data})
+
+    except Exception as e:
+        print(f"Error in api_thread_posts: {e}")
+        return JsonResponse({'error': 'Terjadi kesalahan pada server.'}, status=500)
+    
+@csrf_exempt
+def api_edit_post(request, post_id):
+    if request.method != 'POST':
+        return JsonResponse({'success': False, 'error': 'Invalid request method.'}, status=405)
+
+    if not request.user.is_authenticated:
+        return JsonResponse({'success': False, 'error': 'Authentication required.'}, status=401)
+
+    post = get_object_or_404(Post, pk=post_id)
+
+    if not can_edit_post(request.user, post):
+        return JsonResponse({'success': False, 'error': 'Permission denied.'}, status=403)
+
+    form = PostEditForm(request.POST, instance=post)
+    
+    if form.is_valid():
+        remove_image = request.POST.get('remove_image') == 'on'
+        post_instance = form.save(commit=False)
+        
+        if remove_image:
+            post_instance.image = None
+            
+        post_instance.save()
+        form.save_m2m() 
+
+        return JsonResponse({'success': True, 'message': 'Post updated successfully'})
+    else:
+        error_dict = {field: error[0] for field, error in form.errors.items()}
+        return JsonResponse({'success': False, 'error': 'Validation failed', 'errors': error_dict}, status=400)
+
+@csrf_exempt
+def api_delete_post(request, post_id):
+    if request.method != 'POST':
+        return JsonResponse({'success': False, 'error': 'Invalid request method.'}, status=405)
+    if not request.user.is_authenticated:
+        return JsonResponse({'success': False, 'error': 'Authentication required.'}, status=401)
+    post = get_object_or_404(Post, pk=post_id)
+    if not can_delete_post(request.user, post):
+        return JsonResponse({'success': False, 'error': 'Permission denied.'}, status=403)
+    def soft_delete_children_recursive(parent_post):
+        children = parent_post.replies.filter(is_deleted=False) 
+        
+        for child in children:
+            soft_delete_children_recursive(child)
+            
+            child.is_deleted = True
+            child.save()
+    soft_delete_children_recursive(post)
+    post.is_deleted = True
+    post.save()
+    return JsonResponse({'success': True, 'message': 'Post deleted successfully'})
+
+
+@csrf_exempt
+def api_delete_thread(request, thread_id):
+    if request.method != 'POST':
+        return JsonResponse({'success': False, 'error': 'Invalid request method.'}, status=405)
+
+    if not request.user.is_authenticated:
+        return JsonResponse({'success': False, 'error': 'Authentication required.'}, status=401)
+
+    thread = get_object_or_404(Thread, pk=thread_id)
+
+    if not can_delete_thread(request.user, thread):
+        return JsonResponse({'success': False, 'error': 'Permission denied.'}, status=403)
+    thread.is_deleted = True
+    thread.save()
+    posts_to_delete = thread.posts.filter(is_deleted=False)
+    
+    for post in posts_to_delete:
+        post.is_deleted = True
+        post.save()
+    return JsonResponse({'success': True, 'message': 'Thread and all posts deleted successfully'})
